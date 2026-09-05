@@ -27,12 +27,7 @@ import {
   Check,
 } from "lucide-react";
 
-/* ---------------------------------------------------------------
-   Wonder Book — design tokens
-   Deep storybook purple + warm gold "spark" accent. Rounded,
-   friendly type. One moment of motion: the panel sliding into
-   the 70/30 split when a section opens.
-----------------------------------------------------------------*/
+
 const tokens = {
   ink: "#241B3A",
   inkSoft: "#5B5372",
@@ -292,10 +287,10 @@ function AccountPrivacyPanel() {
       <Row icon={Smartphone} title="Two-factor authentication" description="Add an extra layer of security" control={<Toggle checked={twoFA} onChange={setTwoFA} />} />
       <Divider />
       <LinkRow icon={History} title="Login activity" description="See recent sign-ins to your account" />
-      <Divider />
+      {/* <Divider />
       <LinkRow icon={Download} title="Download my data" description="Get a copy of everything you've stored" />
       <Divider />
-      <Row icon={History} title="Data retention" description="How long we keep your stories" control={<Select value="Keep forever" options={["30 days", "1 year", "Keep forever"]} />} />
+      <Row icon={History} title="Data retention" description="How long we keep your stories" control={<Select value="Keep forever" options={["30 days", "1 year", "Keep forever"]} />} /> */}
       <Divider />
       <LinkRow icon={Trash2} title="Delete account" description="Permanently remove your account and data" danger />
     </div>
@@ -320,7 +315,6 @@ function HelpAboutPanel() {
 
 const CATEGORIES = [
   { id: "profile", icon: User, title: "Profile", description: "Your name, photo and language", Panel: ProfilePanel },
-  { id: "story", icon: BookOpen, title: "Story preferences", description: "How your Wonder stories are created", Panel: StoryPreferencesPanel },
   { id: "notifications", icon: Bell, title: "Notifications", description: "Choose what you hear about", Panel: NotificationsPanel },
   { id: "account", icon: Lock, title: "Account & privacy", description: "Security and data settings", Panel: AccountPrivacyPanel },
   { id: "help", icon: HelpCircle, title: "Help & about", description: "App info and support", Panel: HelpAboutPanel },

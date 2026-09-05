@@ -204,11 +204,10 @@ const BookCover = ({
         {/* Book title */}
         <div className="absolute inset-x-2 top-3 text-center">
           <p
-            className={`font-semibold leading-tight text-[#f7b94e] drop-shadow ${
-              size === "large"
+            className={`font-semibold leading-tight text-[#f7b94e] drop-shadow ${size === "large"
                 ? "text-[16px]"
                 : "text-[10px]"
-            }`}
+              }`}
           >
             {book?.title}
           </p>
@@ -233,10 +232,9 @@ export const OrderListItem = ({
       onClick={onClick}
       className={`
         relative w-full rounded-[15px] border text-left transition-all
-        ${
-          selected
-            ? "border-[#8066d7] bg-white shadow-[0_8px_25px_rgba(91,67,177,0.12)]"
-            : "border-[#ebe9f3] bg-white hover:border-[#cfc5ef] hover:shadow-md"
+        ${selected
+          ? "border-[#8066d7] bg-white shadow-[0_8px_25px_rgba(91,67,177,0.12)]"
+          : "border-[#ebe9f3] bg-white hover:border-[#cfc5ef] hover:shadow-md"
         }
       `}
     >
@@ -259,93 +257,7 @@ export const OrderListItem = ({
             <span className="mx-2">•</span>
             {order.time}
           </p>
-
           {/* Progress */}
-          <div className="mt-5">
-            {order.status === "Cancelled" ? (
-              <div className="flex items-center gap-2">
-                {steps.map((step, index) => (
-                  <div
-                    key={step.key}
-                    className="flex flex-1 items-center"
-                  >
-                    <div className="flex flex-col items-center">
-                      <div className="flex h-[19px] w-[19px] items-center justify-center rounded-full border border-[#c9c8d4] bg-white">
-                        <span className="text-[9px] text-[#9c9bab]">
-                          {index + 1}
-                        </span>
-                      </div>
-                    </div>
-
-                    {index < steps.length - 1 && (
-                      <div className="mx-1 h-[1px] flex-1 bg-[#dddce6]" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center">
-                  {steps.map((step, index) => {
-                    const Icon = step.icon;
-                    const completed =
-                      index <= order.statusStep;
-
-                    const active =
-                      index === order.statusStep;
-
-                    return (
-                      <React.Fragment key={step.key}>
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`
-                              flex h-[19px] w-[19px]
-                              items-center justify-center rounded-full
-                              ${
-                                completed
-                                  ? "bg-[#5c45bd] text-white"
-                                  : "border border-[#cbc9d8] bg-white text-[#a8a6b5]"
-                              }
-                            `}
-                          >
-                            {completed ? (
-                              <Check size={11} strokeWidth={3} />
-                            ) : (
-                              <Icon size={10} />
-                            )}
-                          </div>
-                        </div>
-
-                        {index < steps.length - 1 && (
-                          <div
-                            className={`
-                              mx-1 h-[1px] flex-1
-                              ${
-                                index < order.statusStep
-                                  ? "bg-[#8d79df]"
-                                  : "bg-[#dddce6]"
-                              }
-                            `}
-                          />
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-2 flex justify-between px-[-2px]">
-                  {steps.map((step) => (
-                    <span
-                      key={step.key}
-                      className="w-1/4 text-center text-[10px] font-medium text-[#676a85]"
-                    >
-                      {step.label}
-                    </span>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
         </div>
 
         {/* Right */}
@@ -464,15 +376,13 @@ export const OrderDetails = ({
                         className={`
                           flex h-8 w-8 items-center justify-center
                           rounded-full border transition
-                          ${
-                            completed
-                              ? "border-[#6849c8] bg-[#6747c6] text-white"
-                              : "border-[#cfceda] bg-white text-[#aaa9b8]"
+                          ${completed
+                            ? "border-[#6849c8] bg-[#6747c6] text-white"
+                            : "border-[#cfceda] bg-white text-[#aaa9b8]"
                           }
-                          ${
-                            active
-                              ? "ring-4 ring-[#eee9ff]"
-                              : ""
+                          ${active
+                            ? "ring-4 ring-[#eee9ff]"
+                            : ""
                           }
                         `}
                       >
@@ -488,10 +398,9 @@ export const OrderDetails = ({
                       <div
                         className={`
                           h-[2px] flex-1
-                          ${
-                            index < currentStep
-                              ? "bg-[#9d8be2]"
-                              : "bg-[#dedde7]"
+                          ${index < currentStep
+                            ? "bg-[#9d8be2]"
+                            : "bg-[#dedde7]"
                           }
                         `}
                       />
@@ -510,10 +419,9 @@ export const OrderDetails = ({
                   <p
                     className={`
                       text-[11px] font-semibold
-                      ${
-                        index === currentStep
-                          ? "text-[#563eb5]"
-                          : "text-[#666b86]"
+                      ${index === currentStep
+                        ? "text-[#563eb5]"
+                        : "text-[#666b86]"
                       }
                     `}
                   >
@@ -524,8 +432,8 @@ export const OrderDetails = ({
                     {index === 0
                       ? "May 28"
                       : index === 1 && currentStep >= 1
-                      ? "May 29"
-                      : "—"}
+                        ? "May 29"
+                        : "—"}
                   </p>
                 </div>
               ))}
@@ -767,9 +675,7 @@ const DetailRow = ({
 
 export const Orders = () => {
   const [activeTab, setActiveTab] = useState("All Orders");
-  const [selectedOrder, setSelectedOrder] = useState(
-    orders[0]
-  );
+  const [selectedOrder, setSelectedOrder] = useState(null);
   const [search, setSearch] = useState("");
 
   const tabs = [
@@ -821,6 +727,8 @@ export const Orders = () => {
     });
   }, [activeTab, search]);
 
+  const hasSelection = Boolean(selectedOrder);
+
   return (
     <div className="min-h-screen bg-[#faf9fd] p-4 lg:p-5">
 
@@ -830,8 +738,7 @@ export const Orders = () => {
         {/* HEADER */}
         {/* ============================================================ */}
 
-        <header className="flex flex-col gap-5 border-b border-[#ebe9f0] px-7 py-5 lg:flex-row lg:items-center lg:justify-between">
-
+        <header className="flex flex-col gap-5 border-[#ebe9f0] px-7 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-[58px] w-[58px] items-center justify-center rounded-[18px] bg-gradient-to-br from-[#f1effb] to-[#e7e3f8] text-[#513cb0]">
               <ShoppingBag size={26} strokeWidth={1.8} />
@@ -848,51 +755,27 @@ export const Orders = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-5">
-            <button className="relative text-[#40357d]">
-              <Bell size={22} strokeWidth={1.8} />
 
-              <span className="absolute -right-2 -top-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#df4547] px-1 text-[9px] font-bold text-white">
-                3
-              </span>
-            </button>
-
-            <div className="h-10 w-[1px] bg-[#e5e2eb]" />
-
-            <div className="flex items-center gap-3">
-              <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full border border-[#d4e5dc] bg-[#dff0e5] text-[16px] font-semibold text-[#39725d] shadow-sm">
-                A
-              </div>
-
-              <div>
-                <p className="text-[13px] font-bold text-[#3b4161]">
-                  Arav
-                </p>
-
-                <p className="text-[10px] text-[#80849a]">
-                  Parent
-                </p>
-              </div>
-
-              <ChevronRight
-                size={16}
-                className="rotate-90 text-[#6b6d89]"
-              />
-            </div>
-          </div>
         </header>
 
         {/* ============================================================ */}
         {/* CONTENT */}
         {/* ============================================================ */}
 
-        <div className="grid min-h-[850px] grid-cols-1 lg:grid-cols-[50%_50%]">
+        <div
+          className={`grid min-h-[850px] grid-cols-1 ${hasSelection ? "lg:grid-cols-[50%_50%]" : ""
+            }`}
+        >
 
           {/* ======================================================== */}
           {/* LEFT - ORDER LIST */}
           {/* ======================================================== */}
 
-          <section className="border-r border-[#efedf3]">
+          <section
+            className={
+              hasSelection ? "border-r border-[#efedf3]" : ""
+            }
+          >
 
             {/* Tabs + search */}
 
@@ -908,28 +791,15 @@ export const Orders = () => {
                     className={`
                       relative flex shrink-0 items-center gap-2 pb-4
                       text-[12px] font-semibold transition
-                      ${
-                        activeTab === tab.label
-                          ? "text-[#4333a2]"
-                          : "text-[#565d7c]"
+                      ${activeTab === tab.label
+                        ? "text-[#4333a2]"
+                        : "text-[#565d7c]"
                       }
                     `}
                   >
                     {tab.label}
 
-                    <span
-                      className={`
-                        flex h-[21px] min-w-[21px] items-center justify-center
-                        rounded-full px-1 text-[10px]
-                        ${
-                          activeTab === tab.label
-                            ? "bg-[#e8e1ff] text-[#563cc0]"
-                            : "bg-[#f0eff4] text-[#83869a]"
-                        }
-                      `}
-                    >
-                      {tab.count}
-                    </span>
+
 
                     {activeTab === tab.label && (
                       <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#654bc7]" />
@@ -958,15 +828,17 @@ export const Orders = () => {
                 />
               </div>
 
-              <button className="flex h-[43px] items-center gap-2 rounded-[10px] border border-[#dedbe7] bg-white px-5 text-[12px] font-semibold text-[#46399d] transition hover:bg-[#faf8ff]">
-                <Filter size={16} />
-                Filter
-              </button>
+
             </div>
 
             {/* Orders */}
 
-            <div className="space-y-3 px-7 pb-5">
+            <div
+              className={`grid gap-3 px-7 pb-5 ${hasSelection
+                  ? "grid-cols-1"
+                  : "grid-cols-1 lg:grid-cols-2"
+                }`}
+            >
               {filteredOrders.length > 0 ? (
                 filteredOrders.map((order) => (
                   <OrderListItem
@@ -982,7 +854,7 @@ export const Orders = () => {
                   />
                 ))
               ) : (
-                <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
+                <div className="col-span-full flex min-h-[300px] flex-col items-center justify-center text-center">
                   <Package
                     size={40}
                     className="text-[#b4afc8]"
@@ -1038,30 +910,16 @@ export const Orders = () => {
           {/* RIGHT - ORDER DETAILS */}
           {/* ======================================================== */}
 
-          <section className="min-h-full bg-[#fcfbfe] p-3">
-            {selectedOrder ? (
+          {hasSelection && (
+            <section className="min-h-full bg-[#fcfbfe] p-3">
               <OrderDetails
                 order={selectedOrder}
                 onClose={() =>
                   setSelectedOrder(null)
                 }
               />
-            ) : (
-              <div className="flex h-full min-h-[600px] flex-col items-center justify-center text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f0edfa] text-[#6752bf]">
-                  <Package size={28} />
-                </div>
-
-                <h3 className="mt-5 text-[17px] font-bold text-[#353a5b]">
-                  Select an order
-                </h3>
-
-                <p className="mt-2 max-w-[240px] text-[12px] leading-relaxed text-[#7a7f97]">
-                  Choose an order from the list to view its complete details and delivery progress.
-                </p>
-              </div>
-            )}
-          </section>
+            </section>
+          )}
         </div>
       </main>
     </div>
