@@ -213,3 +213,111 @@ body {
     opacity: 0;
   }
 }
+/* ================================
+   Wonder Book Page Animation
+   ================================ */
+
+@keyframes realPageFlip {
+  0% {
+    transform: perspective(900px) rotateY(0deg) rotateZ(0deg);
+    filter: brightness(1);
+  }
+
+  12% {
+    transform: perspective(900px) rotateY(0deg) rotateZ(0deg);
+  }
+
+  35% {
+    transform: perspective(900px) rotateY(-75deg) rotateZ(-2deg);
+    filter: brightness(1.03);
+  }
+
+  50% {
+    transform: perspective(900px) rotateY(-145deg) rotateZ(-3deg);
+    filter: brightness(1.08);
+  }
+
+  62% {
+    transform: perspective(900px) rotateY(-180deg) rotateZ(-4deg);
+    filter: brightness(1.12);
+  }
+
+  75% {
+    transform: perspective(900px) rotateY(-180deg) rotateZ(-4deg);
+    opacity: 0;
+  }
+
+  100% {
+    transform: perspective(900px) rotateY(-180deg) rotateZ(-4deg);
+    opacity: 0;
+  }
+}
+
+@keyframes sparkleOne {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.7);
+  }
+
+  45% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1);
+  }
+
+  75% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.8);
+  }
+}
+
+@keyframes sparkleTwo {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(5px) scale(0.7);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1.1);
+  }
+
+  80% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.8);
+  }
+}
+
+@keyframes sparkleThree {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: rotate(0deg) scale(0.7);
+  }
+
+  50% {
+    opacity: 1;
+    transform: rotate(18deg) scale(1.15);
+  }
+}
+
+/* Page */
+.animate-real-page-flip {
+  animation: realPageFlip 4.8s ease-in-out infinite;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+/* Sparkles */
+.animate-sparkle-one {
+  animation: sparkleOne 3.5s ease-in-out infinite;
+}
+
+.animate-sparkle-two {
+  animation: sparkleTwo 4s ease-in-out 1s infinite;
+}
+
+.animate-sparkle-three {
+  animation: sparkleThree 3s ease-in-out 0.5s infinite;
+}

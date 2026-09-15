@@ -232,12 +232,12 @@ export const Templates = () => {
                   />
 
                   {/* DARK COVER OVERLAY */}
-                  <div
+                  {/* <div
                     className="absolute inset-0 z-[2]"
                     style={{
                       background: theme.gradient,
                     }}
-                  />
+                  /> */}
 
                   {/* ================= TOP SECTION ================= */}
 
@@ -273,7 +273,6 @@ export const Templates = () => {
       `,
                       }}
                     >
-                      {/* Glass reflection */}
                       <div
                         className="
         pointer-events-none
@@ -289,7 +288,6 @@ export const Templates = () => {
                         }}
                       />
 
-                      {/* Color dot */}
                       <span
                         className="
         relative z-10
@@ -301,7 +299,6 @@ export const Templates = () => {
       "
                       />
 
-                      {/* Category name */}
                       <span className="relative z-10 whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]">
                         {template.category}
                       </span>

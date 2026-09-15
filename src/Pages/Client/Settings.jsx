@@ -22,11 +22,9 @@ import {
   Trash2,
   FileText,
   Info,
-  Moon,
-  ClipboardCheck,
   Check,
 } from "lucide-react";
-
+import ReactSelect from "react-select";
 
 const tokens = {
   ink: "#241B3A",
@@ -96,16 +94,53 @@ function Row({ icon: Icon, title, description, control }) {
 }
 
 function Select({ value, options }) {
+  const formattedOptions = options.map((option) => ({
+    value: option,
+    label: option,
+  }));
+
   return (
-    <select
-      defaultValue={value}
-      className="rounded-lg border bg-white px-3 py-2 text-sm outline-none"
-      style={{ borderColor: tokens.line, color: tokens.ink, minWidth: 150 }}
-    >
-      {options.map((o) => (
-        <option key={o}>{o}</option>
-      ))}
-    </select>
+    <ReactSelect
+      value={{ value, label: value }}
+      options={formattedOptions}
+      className="text-sm"
+      styles={{
+        control: (base, state) => ({
+          ...base,
+          minWidth: 150,
+          minHeight: 40,
+          borderRadius: 8,
+          borderColor: state.isFocused ? tokens.primary : tokens.line,
+          boxShadow: state.isFocused
+            ? `0 0 0 1px ${tokens.primary}`
+            : "none",
+          backgroundColor: "#fff",
+          "&:hover": {
+            borderColor: tokens.primary,
+          },
+        }),
+        singleValue: (base) => ({
+          ...base,
+          color: tokens.ink,
+        }),
+        option: (base, state) => ({
+          ...base,
+          color: tokens.ink,
+          backgroundColor: state.isSelected
+            ? tokens.primary
+            : state.isFocused
+              ? "#f6f3ff"
+              : "#fff",
+          cursor: "pointer",
+        }),
+        menu: (base) => ({
+          ...base,
+          borderRadius: 8,
+          overflow: "hidden",
+          zIndex: 50,
+        }),
+      }}
+    />
   );
 }
 
@@ -204,60 +239,6 @@ function ProfilePanel() {
   );
 }
 
-function StoryPreferencesPanel() {
-  const [style, setStyle] = useState("adventure");
-  const [moral, setMoral] = useState(true);
-  const [personalized, setPersonalized] = useState(true);
-  return (
-    <div>
-      <Row icon={Clock} title="Default story length" description="Preferred length for new stories" control={<Select value="Medium (24 pages)" options={["Short (12 pages)", "Medium (24 pages)", "Long (36 pages)"]} />} />
-      <Divider />
-      <Row icon={Globe} title="Preferred language" description="Language your stories are written in" control={<Select value="English" options={["English", "Hindi", "Telugu"]} />} />
-      <Divider />
-      <Row icon={BarChart3} title="Reading level" description="Complexity of vocabulary and sentences" control={<Select value="Intermediate" options={["Beginner", "Intermediate", "Advanced"]} />} />
-      <Divider />
-      <div className="py-4">
-        <div className="mb-3 flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ backgroundColor: tokens.purpleTint, color: tokens.purple }}>
-            <Palette size={17} />
-          </div>
-          <div>
-            <p className="text-sm font-semibold" style={{ color: tokens.ink }}>Favourite illustration style</p>
-            <p className="text-sm" style={{ color: tokens.inkSoft }}>Sets the look of new books by default</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-3 pl-12">
-          {illustrationStyles.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setStyle(s.id)}
-              className="flex flex-col items-center gap-1.5"
-            >
-              <span
-                className="relative flex h-14 w-14 items-center justify-center rounded-2xl"
-                style={{
-                  background: s.swatch,
-                  boxShadow: style === s.id ? `0 0 0 2px ${tokens.purple}` : "none",
-                }}
-              >
-                {style === s.id && (
-                  <span
-                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-white"
-                    style={{ backgroundColor: tokens.purple }}
-                  >
-                    <Check size={12} />
-                  </span>
-                )}
-              </span>
-              <span className="text-xs font-medium" style={{ color: tokens.inkSoft }}>{s.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <SaveBar />
-    </div>
-  );
-}
 
 function NotificationsPanel() {
   const [email, setEmail] = useState(true);
@@ -270,8 +251,8 @@ function NotificationsPanel() {
       <Divider />
       <Row icon={BookOpen} title="New book alerts" description="Get notified when a book finishes" control={<Toggle checked={alerts} onChange={setAlerts} />} />
       <Divider />
-     
-      <Row icon={Sparkles} title="Promotions" description="Special offers on premium plans" control={<Toggle checked={promos} onChange={setPromos} />} />
+
+      <Row icon={Sparkles} title="Push Notifications" description="Special offers on premium plans" control={<Toggle checked={promos} onChange={setPromos} />} />
     </div>
   );
 }
@@ -279,12 +260,11 @@ function NotificationsPanel() {
 
 
 function AccountPrivacyPanel() {
-  const [twoFA, setTwoFA] = useState(false);
   return (
     <div>
       <LinkRow icon={KeyRound} title="Change password" description="Update your account password" />
       <Divider />
-      <Row icon={Smartphone} title="Two-factor authentication" description="Add an extra layer of security" control={<Toggle checked={twoFA} onChange={setTwoFA} />} />
+      {/* <Row icon={Smartphone} title="Two-factor authentication" description="Add an extra layer of security" control={<Toggle checked={twoFA} onChange={setTwoFA} />} /> */}
       <Divider />
       <LinkRow icon={History} title="Login activity" description="See recent sign-ins to your account" />
       {/* <Divider />
@@ -302,13 +282,13 @@ function HelpAboutPanel() {
     <div>
       <Row icon={Info} title="Version" description="1.0.0" control={null} />
       <Divider />
-      <Row icon={Clock} title="Last updated" description="May 28, 2025" control={null} />
-      <Divider />
+      {/* <Row icon={Clock} title="Last updated" description="May 28, 2025" control={null} />
+      <Divider /> */}
       <LinkRow icon={FileText} title="Terms of service" description="Read our terms and conditions" />
       <Divider />
       <LinkRow icon={Lock} title="Privacy policy" description="Read our privacy policy" />
-      <Divider />
-      <LinkRow icon={HelpCircle} title="Help & support" description="Get help or contact our team" />
+      {/* <Divider /> */}
+      {/* <LinkRow icon={HelpCircle} title="Help & support" description="Get help or contact our team" /> */}
     </div>
   );
 }
@@ -331,79 +311,79 @@ export const Settings = () => {
   return (
     <div className="max-h-[100%] w-full " style={{ backgroundColor: "transparent" }} >
       <div className="wb-font-body px-4">
-        
+
         {/* Title */}
-       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-extrabold tracking-tight text-[#05021b] sm:text-3xl">
               Settings
             </h2>
             <p className="mt-1.5 text-sm text-[#8f8ba3]">
-             {active.description}
+              {active.description}
             </p>
           </div>
-          </div>
+        </div>
 
 
         {/* -------- Always-on: list / panel split -------- */}
         <div className="h-[70%]  flex flex-row gap-8  w-[100%]">
-            <div className="rounded-2xl  p-1 border-2 w-[30%]" style={{ backgroundColor: tokens.card, borderColor: tokens.line }}>
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveId(cat.id)}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors"
+          <div className="rounded-2xl  p-1 border-2 w-[30%]" style={{ backgroundColor: tokens.card, borderColor: tokens.line }}>
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveId(cat.id)}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors"
+                style={{
+                  backgroundColor: cat.id === activeId ? tokens.purpleTint : "transparent",
+                }}
+              >
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
                   style={{
-                    backgroundColor: cat.id === activeId ? tokens.purpleTint : "transparent",
+                    backgroundColor: cat.id === activeId ? tokens.purple : tokens.purpleTint,
+                    color: cat.id === activeId ? "#fff" : tokens.purple,
                   }}
                 >
-                  <div
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-                    style={{
-                      backgroundColor: cat.id === activeId ? tokens.purple : tokens.purpleTint,
-                      color: cat.id === activeId ? "#fff" : tokens.purple,
-                    }}
-                  >
-                    <cat.icon size={15} />
-                  </div>
-                  <span
-                    className="text-sm font-medium"
-                    style={{ color: cat.id === activeId ? tokens.purpleDeep : tokens.ink }}
-                  >
-                    {cat.title}
-                  </span>
-                </button>
-              ))}
-              <img src="https://res.cloudinary.com/djdct0pxu/image/upload/v1788325763/ChatGPT_Image_Sep_2_2026_10_38_58_AM_hl3v06.png" alt="Wonder Book" className="mt-6 w-full rounded-lg" />  
-            </div>
-
-            <div className="rounded-2xl border p-6 w-[70%]" style={{ backgroundColor: tokens.card, borderColor: tokens.line }}>
-              <div className="mb-4 flex items-center gap-3">
-                <button
-                  onClick={() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border lg:hidden"
-                  style={{ borderColor: tokens.line, color: tokens.inkSoft }}
-                  aria-label="Back to settings list"
-                >
-                  <ArrowLeft size={16} />
-                </button>
-                <div className="flex items-center gap-2">
-                  <div
-                    className="flex h-8 w-8 items-center justify-center rounded-lg"
-                    style={{ backgroundColor: tokens.purpleTint, color: tokens.purple }}
-                  >
-                    <active.icon size={16} />
-                  </div>
-                  <p className="wb-font-display text-lg font-semibold" style={{ color: tokens.purpleDeep }}>
-                    {active.title}
-                  </p>
+                  <cat.icon size={15} />
                 </div>
-              </div>
-              <Divider />
-              <div className="pt-2">
-                <active.Panel />
+                <span
+                  className="text-sm font-medium"
+                  style={{ color: cat.id === activeId ? tokens.purpleDeep : tokens.ink }}
+                >
+                  {cat.title}
+                </span>
+              </button>
+            ))}
+            <img src="https://res.cloudinary.com/djdct0pxu/image/upload/v1788325763/ChatGPT_Image_Sep_2_2026_10_38_58_AM_hl3v06.png" alt="Wonder Book" className="mt-6 w-full rounded-lg" />
+          </div>
+
+          <div className="rounded-2xl border p-6 w-[70%]" style={{ backgroundColor: tokens.card, borderColor: tokens.line }}>
+            <div className="mb-4 flex items-center gap-3">
+              <button
+                onClick={() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border lg:hidden"
+                style={{ borderColor: tokens.line, color: tokens.inkSoft }}
+                aria-label="Back to settings list"
+              >
+                <ArrowLeft size={16} />
+              </button>
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-lg"
+                  style={{ backgroundColor: tokens.purpleTint, color: tokens.purple }}
+                >
+                  <active.icon size={16} />
+                </div>
+                <p className="wb-font-display text-lg font-semibold" style={{ color: tokens.purpleDeep }}>
+                  {active.title}
+                </p>
               </div>
             </div>
+            <Divider />
+            <div className="pt-2">
+              <active.Panel />
+            </div>
+          </div>
         </div>
       </div>
     </div>
