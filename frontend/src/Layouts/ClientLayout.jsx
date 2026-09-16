@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import {
     Home,
@@ -9,12 +9,22 @@ import {
     Settings,
     Users,
     CreditCard,
-    BarChart2,
+    // BarChart2,
+    LogOut,
 } from "lucide-react";
 
 import { Header } from "../Components/header";
+import { useAuth } from "../context/AuthContext";
 
 export function Layout({ header = true, superadmin = false }) {
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate("/auth", { replace: true });
+    };
+
     const menuItems = [
         { name: "Home", path: "/home", icon: Home },
         { name: "My Books", path: "/books", icon: BookOpen },
@@ -41,7 +51,7 @@ export function Layout({ header = true, superadmin = false }) {
         <div className="h-screen overflow-hidden text-[#29204f]">
 
             {/* ================= SIDEBAR ================= */}
-            <aside className="fixed left-0 top-0 z-40 flex h-screen w-[230px] flex-col border-r border-[#eeeafa] bg-white px-4 py-7">
+            <aside className="fixed left-0 top-0 z-40 flex h-screen w-57.5 flex-col border-r border-[#eeeafa] bg-white px-4 py-7">
 
     {/* Logo */}
     <div className="mb-8 flex items-center gap-2.5 px-3">
@@ -93,19 +103,29 @@ export function Layout({ header = true, superadmin = false }) {
             })}
         </div>
 
+        {/* Logout */}
+        <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-2 flex h-11 items-center gap-3 rounded-[10px] px-3.5 text-sm font-semibold text-[#70698a] transition-all duration-200 hover:bg-[#fdeeee] hover:text-[#e94b4b]"
+        >
+            <LogOut size={18} strokeWidth={2} />
+            <span>Log out</span>
+        </button>
+
         {/* Animated Wonder Book */}
        {/* Animated Wonder Book */}
 <div className="mt-auto flex justify-center pt-6">
-    <div className="relative h-[155px] w-full">
+    <div className="relative h-38.75 w-full">
 
         {/* Soft book shadow */}
         <div
             className="
                 absolute
-                bottom-[8px]
+                bottom-2
                 left-1/2
-                h-[18px]
-                w-[185px]
+                h-4.5
+                w-46.25
                 -translate-x-1/2
                 rounded-full
                 bg-[#5426c7]/15
@@ -122,7 +142,7 @@ export function Layout({ header = true, superadmin = false }) {
                 bottom-0
                 left-1/2
                 z-10
-                h-[145px]
+                h-36.25
                 w-full
                 -translate-x-1/2
                 select-none
@@ -135,11 +155,11 @@ export function Layout({ header = true, superadmin = false }) {
             className="
                 pointer-events-none
                 absolute
-                bottom-[19px]
+                bottom-4.75
                 left-1/2
                 z-20
-                h-[67px]
-                w-[91px]
+                h-16.75
+                w-22.75
                 origin-left
                 animate-real-page-flip
             "
@@ -164,12 +184,12 @@ export function Layout({ header = true, superadmin = false }) {
                 }}
             >
                 {/* Page lines */}
-                <div className="absolute inset-[7px] opacity-40">
-                    <div className="mb-[5px] h-[1px] w-[78%] bg-[#c9b9df]" />
-                    <div className="mb-[5px] h-[1px] w-[88%] bg-[#c9b9df]" />
-                    <div className="mb-[5px] h-[1px] w-[70%] bg-[#c9b9df]" />
-                    <div className="mb-[5px] h-[1px] w-[82%] bg-[#c9b9df]" />
-                    <div className="h-[1px] w-[60%] bg-[#c9b9df]" />
+                <div className="absolute inset-1.75 opacity-40">
+                    <div className="mb-1.25 h-px w-[78%] bg-[#c9b9df]" />
+                    <div className="mb-1.25 h-px w-[88%] bg-[#c9b9df]" />
+                    <div className="mb-1.25 h-px w-[70%] bg-[#c9b9df]" />
+                    <div className="mb-1.25 h-px w-[82%] bg-[#c9b9df]" />
+                    <div className="h-px w-[60%] bg-[#c9b9df]" />
                 </div>
 
                 {/* Page highlight */}
@@ -179,8 +199,8 @@ export function Layout({ header = true, superadmin = false }) {
                         right-0
                         top-0
                         h-full
-                        w-[18px]
-                        bg-gradient-to-l
+                        w-4.5
+                        bg-linear-to-l
                         from-white/70
                         to-transparent
                     "
@@ -192,11 +212,11 @@ export function Layout({ header = true, superadmin = false }) {
         <div
             className="
                 absolute
-                bottom-[18px]
+                bottom-4.5
                 left-1/2
                 z-30
-                h-[58px]
-                w-[3px]
+                h-14.5
+                w-0.75
                 -translate-x-1/2
                 rounded-full
                 bg-[#d6c0ef]/70
@@ -208,8 +228,8 @@ export function Layout({ header = true, superadmin = false }) {
         <span
             className="
                 absolute
-                left-[30px]
-                top-[38px]
+                left-7.5
+                top-9.5
                 z-30
                 animate-sparkle-one
                 text-[14px]
@@ -221,8 +241,8 @@ export function Layout({ header = true, superadmin = false }) {
         <span
             className="
                 absolute
-                right-[29px]
-                top-[42px]
+                right-7.25
+                top-10.5
                 z-30
                 animate-sparkle-two
                 text-[12px]
@@ -234,8 +254,8 @@ export function Layout({ header = true, superadmin = false }) {
         <span
             className="
                 absolute
-                left-[54px]
-                top-[20px]
+                left-13.5
+                top-5
                 z-30
                 animate-sparkle-three
                 text-[11px]
@@ -371,12 +391,15 @@ export function Layout({ header = true, superadmin = false }) {
 
 
             {/* ================= MAIN AREA ================= */}
-            <div className="ml-[230px] flex h-screen flex-col overflow-hidden">
+            <div className="ml-57.5 flex h-screen flex-col overflow-hidden">
 
                 {/* Fixed Header */}
                 {header && (
                     <div className="z-30 flex-none bg-white">
-                        <Header superadmin={superadmin} />
+                        <Header
+                            superadmin={superadmin}
+                            userName={user?.name || user?.email?.split("@")[0] || "there"}
+                        />
                     </div>
                 )}
 

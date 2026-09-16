@@ -1,5 +1,7 @@
-import {createBrowserRouter} from 'react-router-dom'
+import {createBrowserRouter, Navigate} from 'react-router-dom'
 import { Layout } from './Layouts/ClientLayout'
+import { Auth } from './Pages/Auth/Auth'
+import { ProtectedRoute } from './Components/ProtectedRoute'
 import {Dashboard} from './Pages/Client/Dashboard'
 import {Templates} from './Pages/Client/Templates'
 import { TemplateDetail } from './Components/TemplateDetailView'
@@ -20,76 +22,89 @@ import {SuperAdminSubscriptions} from './Pages/SuperAdmin/Subscription'
 export const Router=createBrowserRouter([
     {
         path:'/',
-        element:<Layout />,
-        children:[
-            {
-                path:"/home",
-                element:<Dashboard />
-            },
-             {
-                path:"/templates",
-                element:<Templates />
-            },
-            {
-                path:"/templates/:id",
-                element:<TemplateDetail />
-            },
-            {
-                path:'/orders',
-                element:<Orders />
-            },
-            {
-                path:'/create',
-                element:<CreateBook />
-            },
-            {
-                path:'/books',
-                element:<Books />
-            },
-            {
-                path:'/settings',
-                element:<Settings />
-            },
-            {
-                path:"/help",
-                element:<Help />
-            },
-        ]
+        element:<Navigate to="/home" replace />
     },
     {
-        path:'/bookcreation',
-        element:<Layout header={false} />,
+        path:'/auth',
+        element:<Auth />
+    },
+    {
+        element:<ProtectedRoute />,
         children:[
+            {
+                path:'/',
+                element:<Layout />,
+                children:[
+                    {
+                        path:"/home",
+                        element:<Dashboard />
+                    },
+                    {
+                        path:"/templates",
+                        element:<Templates />
+                    },
+                    {
+                        path:"/templates/:id",
+                        element:<TemplateDetail />
+                    },
+                    {
+                        path:'/orders',
+                        element:<Orders />
+                    },
+                    {
+                        path:'/create',
+                        element:<CreateBook />
+                    },
+                    {
+                        path:'/books',
+                        element:<Books />
+                    },
+                    {
+                        path:'/settings',
+                        element:<Settings />
+                    },
+                    {
+                        path:"/help",
+                        element:<Help />
+                    },
+                ]
+            },
             {
                 path:'/bookcreation',
-                element:<BookCreation />
-            }
-        ]
-    },
-    {
-        path:'/superadmin',
-        element:<Layout superadmin={true} />,
-        children:[
+                element:<Layout header={false} />,
+                children:[
+                    {
+                        path:'/bookcreation',
+                        element:<BookCreation />
+                    }
+                ]
+            },
             {
                 path:'/superadmin',
-                element:<SuperAdminDashboard />
-            },
-            {
-                path:'/superadmin/users',
-                element:<SuperAdminUsers />
-            },
-            {
-                path:'/superadmin/books',
-                element:<SuperAdminBooks />
-            },
-            {
-                path:'/superadmin/orders',
-                element:<SuperAdminOrders />
-            },
-            {
-                path:'/superadmin/subscriptions',
-                element:<SuperAdminSubscriptions />
-            },
+                element:<Layout superadmin={true} />,
+                children:[
+                    {
+                        path:'/superadmin',
+                        element:<SuperAdminDashboard />
+                    },
+                    {
+                        path:'/superadmin/users',
+                        element:<SuperAdminUsers />
+                    },
+                    {
+                        path:'/superadmin/books',
+                        element:<SuperAdminBooks />
+                    },
+                    {
+                        path:'/superadmin/orders',
+                        element:<SuperAdminOrders />
+                    },
+                    {
+                        path:'/superadmin/subscriptions',
+                        element:<SuperAdminSubscriptions />
+                    },
+                ]
+            }
         ]
     }
 ])
