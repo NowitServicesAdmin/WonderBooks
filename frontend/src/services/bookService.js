@@ -1,13 +1,9 @@
 import api from "../api/axios";
 
-export const createBook = async (message) => {
+export const createBook = async (payload) => {
     try {
-        // console.log("Triggering in create book")
-        const response = await api.post("/book/create-book", {
-            message,
-        });
+        const response = await api.post("/book/create-book", payload);
         return response.data;
-
     } catch (error) {
         console.error(
             "Create book API error:",
@@ -16,7 +12,6 @@ export const createBook = async (message) => {
         throw error;
     }
 };
-
 
 export const TestImage = async () => {
     try {

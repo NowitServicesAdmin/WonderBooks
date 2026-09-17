@@ -2,6 +2,7 @@ import { openai } from "../config/openai.js";
 import { createStoryPrompt } from "../components/storyPrompt.js";
 import { analyzeStory } from "../components/storyAnalyzer.js";
 import { generateImage } from "../components/imageGenerator.js";
+import { generateStory } from "../components/generateStory.js";
 
 // export const createBook = async (req, res) => {
 //     try {
@@ -85,27 +86,68 @@ const generatedStory = {
     ]
 }
 
+const buildStoryDataFromSelections = (selections = {}, characters = []) => {
+    const pick = (key) => selections?.[key]?.label ?? null;
+
+    return {
+        age: pick("age"),
+        theme: pick("theme"),
+        subject: pick("subject"),
+        centralMessage: pick("centralmsg"),
+        imageStyle: pick("imageStyle"),
+        language: pick("language") || "English",
+        font: pick("font") || "Rounded & Playful",
+        characters: (characters || []).map((character) => ({
+            type: character.type,
+            name: character.name,
+            gender: character.gender,
+            age: character.age,
+            hobbies: character.hobbies,
+            favouriteFood: character.favouriteFood,
+            hasPhoto: Boolean(character.photo),
+        })),
+    };
+};
+
 export const createBook = async (req, res) => {
     try {
-        const { message } = req.body;
+        const { mode, message, storySettings, characters } = req.body;
+        let storyData;
 
-        if (!message?.trim()) {
-            return res.status(400).json({
-                success: false,
-                message: "Story idea is required",
-            });
+        if (mode === "manual") {
+            // ---------- MANUAL MODE ----------
+            // Selections already came in structured from the step-by-step UI,
+            // so we skip the Gemini analysis step entirely.
+            if (!storySettings || Object.keys(storySettings).length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Story settings are required for manual mode",
+                });
+            }
+
+            storyData = buildStoryDataFromSelections(storySettings, characters);
+
+            console.log("Manual mode story data built:", storyData);
+        } else {
+            // ---------- AI / CHAT MODE (original behaviour) ----------
+            if (!message?.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Story idea is required",
+                });
+            }
+
+            console.log("Story idea received:", message);
+
+            // STEP 1: Gemini analyzes the user's idea
+            storyData = await analyzeStory(message);
+
+            console.log("Story analysis completed:", storyData);
         }
 
-        console.log("Story idea received:", message);
-
-        // STEP 1: Gemini analyzes the user's idea
-        const storyData = await analyzeStory(message);
-
-        console.log("Story analysis completed:", storyData);
-
-        // STEP 2: OpenAI generates the actual story
+        // STEP 2: OpenAI generates the actual story (shared by both modes)
         const generatedStory = await generateStory(storyData);
-        console.log(generatedStory, "..GeneratedStory")
+        console.log(generatedStory, "..GeneratedStory");
 
         console.log("Story generation completed");
 

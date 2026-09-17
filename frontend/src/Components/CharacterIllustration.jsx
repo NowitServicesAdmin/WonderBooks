@@ -11,7 +11,8 @@ import {
     Info,
     X,
     Sparkles,
-
+    Languages,
+    Type,
 } from "lucide-react";
 import { useState } from "react";
 import { useRef } from "react";
@@ -22,8 +23,14 @@ const CHARACTER_TYPES = [
     { id: "object", label: "Object", icon: Package },
 ];
 
-
-export const CharacterWorkspace = ({ characters, setCharacters }) => {
+export const CharacterWorkspace = ({
+    characters,
+    setCharacters,
+    selections = {},
+    onSelect,
+    languageOptions = [],
+    fontOptions = [],
+}) => {
     const [characterType, setCharacterType] = useState("person");
 
     const [formData, setFormData] = useState({
@@ -1075,6 +1082,176 @@ export const CharacterWorkspace = ({ characters, setCharacters }) => {
                             the character is clearly visible. A full-body
                             image works best for illustrations.
                         </p>
+                    </div>
+                </div>
+
+                {/* =====================================================
+                    LANGUAGE & FONT
+                ===================================================== */}
+
+                <div className="mt-6">
+                    <div className="mb-3 border-t border-dashed border-[#e7e1ed] pt-6">
+                        <h3 className="text-[14px] font-bold text-[#4b4658]">
+                            Story language & lettering
+                        </h3>
+                        <p className="mt-1 text-[11px] text-[#9b95a5]">
+                            These apply to the whole story, not just this character.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-5">
+
+                        {/* LANGUAGE */}
+
+                        <div>
+                            <label
+                                className="
+                                    mb-2
+                                    flex
+                                    items-center
+                                    gap-1.5
+                                    text-[12px]
+                                    font-semibold
+                                    text-[#585261]
+                                "
+                            >
+                                <Languages
+                                    size={14}
+                                    className="text-[#8870c9]"
+                                />
+                                Language
+                            </label>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                {languageOptions.map((option) => {
+                                    const isSelected =
+                                        selections?.language?.id === option.id;
+
+                                    return (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            onClick={() =>
+                                                onSelect?.("language", option)
+                                            }
+                                            className={`
+                                                flex
+                                                h-[48px]
+                                                items-center
+                                                justify-center
+                                                gap-2
+                                                rounded-[14px]
+                                                border
+                                                text-[13px]
+                                                font-semibold
+                                                transition-all
+                                                duration-200
+
+                                                ${isSelected
+                                                    ? `
+                                                        border-[#6947d7]
+                                                        bg-[#f6f2ff]
+                                                        text-[#5e3ccc]
+                                                        shadow-[0_6px_14px_rgba(105,71,215,0.14)]
+                                                    `
+                                                    : `
+                                                        border-[#e3deea]
+                                                        bg-[#fcfbfd]
+                                                        text-[#686171]
+                                                        hover:border-[#cbbde0]
+                                                        hover:bg-white
+                                                    `
+                                                }
+                                            `}
+                                        >
+                                            <span className="text-[17px] leading-none">
+                                                {option.emoji}
+                                            </span>
+                                            {option.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* FONT */}
+
+                        <div>
+                            <label
+                                className="
+                                    mb-2
+                                    flex
+                                    items-center
+                                    gap-1.5
+                                    text-[12px]
+                                    font-semibold
+                                    text-[#585261]
+                                "
+                            >
+                                <Type
+                                    size={14}
+                                    className="text-[#8870c9]"
+                                />
+                                Font style
+                            </label>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                {fontOptions.map((option) => {
+                                    const isSelected =
+                                        selections?.font?.id === option.id;
+
+                                    return (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            onClick={() =>
+                                                onSelect?.("font", option)
+                                            }
+                                            className={`
+                                                flex
+                                                h-[48px]
+                                                items-center
+                                                justify-center
+                                                gap-2
+                                                rounded-[14px]
+                                                border
+                                                px-2
+                                                text-[12px]
+                                                font-semibold
+                                                transition-all
+                                                duration-200
+
+                                                ${isSelected
+                                                    ? `
+                                                        border-[#6947d7]
+                                                        bg-[#f6f2ff]
+                                                        text-[#5e3ccc]
+                                                        shadow-[0_6px_14px_rgba(105,71,215,0.14)]
+                                                    `
+                                                    : `
+                                                        border-[#e3deea]
+                                                        bg-[#fcfbfd]
+                                                        text-[#686171]
+                                                        hover:border-[#cbbde0]
+                                                        hover:bg-white
+                                                    `
+                                                }
+                                            `}
+                                        >
+                                            <span
+                                                style={{ fontFamily: option.fontFamily }}
+                                                className="text-[16px] font-bold leading-none"
+                                            >
+                                                Aa
+                                            </span>
+                                            <span className="truncate">
+                                                {option.label}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

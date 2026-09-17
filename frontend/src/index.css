@@ -321,3 +321,97 @@ body {
 .animate-sparkle-three {
   animation: sparkleThree 3s ease-in-out 0.5s infinite;
 }
+.story-flipbook {
+    width: 100% !important;
+    height: 100% !important;
+    position: relative !important;
+    overflow: hidden !important;
+    perspective: 1800px !important;
+}
+
+.story-flipbook .stf__parent {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+}
+
+.story-flipbook .stf__block {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.story-flipbook .stf__item {
+    background: #ffffff !important;
+}
+
+.story-flipbook .stf__item.--left {
+    box-shadow: inset -12px 0 22px rgba(40, 35, 65, 0.06) !important;
+}
+
+.story-flipbook .stf__item.--right {
+    box-shadow: inset 12px 0 22px rgba(40, 35, 65, 0.06) !important;
+}
+
+.story-flipbook img {
+    user-select: none !important;
+    -webkit-user-drag: none !important;
+}
+
+.story-flipbook canvas {
+    outline: none !important;
+}
+
+
+/* Hide scrollbars without disabling scrolling
+   elsewhere in the application. */
+
+.story-flipbook::-webkit-scrollbar {
+    display: none;
+}
+
+.story-flipbook {
+    scrollbar-width: none;
+}
+.story-flipbook {
+    width: 100% !important;
+    height: 100% !important;
+    position: relative !important;
+    overflow: hidden !important;
+    perspective: 1800px !important;
+}
+
+.story-flipbook .stf__parent {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+}
+
+.story-flipbook .stf__block {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.story-flipbook .stf__item {
+    background: #ffffff !important;
+}
+
+.story-flipbook .stf__item.--left {
+    box-shadow: inset -14px 0 24px rgba(40, 35, 65, 0.07) !important;
+}
+
+.story-flipbook .stf__item.--right {
+    box-shadow: inset 14px 0 24px rgba(40, 35, 65, 0.07) !important;
+}
+
+.story-flipbook img {
+    user-select: none !important;
+    -webkit-user-drag: none !important;
+}
+
+.story-flipbook::-webkit-scrollbar {
+    display: none !important;
+}
+
+.story-flipbook {
+    scrollbar-width: none !important;
+}

@@ -7,8 +7,6 @@ The story must feel like a real book written specifically for the target reader'
 
 STORY INFORMATION:
 
-Title: ${storyData.title}
-
 Target Age Group: ${storyData.ageGroup}
 
 Theme: ${storyData.theme}
@@ -37,7 +35,15 @@ Story Summary:
 ${storyData.storySummary}
 
 Number of Pages:
-${storyData.recommendedPages}
+10
+
+TITLE REQUIREMENTS:
+
+1. Invent an original, catchy, age-appropriate title for this story yourself.
+2. The title must relate directly to the story's plot, main character, or central message — do not use a generic or unrelated title.
+3. The title should be short (ideally 2-6 words), memorable, and sound like a real published children's/young-reader book title.
+4. Do not use the words "Untitled" or "Story" as filler.
+5. Do not reuse the theme or genre name as the title verbatim (e.g. avoid titling it just "Fairy Tales" or "Adventure").
 
 CRITICAL AGE-APPROPRIATE WRITING REQUIREMENTS:
 
@@ -136,7 +142,7 @@ STORYTELLING REQUIREMENTS:
 
 PAGE REQUIREMENTS:
 
-1. Generate exactly ${storyData.recommendedPages} pages.
+1. Generate exactly 10 pages.
 
 2. Each page must represent one meaningful moment or scene in the story.
 
@@ -183,7 +189,7 @@ Return only valid JSON.
 Use exactly this structure:
 
 {
-    "title": "${storyData.title}",
+    "title": "",
     "pages": [
         {
             "pageNumber": 1,
@@ -191,6 +197,8 @@ Use exactly this structure:
         }
     ]
 }
+
+The "title" field must contain the original title you invented above — it must not be empty and must not be the literal word "undefined".
 
 Do not include markdown.
 

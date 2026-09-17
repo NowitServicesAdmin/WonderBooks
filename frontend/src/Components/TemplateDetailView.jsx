@@ -1,6 +1,686 @@
+
+// import React, { useEffect, useMemo, useRef, useState } from "react";
+// import { useParams, useNavigate } from "react-router-dom";
+// import HTMLFlipBook from "react-pageflip";
+
+// import {
+//     ChevronLeft,
+//     ChevronRight,
+//     Star,
+//     WandSparkles,
+//     Mic,
+//     BookOpen,
+//     ArrowLeft,
+//     X,
+// } from "lucide-react";
+
+// import {
+//     templates,
+//     buildPages,
+// } from "../Data/Templatesdata";
+// const THUMBS_VISIBLE = 6;
+
+
+// export const TemplateDetail = () => {
+//     const { id } = useParams();
+//     const navigate = useNavigate();
+//     const bookRef = useRef(null);
+
+//     const [pageIndex, setPageIndex] = useState(0);
+//     const [pageNavOpen, setPageNavOpen] = useState(false);
+
+
+//     /* =========================================================
+//        TEMPLATE
+//     ========================================================= */
+
+//     const selectedTemplate = useMemo(
+//         () => templates.find((t) => String(t.id) === String(id)),
+//         [id]
+//     );
+
+
+//     /* =========================================================
+//        PAGES
+//     ========================================================= */
+
+//     const pages = useMemo(
+//         () => selectedTemplate ? buildPages(selectedTemplate) : [],
+//         [selectedTemplate]
+//     );
+
+
+//     /*
+//      * Each logical page becomes:
+//      *
+//      * image page | information/story page
+//      *
+//      * This keeps the open-book layout.
+//      */
+//     const leaves = useMemo(
+//         () =>
+//             pages.flatMap((page) => [
+//                 {
+//                     type: "image",
+//                     page,
+//                 },
+//                 {
+//                     type: "content",
+//                     page,
+//                 },
+//             ]),
+//         [pages]
+//     );
+
+
+//     /* =========================================================
+//        NAVIGATION
+//     ========================================================= */
+
+//     const goBackToList = () => {
+//         navigate("/templates");
+//     };
+
+
+//     const goNextPage = () => {
+//         bookRef.current?.pageFlip()?.flipNext();
+//     };
+
+
+//     const goPrevPage = () => {
+//         bookRef.current?.pageFlip()?.flipPrev();
+//     };
+
+
+//     const goToSpread = (index) => {
+//         bookRef.current?.pageFlip()?.turnToPage(index * 2);
+//         setPageIndex(index);
+//         setPageNavOpen(false);
+//     };
+
+
+//     const handleFlip = (event) => {
+//         setPageIndex(Math.floor(event.data / 2));
+//     };
+
+
+//     /* =========================================================
+//        KEYBOARD
+//     ========================================================= */
+
+//     useEffect(() => {
+//         const handleKeyDown = (event) => {
+//             if (event.key === "ArrowRight") {
+//                 goNextPage();
+//             }
+
+//             if (event.key === "ArrowLeft") {
+//                 goPrevPage();
+//             }
+
+//             if (event.key === "Escape") {
+//                 if (pageNavOpen) {
+//                     setPageNavOpen(false);
+//                 } else {
+//                     goBackToList();
+//                 }
+//             }
+//         };
+
+//         window.addEventListener("keydown", handleKeyDown);
+
+//         return () => {
+//             window.removeEventListener("keydown", handleKeyDown);
+//         };
+//     }, [pageNavOpen]);
+
+
+// //    notfound
+//     if (!selectedTemplate) {
+//         return (
+//             <section className="flex min-h-[500px] w-full items-center justify-center rounded-2xl border border-[#e6e3f2] bg-white p-8 text-center">
+//                 <div>
+//                     <p className="text-lg font-bold text-[#332f54]">
+//                         Template not found
+//                     </p>
+
+//                     <p className="mt-2 text-sm text-[#9995aa]">
+//                         It may have been removed, or the link is incorrect.
+//                     </p>
+
+//                     <button
+//                         type="button"
+//                         onClick={goBackToList}
+//                         className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#5d2bc5] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#5122b4]"
+//                     >
+//                         <ArrowLeft size={16} />
+//                         Back to Templates
+//                     </button>
+//                 </div>
+//             </section>
+//         );
+//     }
+
+// // values
+
+//     const bestForAge = selectedTemplate.age.replace(/^Ages\s*/i, "");
+
+//     const isFirstPage = pageIndex === 0;
+
+//     const isLastPage = pageIndex === pages.length - 1;
+
+//     const visibleThumbs = pages.slice(0, THUMBS_VISIBLE);
+
+//     const overflowCount = Math.max(
+//         0,
+//         pages.length - THUMBS_VISIBLE
+//     );
+
+
+// //   return
+
+//     return (
+//         <section className="relative w-full overflow-hidden rounded-[24px] border border-[#e4e0ef] bg-gradient-to-br from-[#fbfaff] via-[#f8f6fc] to-[#f0edf7]">
+
+//             {/* =====================================================
+//                 READER AREA
+//             ===================================================== */}
+
+//             <div className="relative flex h-[780px] w-full items-center justify-center overflow-hidden px-4 pt-4 pb-10">
+
+//                 {/* =================================================
+//                     BOOK + NAVIGATION
+//                 ================================================= */}
+
+//                 <div className="relative flex h-full w-full max-w-[1600px] items-center justify-center gap-4">
+
+
+//                     {/* =================================================
+//     3D BOOK BACKGROUND
+// ================================================= */}
+
+//                     <div className="relative flex h-[690px] min-w-0 flex-1 items-center justify-center">
+
+//                         {/* =================================================
+//         BLUE HARD COVER
+//     ================================================= */}
+
+//                         <div className="pointer-events-none absolute bottom-[8px] left-[1.4%] right-[1.4%] top-[10px] z-0 rounded-[29px] bg-[#163971] shadow-[0_24px_38px_rgba(22,57,113,0.28)]" />
+
+//                         <div className="pointer-events-none absolute bottom-[15px] left-[1.8%] right-[1.8%] top-[15px] z-[1] rounded-[27px] bg-[#163971]" />
+
+
+//                         {/* =================================================
+//         BACK PAGE — SAME FAMILY AS WHITE PAGE
+//         These are NOT gray cards.
+//     ================================================= */}
+
+//                         <div className="pointer-events-none absolute bottom-[26px] left-[2.25%] right-[2.25%] top-[17px] z-[2] rounded-[25px] bg-[#e9e7e1] shadow-[0_2px_4px_rgba(45,42,35,0.14)]" />
+
+//                         <div className="pointer-events-none absolute bottom-[28px] left-[2.1%] right-[2.1%] top-[15px] z-[3] rounded-[24px] bg-[#efede8]" />
+
+//                         <div className="pointer-events-none absolute bottom-[30px] left-[1.95%] right-[1.95%] top-[13px] z-[4] rounded-[23px] bg-[#f4f2ed]" />
+
+//                         <div className="pointer-events-none absolute bottom-[32px] left-[1.8%] right-[1.8%] top-[11px] z-[5] rounded-[22px] bg-[#f8f7f3]" />
+
+
+//                         {/* =================================================
+//         LEFT INVISIBLE PAGE EDGES
+
+//         Very thin — these should read as paper.
+//     ================================================= */}
+
+//                         <div className="pointer-events-none absolute bottom-[38px] left-[1.95%] top-[23px] z-[8] w-[2px] rounded-l-full bg-[#dedbd4]" />
+
+//                         <div className="pointer-events-none absolute bottom-[41px] left-[2.18%] top-[20px] z-[8] w-[1px] rounded-l-full bg-[#ebe9e4]" />
+
+//                         <div className="pointer-events-none absolute bottom-[44px] left-[2.38%] top-[17px] z-[8] w-[1px] rounded-l-full bg-[#d8d5ce]" />
+
+//                         <div className="pointer-events-none absolute bottom-[47px] left-[2.57%] top-[14px] z-[8] w-[1px] rounded-l-full bg-[#f0eee9]" />
+
+
+//                         {/* =================================================
+//         RIGHT INVISIBLE PAGE EDGES
+//     ================================================= */}
+
+//                         <div className="pointer-events-none absolute bottom-[38px] right-[1.95%] top-[23px] z-[8] w-[2px] rounded-r-full bg-[#dedbd4]" />
+
+//                         <div className="pointer-events-none absolute bottom-[41px] right-[2.18%] top-[20px] z-[8] w-[1px] rounded-r-full bg-[#ebe9e4]" />
+
+//                         <div className="pointer-events-none absolute bottom-[44px] right-[2.38%] top-[17px] z-[8] w-[1px] rounded-r-full bg-[#d8d5ce]" />
+
+//                         <div className="pointer-events-none absolute bottom-[47px] right-[2.57%] top-[14px] z-[8] w-[1px] rounded-r-full bg-[#f0eee9]" />
+
+
+//                         {/* =================================================
+//         BOTTOM PAPER BLOCK
+
+//         Thin curved layers, NOT gray bars.
+//     ================================================= */}
+
+//                         <div className="pointer-events-none absolute bottom-[25px] left-[4.2%] right-[4.2%] z-[7] h-[10px] rounded-b-[45%] bg-[#dedbd5]" />
+
+//                         <div className="pointer-events-none absolute bottom-[28px] left-[4.35%] right-[4.35%] z-[8] h-[7px] rounded-b-[45%] bg-[#ebe9e4]" />
+
+//                         <div className="pointer-events-none absolute bottom-[31px] left-[4.5%] right-[4.5%] z-[9] h-[5px] rounded-b-[45%] bg-[#f4f2ed]" />
+
+//                         <div className="pointer-events-none absolute bottom-[34px] left-[4.65%] right-[4.65%] z-[10] h-[3px] rounded-b-[45%] bg-[#faf9f6]" />
+
+
+//                         {/* =================================================
+//         ACTUAL OPEN BOOK
+//     ================================================= */}
+
+//                         <div className="relative z-20 h-[640px] w-[92%] overflow-hidden rounded-[22px] bg-white shadow-[0_9px_24px_rgba(35,35,70,0.14)]">
+
+//                             <HTMLFlipBook
+//                                 ref={bookRef}
+//                                 width={600}
+//                                 height={640}
+//                                 size="stretch"
+//                                 minWidth={300}
+//                                 maxWidth={1100}
+//                                 minHeight={420}
+//                                 maxHeight={700}
+//                                 showCover={false}
+//                                 usePortrait={false}
+//                                 mobileScrollSupport={false}
+//                                 drawShadow={true}
+//                                 maxShadowOpacity={0.28}
+//                                 flippingTime={650}
+//                                 startPage={0}
+//                                 onFlip={handleFlip}
+//                                 className="story-flipbook h-full w-full"
+//                                 style={{ margin: 0 }}
+//                             >
+
+//                                 {leaves.map((leaf, index) => (
+
+//                                     <div
+//                                         key={index}
+//                                         className="relative h-full w-full overflow-hidden bg-white"
+//                                     >
+
+//                                         {/* =================================================
+//                         IMAGE PAGE
+//                     ================================================= */}
+
+//                                         {leaf.type === "image" ? (
+
+//                                             <div className="relative h-full w-full overflow-hidden bg-white">
+
+//                                                 <img
+//                                                     src={leaf.page.image}
+//                                                     alt=""
+//                                                     draggable={false}
+//                                                     className="h-full w-full object-cover"
+//                                                 />
+
+//                                                 <span className="absolute left-6 top-5 inline-flex items-center gap-1 rounded-full bg-white/95 px-3.5 py-1.5 text-[11px] font-bold text-[#5d2bc5] shadow-sm">
+//                                                     <Star size={11} fill="currentColor" />
+//                                                     {selectedTemplate.category}
+//                                                 </span>
+
+//                                                 {leaf.page.kind === "cover" && (
+//                                                     <span className="absolute bottom-5 left-5 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3.5 py-1.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+//                                                         <WandSparkles size={11} />
+//                                                         AI Generated
+//                                                     </span>
+//                                                 )}
+
+//                                             </div>
+
+//                                         ) : leaf.page.kind === "story" ? (
+
+//                                             /* =================================================
+//                                                 STORY PAGE
+//                                             ================================================= */
+
+//                                             <div className="flex h-full w-full items-center justify-center bg-white px-14 text-center">
+
+//                                                 <p className="max-w-[470px] font-serif text-[19px] leading-9 text-[#3c3860]">
+//                                                     {leaf.page.text}
+//                                                 </p>
+
+//                                             </div>
+
+//                                         ) : leaf.page.kind === "cover" ? (
+
+//                                             /* =================================================
+//                                                 INFORMATION PAGE
+//                                             ================================================= */
+
+//                                             <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-white px-12 text-center">
+
+//                                                 {/* CORNERS */}
+
+//                                                 <span className="pointer-events-none absolute left-7 top-7 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-[#dfcf9d]" />
+
+//                                                 <span className="pointer-events-none absolute right-7 top-7 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-[#dfcf9d]" />
+
+//                                                 <span className="pointer-events-none absolute bottom-7 left-7 h-8 w-8 rounded-bl-lg border-b-2 border-l-2 border-[#dfcf9d]" />
+
+//                                                 <span className="pointer-events-none absolute bottom-7 right-7 h-8 w-8 rounded-br-lg border-b-2 border-r-2 border-[#dfcf9d]" />
+
+
+//                                                 {/* TITLE */}
+
+//                                                 <h3 className="max-w-[570px] font-serif text-[40px] font-bold leading-[1.12] text-[#29254d]">
+//                                                     {leaf.page.heading}
+//                                                 </h3>
+
+
+//                                                 {/* DIVIDER */}
+
+//                                                 <div className="my-5 flex items-center gap-3">
+//                                                     <span className="h-px w-12 bg-[#dfcf9d]" />
+//                                                     <span className="h-2 w-2 rounded-full bg-[#c9a24d]" />
+//                                                     <span className="h-px w-12 bg-[#dfcf9d]" />
+//                                                 </div>
+
+
+//                                                 {/* AGE */}
+
+//                                                 <span className="rounded-full bg-[#f0e8ff] px-5 py-1.5 text-[12px] font-bold text-[#5d2bc5]">
+//                                                     {selectedTemplate.age}
+//                                                 </span>
+
+
+//                                                 {/* DESCRIPTION */}
+
+//                                                 <p className="mt-6 max-w-[520px] text-[14px] leading-7 text-[#77738b]">
+//                                                     {selectedTemplate.description}
+//                                                 </p>
+
+
+//                                                 {/* INFO */}
+
+//                                                 <div className="mt-6 grid w-full max-w-[520px] grid-cols-3 rounded-[20px] border border-[#e8e2f2] bg-white p-4">
+
+//                                                     <div className="flex flex-col items-center gap-1">
+//                                                         <BookOpen size={18} className="text-[#5d2bc5]" />
+//                                                         <p className="text-[9px] font-semibold uppercase tracking-wide text-[#a39fb5]">
+//                                                             Reading Time
+//                                                         </p>
+//                                                         <p className="text-[12px] font-bold text-[#332f54]">
+//                                                             5–10 min
+//                                                         </p>
+//                                                     </div>
+
+//                                                     <div className="flex flex-col items-center gap-1 border-x border-[#e8e2f2]">
+//                                                         <WandSparkles size={18} className="text-[#5d2bc5]" />
+//                                                         <p className="text-[9px] font-semibold uppercase tracking-wide text-[#a39fb5]">
+//                                                             Theme
+//                                                         </p>
+//                                                         <p className="text-[12px] font-bold text-[#332f54]">
+//                                                             {selectedTemplate.category}
+//                                                         </p>
+//                                                     </div>
+
+//                                                     <div className="flex flex-col items-center gap-1">
+//                                                         <Star size={18} className="text-[#5d2bc5]" />
+//                                                         <p className="text-[9px] font-semibold uppercase tracking-wide text-[#a39fb5]">
+//                                                             Best For
+//                                                         </p>
+//                                                         <p className="text-[12px] font-bold text-[#332f54]">
+//                                                             Kids {bestForAge}
+//                                                         </p>
+//                                                     </div>
+
+//                                                 </div>
+
+
+//                                                 {/* STORY INPUT */}
+
+//                                                 <div className="mt-5 w-full max-w-[520px] rounded-[20px] border border-[#e7e0f4] bg-[#faf9ff] p-4 text-left">
+
+//                                                     <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold text-[#5d2bc5]">
+//                                                         <Mic size={13} />
+//                                                         Your Story Input
+//                                                     </div>
+
+//                                                     <p className="text-[12px] italic leading-6 text-[#6b6680]">
+//                                                         "{selectedTemplate.description}"
+//                                                     </p>
+
+//                                                 </div>
+
+//                                             </div>
+
+//                                         ) : (
+
+//                                             /* =================================================
+//                                                 GENERIC PAGE
+//                                             ================================================= */
+
+//                                             <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 bg-white px-12 text-center">
+
+//                                                 <span className="pointer-events-none absolute left-7 top-7 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-[#dfcf9d]" />
+
+//                                                 <span className="pointer-events-none absolute right-7 top-7 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-[#dfcf9d]" />
+
+//                                                 <span className="pointer-events-none absolute bottom-7 left-7 h-8 w-8 rounded-bl-lg border-b-2 border-l-2 border-[#dfcf9d]" />
+
+//                                                 <span className="pointer-events-none absolute bottom-7 right-7 h-8 w-8 rounded-br-lg border-b-2 border-r-2 border-[#dfcf9d]" />
+
+//                                                 <h3 className="max-w-[520px] font-serif text-[40px] font-bold leading-tight text-[#29254d]">
+//                                                     {leaf.page.heading}
+//                                                 </h3>
+
+//                                                 <p className="text-sm font-semibold text-[#9893a8]">
+//                                                     {leaf.page.sub}
+//                                                 </p>
+
+//                                             </div>
+
+//                                         )}
+
+//                                     </div>
+
+//                                 ))}
+
+//                             </HTMLFlipBook>
+
+
+//                             {/* =================================================
+//             CENTER PAGE CREASE
+//         ================================================= */}
+
+//                             <div className="pointer-events-none absolute inset-y-0 left-1/2 z-[50] w-[52px] -translate-x-1/2 bg-gradient-to-r from-transparent via-[#38334b]/10 to-transparent" />
+
+//                             <div className="pointer-events-none absolute inset-y-0 left-1/2 z-[51] w-[2px] -translate-x-1/2 bg-gradient-to-b from-transparent via-[#4b4656]/10 to-transparent" />
+
+
+//                             {/* =================================================
+//             LEFT ARROW
+//         ================================================= */}
+
+//                             <button
+//                                 type="button"
+//                                 onClick={goPrevPage}
+//                                 disabled={isFirstPage}
+//                                 aria-label="Previous page"
+//                                 className="absolute left-5 top-1/2 z-[100] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20"
+//                             >
+//                                 <ChevronLeft size={25} />
+//                             </button>
+
+
+//                             {/* =================================================
+//             RIGHT ARROW
+//         ================================================= */}
+
+//                             <button
+//                                 type="button"
+//                                 onClick={goNextPage}
+//                                 disabled={isLastPage}
+//                                 aria-label="Next page"
+//                                 className="absolute right-5 top-1/2 z-[100] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20"
+//                             >
+//                                 <ChevronRight size={25} />
+//                             </button>
+
+//                         </div>
+
+
+//                         {/* =================================================
+//         SMALL BLUE COVER LIP
+//     ================================================= */}
+
+//                         <div className="pointer-events-none absolute bottom-[8px] left-[4%] right-[4%] z-[16] h-[10px] rounded-b-[18px] bg-[#163971]" />
+
+
+//                         {/* =================================================
+//         SOFT FLOOR SHADOW
+//     ================================================= */}
+
+//                         <div className="pointer-events-none absolute bottom-[-4px] left-1/2 z-[-1] h-[25px] w-[78%] -translate-x-1/2 rounded-full bg-[#535064]/25 blur-2xl" />
+
+//                     </div>
+
+//                     {/* =================================================
+//                         SEPARATE PAGE NAVIGATION
+//                     ================================================= */}
+
+//                     <aside className="relative z-30 flex h-[650px] w-[78px] shrink-0 flex-col items-center justify-center bg-transparent">
+
+//                         <div className="flex w-full flex-col items-center gap-3">
+
+//                             {visibleThumbs.map((page, index) => {
+
+//                                 const active = index === pageIndex;
+
+//                                 return (
+//                                     <button
+//                                         key={index}
+//                                         type="button"
+//                                         onClick={() => goToSpread(index)}
+//                                         aria-label={`Open page ${index + 1}`}
+//                                         className="group flex flex-col items-center gap-1 outline-none"
+//                                     >
+
+//                                         <div className={`relative overflow-hidden rounded-[9px] bg-white transition-all duration-200 ${active ? "h-[58px] w-[68px] border-2 border-[#5d2bc5] shadow-[0_5px_16px_rgba(93,43,197,0.25)]" : "h-[54px] w-[64px] border border-transparent opacity-65 hover:border-[#b9a9df] hover:opacity-100"}`}>
+//                                             <img src={page.image} alt="" draggable={false} className="h-full w-full object-cover" />
+//                                         </div>
+
+//                                         <span className={`text-[10px] font-bold ${active ? "text-[#5d2bc5]" : "text-[#aaa5b8]"}`}>
+//                                             {index + 1}
+//                                         </span>
+
+//                                     </button>
+//                                 );
+//                             })}
+
+
+//                             {overflowCount > 0 && (
+//                                 <button
+//                                     type="button"
+//                                     onClick={() => setPageNavOpen(true)}
+//                                     className="flex h-[34px] w-[62px] items-center justify-center rounded-lg border border-[#ded7ef] bg-transparent text-[10px] font-bold text-[#5d2bc5] transition hover:bg-white/60"
+//                                 >
+//                                     +{overflowCount}
+//                                 </button>
+//                             )}
+
+//                         </div>
+
+//                     </aside>
+
+//                 </div>
+
+
+//                 {/* =====================================================
+//                     BOTTOM END INDICATOR
+//                 ===================================================== */}
+
+//                 <div className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2">
+//                     <span className="h-px w-20 bg-[#d8d3e3]" />
+//                     <span className="h-1.5 w-1.5 rounded-full bg-[#b9b2cb]" />
+//                     <span className="h-px w-20 bg-[#d8d3e3]" />
+//                 </div>
+
+//             </div>
+
+
+//             {/* =========================================================
+//                 ALL PAGES POPUP
+//             ========================================================== */}
+
+//             {pageNavOpen && (
+//                 <div
+//                     className="absolute inset-0 z-[200] flex items-center justify-center bg-[#29254d]/20 p-6 backdrop-blur-[3px]"
+//                     onClick={() => setPageNavOpen(false)}
+//                 >
+
+//                     <div
+//                         className="relative max-h-[620px] w-[600px] overflow-hidden rounded-[24px] border border-[#e5dff2] bg-white p-6 shadow-[0_30px_80px_rgba(40,30,80,0.28)]"
+//                         onClick={(event) => event.stopPropagation()}
+//                     >
+
+//                         <div className="mb-5 flex items-center justify-between">
+
+//                             <div>
+//                                 <p className="text-sm font-bold text-[#332f54]">
+//                                     Book Pages
+//                                 </p>
+
+//                                 <p className="mt-1 text-[11px] text-[#9b96aa]">
+//                                     Choose a page to open
+//                                 </p>
+//                             </div>
+
+//                             <button
+//                                 type="button"
+//                                 onClick={() => setPageNavOpen(false)}
+//                                 className="flex h-9 w-9 items-center justify-center rounded-full text-[#9893a8] transition hover:bg-[#f5f2ff] hover:text-[#5d2bc5]"
+//                             >
+//                                 <X size={18} />
+//                             </button>
+
+//                         </div>
+
+
+//                         <div className="grid grid-cols-4 gap-4">
+
+//                             {pages.map((page, index) => {
+
+//                                 const active = index === pageIndex;
+
+//                                 return (
+//                                     <button
+//                                         key={index}
+//                                         type="button"
+//                                         onClick={() => goToSpread(index)}
+//                                         className="group flex flex-col items-center gap-1.5"
+//                                     >
+
+//                                         <div className={`aspect-[4/3] w-full overflow-hidden rounded-xl bg-white transition-all ${active ? "border-2 border-[#5d2bc5] shadow-[0_5px_15px_rgba(93,43,197,0.18)]" : "border border-[#e4e1eb] group-hover:border-[#b9a9df]"}`}>
+//                                             <img src={page.image} alt="" draggable={false} className="h-full w-full object-cover" />
+//                                         </div>
+
+//                                         <span className={`text-[10px] font-bold ${active ? "text-[#5d2bc5]" : "text-[#aaa5b8]"}`}>
+//                                             Page {index + 1}
+//                                         </span>
+
+//                                     </button>
+//                                 );
+//                             })}
+
+//                         </div>
+
+//                     </div>
+
+//                 </div>
+//             )}
+
+//         </section>
+//     );
+// };
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import HTMLFlipBook from "react-pageflip";
+
 import {
     ChevronLeft,
     ChevronRight,
@@ -9,394 +689,719 @@ import {
     Mic,
     BookOpen,
     ArrowLeft,
+    X,
 } from "lucide-react";
-import { templates, buildPages,categoryThemes } from "../Data/Templatesdata";
 
-const THUMBS_VISIBLE = 9;
+import {
+    templates,
+    buildPages,
+} from "../Data/Templatesdata";
+
+
+const THUMBS_VISIBLE = 6;
+
 
 export const TemplateDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const bookRef = useRef(null);
+
+    const [pageIndex, setPageIndex] = useState(0);
+    const [pageNavOpen, setPageNavOpen] = useState(false);
+
+
+    /* =========================================================
+       TEMPLATE
+    ========================================================= */
 
     const selectedTemplate = useMemo(
         () => templates.find((t) => String(t.id) === String(id)),
         [id]
     );
 
+
+    /* =========================================================
+       PAGES
+    ========================================================= */
+
     const pages = useMemo(
-        () => (selectedTemplate ? buildPages(selectedTemplate) : []),
+        () => selectedTemplate ? buildPages(selectedTemplate) : [],
         [selectedTemplate]
     );
 
-    // Each "spread" becomes two leaves for react-pageflip: image leaf + content leaf,
-    // so a flip reveals image-left / text-right, like turning one physical page.
+
+    /*
+     * Each logical page becomes:
+     *
+     * image page | information/story page
+     *
+     * This keeps the open-book layout.
+     */
     const leaves = useMemo(
         () =>
             pages.flatMap((page) => [
-                { type: "image", page },
-                { type: "content", page },
+                {
+                    type: "image",
+                    page,
+                },
+                {
+                    type: "content",
+                    page,
+                },
             ]),
         [pages]
     );
 
-    const [pageIndex, setPageIndex] = useState(0); // spread index, not leaf index
-    const [pageNavOpen, setPageNavOpen] = useState(false);
 
-    const bookRef = useRef(null);
-    const filmstripRef = useRef(null);
+    /* =========================================================
+       NAVIGATION
+    ========================================================= */
 
-    const goBackToList = () => navigate("/templates");
+    const goBackToList = () => {
+        navigate("/templates");
+    };
 
-    const goNextPage = () => bookRef.current?.pageFlip()?.flipNext();
-    const goPrevPage = () => bookRef.current?.pageFlip()?.flipPrev();
-    const goToSpread = (spreadIdx) =>
-        bookRef.current?.pageFlip()?.turnToPage(spreadIdx * 2);
 
-    const handleFlip = (e) => setPageIndex(Math.floor(e.data / 2));
+    const goNextPage = () => {
+        bookRef.current?.pageFlip()?.flipNext();
+    };
+
+
+    const goPrevPage = () => {
+        bookRef.current?.pageFlip()?.flipPrev();
+    };
+
+
+    const goToSpread = (index) => {
+        bookRef.current?.pageFlip()?.turnToPage(index * 2);
+        setPageIndex(index);
+        setPageNavOpen(false);
+    };
+
+
+    const handleFlip = (event) => {
+        setPageIndex(Math.floor(event.data / 2));
+    };
+
+
+    /* =========================================================
+       KEYBOARD
+    ========================================================= */
 
     useEffect(() => {
         const handleKeyDown = (event) => {
-            if (event.key === "ArrowRight") goNextPage();
-            if (event.key === "ArrowLeft") goPrevPage();
-            if (event.key === "Escape") goBackToList();
+            if (event.key === "ArrowRight") {
+                goNextPage();
+            }
+
+            if (event.key === "ArrowLeft") {
+                goPrevPage();
+            }
+
+            if (event.key === "Escape") {
+                if (pageNavOpen) {
+                    setPageNavOpen(false);
+                } else {
+                    goBackToList();
+                }
+            }
         };
+
         window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, []);
 
-    // Keep the active thumbnail scrolled into view on the filmstrip
-    useEffect(() => {
-        if (!filmstripRef.current) return;
-        const active = filmstripRef.current.querySelector(`[data-page="${pageIndex}"]`);
-        if (active) active.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-    }, [pageIndex]);
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [pageNavOpen]);
 
-    // Template id not found (bad URL, deleted item, etc.)
+
+//    notfound
     if (!selectedTemplate) {
         return (
-            <section className="w-full overflow-hidden rounded-2xl border border-[#e6e3f2]  p-2 text-center shadow-[0_2px_10px_rgba(67,52,130,0.04)]">
-                <p className="text-lg font-bold text-[#332f54]">Template not found</p>
-                <p className="mt-2 text-sm text-[#9995aa]">
-                    It may have been removed, or the link is incorrect.
-                </p>
-                <button
-                    type="button"
-                    onClick={goBackToList}
-                    className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#5d2bc5] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#5122b4]"
-                >
-                    <ArrowLeft size={16} />
-                    Back to Templates
-                </button>
+            <section className="flex min-h-[500px] w-full items-center justify-center rounded-2xl border border-[#e6e3f2] bg-white p-8 text-center">
+                <div>
+                    <p className="text-lg font-bold text-[#332f54]">
+                        Template not found
+                    </p>
+
+                    <p className="mt-2 text-sm text-[#9995aa]">
+                        It may have been removed, or the link is incorrect.
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={goBackToList}
+                        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#5d2bc5] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#5122b4]"
+                    >
+                        <ArrowLeft size={16} />
+                        Back to Templates
+                    </button>
+                </div>
             </section>
         );
     }
 
+// values
+
     const bestForAge = selectedTemplate.age.replace(/^Ages\s*/i, "");
+
     const isFirstPage = pageIndex === 0;
+
     const isLastPage = pageIndex === pages.length - 1;
 
     const visibleThumbs = pages.slice(0, THUMBS_VISIBLE);
-    const overflowCount = pages.length - THUMBS_VISIBLE;
+
+    const overflowCount = Math.max(
+        0,
+        pages.length - THUMBS_VISIBLE
+    );
+
+
+//   return
 
     return (
-        <section className="w-full rounded-2xl  p-0">
-           
+        <section className="relative w-full overflow-hidden rounded-[24px] border border-[#e4e0ef] bg-gradient-to-br from-[#fbfaff] via-[#f8f6fc] to-[#f0edf7]">
 
-            <div className="flex min-h-[880px] flex-col">
-                {/* Reader body: optional page-navigator drawer + flip book */}
-                <div className="relative flex flex-1">
-                    {pageNavOpen && (
-                        <div className="flex w-[210px] shrink-0 flex-col overflow-y-auto border-r border-[#e6e2f5]">
-                            <p className="px-4 text-[11px] font-bold uppercase tracking-wide text-[#a39fb5]">
-                                Pages
-                            </p>
-                            <div className="flex-1 space-y-2.5 px-4 pb-4">
-                                {pages.map((page, i) => {
-                                    const active = i === pageIndex;
-                                    return (
-                                        <button
-                                            key={i}
-                                            type="button"
-                                            onClick={() => goToSpread(i)}
-                                            className={`flex w-full items-center gap-3 rounded-xl  text-left transition ${
-                                                active ? "bg-white shadow-[0_4px_14px_rgba(93,43,197,0.14)]" : "hover:bg-white/70"
-                                            }`}
-                                        >
-                                            <span
-                                                className={`w-4 shrink-0 text-[11px] font-bold ${
-                                                    active ? "text-[#5d2bc5]" : "text-[#b3aec4]"
-                                                }`}
-                                            >
-                                                {i + 1}
-                                            </span>
-                                            <div
-                                                className={`aspect-[4/3] w-full overflow-hidden rounded-lg ${
-                                                    active ? "border-2 border-[#5d2bc5]" : "border border-[#e4e1eb]"
-                                                }`}
-                                            >
-                                                <img src={page.image} alt="" className="h-full w-full object-cover" />
+            {/* =========================================================
+                BACKGROUND DECORATIONS
+            ========================================================= */}
+
+            {/* Sparkles — top right */}
+            <div className="pointer-events-none absolute right-10 top-6 z-0 flex flex-col items-end gap-2 opacity-80">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#a78bfa">
+                    <path d="M12 0l2.2 9.8L24 12l-9.8 2.2L12 24l-2.2-9.8L0 12l9.8-2.2L12 0z" />
+                </svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="#c4b5fd" className="mr-4">
+                    <path d="M12 0l2.2 9.8L24 12l-9.8 2.2L12 24l-2.2-9.8L0 12l9.8-2.2L12 0z" />
+                </svg>
+            </div>
+
+            {/* Star badge — bottom right */}
+            <div className="pointer-events-none absolute bottom-6 right-8 z-0">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="#f6b93b">
+                    <path d="M12 2l2.9 6.6 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.2l7.1-.6L12 2z" />
+                </svg>
+            </div>
+
+            {/* Plant — bottom right */}
+            <div className="pointer-events-none absolute bottom-2 right-2 z-0 opacity-90">
+                <svg width="70" height="90" viewBox="0 0 70 90" fill="none">
+                    <path d="M35 90C35 60 20 45 5 40C25 45 35 60 35 75" stroke="#7fae6e" strokeWidth="3" fill="none" />
+                    <path d="M35 90C35 55 50 42 65 35C48 42 38 58 35 75" stroke="#6a9c5b" strokeWidth="3" fill="none" />
+                    <ellipse cx="10" cy="38" rx="9" ry="4" fill="#8fbf7d" transform="rotate(-30 10 38)" />
+                    <ellipse cx="60" cy="33" rx="10" ry="4.5" fill="#7fae6e" transform="rotate(25 60 33)" />
+                </svg>
+            </div>
+
+            {/* Stack of books — bottom left */}
+            <div className="pointer-events-none absolute bottom-4 left-4 z-0">
+                <div className="h-3 w-20 -rotate-2 rounded-[2px] bg-[#c96b4f]" />
+                <div className="-mt-0.5 h-3 w-24 rotate-1 rounded-[2px] bg-[#4a6fa5]" />
+                <div className="-mt-0.5 h-4 w-28 -rotate-1 rounded-[2px] bg-[#3a5a8a]" />
+            </div>
+
+            {/* Plant — bottom left */}
+            <div className="pointer-events-none absolute bottom-10 left-0 z-0 opacity-90">
+                <svg width="60" height="80" viewBox="0 0 60 80" fill="none">
+                    <path d="M30 80C30 50 15 38 0 32C20 38 30 52 30 65" stroke="#7fae6e" strokeWidth="3" fill="none" />
+                    <path d="M30 80C30 48 45 36 58 28C42 36 33 50 30 65" stroke="#6a9c5b" strokeWidth="3" fill="none" />
+                </svg>
+            </div>
+
+            {/* =====================================================
+                READER AREA
+            ===================================================== */}
+
+            <div className="relative flex h-[860px] w-full items-center justify-center overflow-hidden px-4 pt-2 pb-24">
+
+                {/* =================================================
+                    BOOK + NAVIGATION
+                ================================================= */}
+
+                <div className="relative flex h-full w-full max-w-[1600px] items-center justify-center gap-4">
+
+
+                    {/* =================================================
+    3D BOOK BACKGROUND
+================================================= */}
+
+                    <div className="relative flex h-[690px] min-w-0 flex-1 items-center justify-center">
+
+                        {/* =================================================
+        BLUE HARD COVER
+    ================================================= */}
+
+                        <div className="pointer-events-none absolute bottom-[8px] left-[1.4%] right-[1.4%] top-[10px] z-0 rounded-[29px] bg-[#163971] shadow-[0_24px_38px_rgba(22,57,113,0.28)]" />
+
+                        <div className="pointer-events-none absolute bottom-[15px] left-[1.8%] right-[1.8%] top-[15px] z-[1] rounded-[27px] bg-[#163971]" />
+
+
+                        {/* =================================================
+        BACK PAGE — SAME FAMILY AS WHITE PAGE
+        These are NOT gray cards.
+    ================================================= */}
+
+                        <div className="pointer-events-none absolute bottom-[26px] left-[2.25%] right-[2.25%] top-[17px] z-[2] rounded-[25px] bg-[#e9e7e1] shadow-[0_2px_4px_rgba(45,42,35,0.14)]" />
+
+                        <div className="pointer-events-none absolute bottom-[28px] left-[2.1%] right-[2.1%] top-[15px] z-[3] rounded-[24px] bg-[#efede8]" />
+
+                        <div className="pointer-events-none absolute bottom-[30px] left-[1.95%] right-[1.95%] top-[13px] z-[4] rounded-[23px] bg-[#f4f2ed]" />
+
+                        <div className="pointer-events-none absolute bottom-[32px] left-[1.8%] right-[1.8%] top-[11px] z-[5] rounded-[22px] bg-[#f8f7f3]" />
+
+
+                        {/* =================================================
+        LEFT INVISIBLE PAGE EDGES
+
+        Very thin — these should read as paper.
+    ================================================= */}
+
+                        <div className="pointer-events-none absolute bottom-[38px] left-[1.95%] top-[23px] z-[8] w-[2px] rounded-l-full bg-[#dedbd4]" />
+
+                        <div className="pointer-events-none absolute bottom-[41px] left-[2.18%] top-[20px] z-[8] w-[1px] rounded-l-full bg-[#ebe9e4]" />
+
+                        <div className="pointer-events-none absolute bottom-[44px] left-[2.38%] top-[17px] z-[8] w-[1px] rounded-l-full bg-[#d8d5ce]" />
+
+                        <div className="pointer-events-none absolute bottom-[47px] left-[2.57%] top-[14px] z-[8] w-[1px] rounded-l-full bg-[#f0eee9]" />
+
+
+                        {/* =================================================
+        RIGHT INVISIBLE PAGE EDGES
+    ================================================= */}
+
+                        <div className="pointer-events-none absolute bottom-[38px] right-[1.95%] top-[23px] z-[8] w-[2px] rounded-r-full bg-[#dedbd4]" />
+
+                        <div className="pointer-events-none absolute bottom-[41px] right-[2.18%] top-[20px] z-[8] w-[1px] rounded-r-full bg-[#ebe9e4]" />
+
+                        <div className="pointer-events-none absolute bottom-[44px] right-[2.38%] top-[17px] z-[8] w-[1px] rounded-r-full bg-[#d8d5ce]" />
+
+                        <div className="pointer-events-none absolute bottom-[47px] right-[2.57%] top-[14px] z-[8] w-[1px] rounded-r-full bg-[#f0eee9]" />
+
+
+                        {/* =================================================
+        BOTTOM PAPER BLOCK
+
+        Thin curved layers, NOT gray bars.
+    ================================================= */}
+
+                        <div className="pointer-events-none absolute bottom-[25px] left-[4.2%] right-[4.2%] z-[7] h-[10px] rounded-b-[45%] bg-[#dedbd5]" />
+
+                        <div className="pointer-events-none absolute bottom-[28px] left-[4.35%] right-[4.35%] z-[8] h-[7px] rounded-b-[45%] bg-[#ebe9e4]" />
+
+                        <div className="pointer-events-none absolute bottom-[31px] left-[4.5%] right-[4.5%] z-[9] h-[5px] rounded-b-[45%] bg-[#f4f2ed]" />
+
+                        <div className="pointer-events-none absolute bottom-[34px] left-[4.65%] right-[4.65%] z-[10] h-[3px] rounded-b-[45%] bg-[#faf9f6]" />
+
+
+                        {/* =================================================
+        ACTUAL OPEN BOOK
+    ================================================= */}
+
+                        <div className="relative z-20 h-[640px] w-[92%] overflow-hidden rounded-[22px] bg-white shadow-[0_9px_24px_rgba(35,35,70,0.14)]">
+
+                            <HTMLFlipBook
+                                ref={bookRef}
+                                width={600}
+                                height={640}
+                                size="stretch"
+                                minWidth={300}
+                                maxWidth={1100}
+                                minHeight={420}
+                                maxHeight={700}
+                                showCover={false}
+                                usePortrait={false}
+                                mobileScrollSupport={false}
+                                drawShadow={true}
+                                maxShadowOpacity={0.28}
+                                flippingTime={650}
+                                startPage={0}
+                                onFlip={handleFlip}
+                                className="story-flipbook h-full w-full"
+                                style={{ margin: 0 }}
+                            >
+
+                                {leaves.map((leaf, index) => (
+
+                                    <div
+                                        key={index}
+                                        className="relative h-full w-full overflow-hidden bg-white"
+                                    >
+
+                                        {/* =================================================
+                        IMAGE PAGE
+                    ================================================= */}
+
+                                        {leaf.type === "image" ? (
+
+                                            <div className="relative h-full w-full overflow-hidden bg-white">
+
+                                                <img
+                                                    src={leaf.page.image}
+                                                    alt=""
+                                                    draggable={false}
+                                                    className="h-full w-full object-cover"
+                                                />
+
+                                                <span className="absolute left-6 top-5 inline-flex items-center gap-1 rounded-full bg-white/95 px-3.5 py-1.5 text-[11px] font-bold text-[#5d2bc5] shadow-sm">
+                                                    <Star size={11} fill="currentColor" />
+                                                    {selectedTemplate.category}
+                                                </span>
+
+                                                {leaf.page.kind === "cover" && (
+                                                    <span className="absolute bottom-5 left-5 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3.5 py-1.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+                                                        <WandSparkles size={11} />
+                                                        AI Generated
+                                                    </span>
+                                                )}
+
                                             </div>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
-                    {/* Book spread */}
-                    <div className="relative flex flex-1 items-start justify-center">
-                        <button
-                            type="button"
-                            onClick={goPrevPage}
-                            disabled={isFirstPage}
-                            className="absolute left-1 top-1/2 z-20 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#604bc0] shadow-md transition hover:bg-[#f5f2ff] disabled:opacity-30 disabled:hover:bg-white sm:left-4"
-                        >
-                            <ChevronLeft size={24} />
-                        </button>
 
-                        {/* Hardcover-style frame around the flip book */}
-                        <div
-                            className="relative mx-auto h-[660px] w-full max-w-6xl rounded-[24px] bg-gradient-to-br from-[#fffefb] via-[#f8f4e9] to-[#efe8d5] p-3"
-                            style={{
-                                boxShadow: `
-                                    0 35px 80px rgba(59,43,120,0.32),
-                                    0 0 0 1px rgba(59,43,120,0.07),
-                                    4px 4px 0 0 #f6f2e6,
-                                    4px 4px 0 1px rgba(59,43,120,0.09),
-                                    8px 8px 0 0 #eee6d0,
-                                    8px 8px 0 1px rgba(59,43,120,0.07),
-                                    -4px 4px 0 0 #f6f2e6,
-                                    -4px 4px 0 1px rgba(59,43,120,0.09),
-                                    -8px 8px 0 0 #eee6d0,
-                                    -8px 8px 0 1px rgba(59,43,120,0.07)
-                                `,
-                            }}
-                        >
-                            <div className="relative h-full w-full overflow-hidden rounded-[16px] bg-[#fdfbf6]">
-                                <HTMLFlipBook
-                                    ref={bookRef}
-                                    width={550}
-                                    height={610}
-                                    size="stretch"
-                                    minWidth={320}
-                                    maxWidth={1200}
-                                    minHeight={400}
-                                    maxHeight={900}
-                                    showCover={false}
-                                    usePortrait={false}
-                                    mobileScrollSupport={true}
-                                    drawShadow={true}
-                                    flippingTime={600}
-                                    onFlip={handleFlip}
-                                    className="story-flipbook"
-                                    style={{ margin: "0 auto" }}
-                                >
-                                    {leaves.map((leaf, i) => (
-                                        <div className="flip-page" key={i}>
-                                            {leaf.type === "image" ? (
-                                                <div className="relative h-full w-full">
-                                                    <img
-                                                        src={leaf.page.image}
-                                                        alt=""
-                                                        className="h-full w-full object-cover"
-                                                    />
-                                                    <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-3 py-1 text-[11px] font-bold text-[#5d2bc5] shadow-sm">
-                                                        <Star size={11} fill="currentColor" />
-                                                        {selectedTemplate.category}
-                                                    </span>
-                                                    {leaf.page.kind === "cover" && (
-                                                        <span className="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-black/55 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
-                                                            <WandSparkles size={11} />
-                                                            AI Generated
-                                                        </span>
-                                                    )}
+                                        ) : leaf.page.kind === "story" ? (
+
+                                            /* =================================================
+                                                STORY PAGE
+                                            ================================================= */
+
+                                            <div className="flex h-full w-full items-center justify-center bg-white px-14 text-center">
+
+                                                <p className="max-w-[470px] font-serif text-[19px] leading-9 text-[#3c3860]">
+                                                    {leaf.page.text}
+                                                </p>
+
+                                            </div>
+
+                                        ) : leaf.page.kind === "cover" ? (
+
+                                            /* =================================================
+                                                INFORMATION PAGE
+                                            ================================================= */
+
+                                            <div className="relative flex h-full w-full flex-col items-center justify-center overflow-hidden bg-white px-12 text-center">
+
+                                                {/* CORNERS */}
+
+                                                <span className="pointer-events-none absolute left-7 top-7 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-[#dfcf9d]" />
+
+                                                <span className="pointer-events-none absolute right-7 top-7 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-[#dfcf9d]" />
+
+                                                <span className="pointer-events-none absolute bottom-7 left-7 h-8 w-8 rounded-bl-lg border-b-2 border-l-2 border-[#dfcf9d]" />
+
+                                                <span className="pointer-events-none absolute bottom-7 right-7 h-8 w-8 rounded-br-lg border-b-2 border-r-2 border-[#dfcf9d]" />
+
+
+                                                {/* TITLE */}
+
+                                                <h3 className="max-w-[570px] font-serif text-[40px] font-bold leading-[1.12] text-[#29254d]">
+                                                    {leaf.page.heading}
+                                                </h3>
+
+
+                                                {/* DIVIDER */}
+
+                                                <div className="my-5 flex items-center gap-3">
+                                                    <span className="h-px w-12 bg-[#dfcf9d]" />
+                                                    <span className="h-2 w-2 rounded-full bg-[#c9a24d]" />
+                                                    <span className="h-px w-12 bg-[#dfcf9d]" />
                                                 </div>
-                                            ) : leaf.page.kind === "story" ? (
-                                                <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center sm:p-12">
-                                                    <p className="font-serif text-[19px] leading-9 text-[#3c3860]">
-                                                        {leaf.page.text}
-                                                    </p>
-                                                </div>
-                                            ) : leaf.page.kind === "cover" ? (
-                                                <div className="relative flex h-full flex-col items-center justify-center gap-4 overflow-y-auto p-8 text-center sm:p-10">
-                                                    <span className="pointer-events-none absolute left-4 top-4 h-6 w-6 rounded-tl-lg border-l-2 border-t-2 border-[#e3d5a8]" />
-                                                    <span className="pointer-events-none absolute right-4 top-4 h-6 w-6 rounded-tr-lg border-r-2 border-t-2 border-[#e3d5a8]" />
-                                                    <span className="pointer-events-none absolute left-4 bottom-4 h-6 w-6 rounded-bl-lg border-b-2 border-l-2 border-[#e3d5a8]" />
-                                                    <span className="pointer-events-none absolute right-4 bottom-4 h-6 w-6 rounded-br-lg border-b-2 border-r-2 border-[#e3d5a8]" />
 
-                                                    <h3 className="font-serif text-3xl font-bold leading-tight text-[#29254d] sm:text-4xl">
-                                                        {leaf.page.heading}
-                                                    </h3>
 
-                                                    <div className="flex items-center gap-2 text-[#c9a24d]">
-                                                        <span className="h-px w-8 bg-[#e3d5a8]" />
-                                                        <span className="h-1.5 w-1.5 rounded-full bg-[#c9a24d]" />
-                                                        <span className="h-px w-8 bg-[#e3d5a8]" />
-                                                    </div>
+                                                {/* AGE */}
 
-                                                    <span className="rounded-full bg-[#f3edff] px-4 py-1 text-[12px] font-bold text-[#5d2bc5]">
-                                                        {selectedTemplate.age}
-                                                    </span>
+                                                <span className="rounded-full bg-[#f0e8ff] px-5 py-1.5 text-[12px] font-bold text-[#5d2bc5]">
+                                                    {selectedTemplate.age}
+                                                </span>
 
-                                                    <p className="max-w-xs text-[14px] leading-7 text-[#77738b]">
-                                                        {selectedTemplate.description}
-                                                    </p>
 
-                                                    <div className="grid w-full max-w-xs grid-cols-3 gap-2 rounded-2xl border border-[#ece7f7] p-3">
-                                                        <div className="flex flex-col items-center gap-1">
-                                                            <BookOpen size={15} className="text-[#5d2bc5]" />
-                                                            <p className="text-[9px] font-semibold uppercase tracking-wide text-[#a39fb5]">
-                                                                Reading Time
-                                                            </p>
-                                                            <p className="text-[11.5px] font-bold text-[#332f54]">5–10 min</p>
-                                                        </div>
-                                                        <div className="flex flex-col items-center gap-1 border-x border-[#ece7f7]">
-                                                            <WandSparkles size={15} className="text-[#5d2bc5]" />
-                                                            <p className="text-[9px] font-semibold uppercase tracking-wide text-[#a39fb5]">
-                                                                Theme
-                                                            </p>
-                                                            <p className="text-[11.5px] font-bold text-[#332f54]">
-                                                                {selectedTemplate.category}
-                                                            </p>
-                                                        </div>
-                                                        <div className="flex flex-col items-center gap-1">
-                                                            <Star size={15} className="text-[#5d2bc5]" />
-                                                            <p className="text-[9px] font-semibold uppercase tracking-wide text-[#a39fb5]">
-                                                                Best For
-                                                            </p>
-                                                            <p className="text-[11.5px] font-bold text-[#332f54]">
-                                                                Kids {bestForAge}
-                                                            </p>
-                                                        </div>
-                                                    </div>
+                                                {/* DESCRIPTION */}
 
-                                                    <div className="w-full max-w-xs rounded-2xl border border-[#ece7f7] bg-[#faf9ff] p-3 text-left">
-                                                        <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-[#5d2bc5]">
-                                                            <Mic size={12} />
-                                                            Your Story Input
-                                                        </div>
-                                                        <p className="text-[12px] italic leading-6 text-[#6b6680]">
-                                                            "{selectedTemplate.description}"
+                                                <p className="mt-6 max-w-[520px] text-[14px] leading-7 text-[#77738b]">
+                                                    {selectedTemplate.description}
+                                                </p>
+
+
+                                                {/* INFO */}
+
+                                                <div className="mt-6 grid w-full max-w-[520px] grid-cols-3 rounded-[20px] border border-[#e8e2f2] bg-white p-4">
+
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <BookOpen size={18} className="text-[#5d2bc5]" />
+                                                        <p className="text-[9px] font-semibold uppercase tracking-wide text-[#a39fb5]">
+                                                            Reading Time
+                                                        </p>
+                                                        <p className="text-[12px] font-bold text-[#332f54]">
+                                                            5–10 min
                                                         </p>
                                                     </div>
+
+                                                    <div className="flex flex-col items-center gap-1 border-x border-[#e8e2f2]">
+                                                        <WandSparkles size={18} className="text-[#5d2bc5]" />
+                                                        <p className="text-[9px] font-semibold uppercase tracking-wide text-[#a39fb5]">
+                                                            Theme
+                                                        </p>
+                                                        <p className="text-[12px] font-bold text-[#332f54]">
+                                                            {selectedTemplate.category}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <Star size={18} className="text-[#5d2bc5]" />
+                                                        <p className="text-[9px] font-semibold uppercase tracking-wide text-[#a39fb5]">
+                                                            Best For
+                                                        </p>
+                                                        <p className="text-[12px] font-bold text-[#332f54]">
+                                                            Kids {bestForAge}
+                                                        </p>
+                                                    </div>
+
                                                 </div>
-                                            ) : (
-                                                <div className="relative flex h-full flex-col items-center justify-center gap-3 p-8 text-center sm:p-12">
-                                                    <span className="pointer-events-none absolute left-4 top-4 h-6 w-6 rounded-tl-lg border-l-2 border-t-2 border-[#e3d5a8]" />
-                                                    <span className="pointer-events-none absolute right-4 top-4 h-6 w-6 rounded-tr-lg border-r-2 border-t-2 border-[#e3d5a8]" />
-                                                    <span className="pointer-events-none absolute left-4 bottom-4 h-6 w-6 rounded-bl-lg border-b-2 border-l-2 border-[#e3d5a8]" />
-                                                    <span className="pointer-events-none absolute right-4 bottom-4 h-6 w-6 rounded-br-lg border-b-2 border-r-2 border-[#e3d5a8]" />
-                                                    <h3 className="font-serif text-3xl font-bold leading-tight text-[#29254d] sm:text-4xl">
-                                                        {leaf.page.heading}
-                                                    </h3>
-                                                    <p className="text-sm font-semibold text-[#9893a8]">
-                                                        {leaf.page.sub}
+
+
+                                                {/* STORY INPUT */}
+
+                                                <div className="mt-5 w-full max-w-[520px] rounded-[20px] border border-[#e7e0f4] bg-[#faf9ff] p-4 text-left">
+
+                                                    <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold text-[#5d2bc5]">
+                                                        <Mic size={13} />
+                                                        Your Story Input
+                                                    </div>
+
+                                                    <p className="text-[12px] italic leading-6 text-[#6b6680]">
+                                                        "{selectedTemplate.description}"
                                                     </p>
+
                                                 </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </HTMLFlipBook>
 
-                                {/* Center spine gutter — the fold shadow where the two pages meet */}
-                                <div
-                                    className="pointer-events-none absolute inset-y-0 left-1/2 z-30 w-10 -translate-x-1/2"
-                                    style={{
-                                        background: `linear-gradient(
-                                            to right,
-                                            rgba(40,30,90,0) 0%,
-                                            rgba(40,30,90,0.12) 40%,
-                                            rgba(40,30,90,0.22) 50%,
-                                            rgba(40,30,90,0.12) 60%,
-                                            rgba(40,30,90,0) 100%
-                                        )`,
-                                    }}
-                                />
-                            </div>
+                                            </div>
 
-                            {/* Grounding contact shadow so the book looks lifted off the page */}
-                            <div
-                                className="pointer-events-none absolute -bottom-8 left-1/2 h-10 w-[78%] -translate-x-1/2 rounded-[100%] blur-2xl bg-white"
-                                // style={{ background: "rgba(235, 232, 241, 0.22)" }}
-                            />
-                        </div>
+                                        ) : (
 
-                        <button
-                            type="button"
-                            onClick={goNextPage}
-                            disabled={isLastPage}
-                            className="absolute right-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#604bc0] shadow-md transition hover:bg-[#f5f2ff] disabled:opacity-30 disabled:hover:bg-white sm:right-6"
-                        >
-                            <ChevronRight size={22} />
-                        </button>
-                    </div>
-                </div>
+                                            /* =================================================
+                                                GENERIC PAGE
+                                            ================================================= */
 
-                {/* Bottom filmstrip navigator */}
-                <div className="flex items-center gap-3 bg-white px-4 py-4 sm:px-8">
-                    <button
-                        type="button"
-                        onClick={goPrevPage}
-                        disabled={isFirstPage}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#9893a8] transition hover:bg-[#f5f2ff] disabled:opacity-30"
-                    >
-                        <ChevronLeft size={16} />
-                    </button>
+                                            <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 bg-white px-12 text-center">
 
-                    <div
-                        ref={filmstripRef}
-                        className="no-scrollbar flex flex-1 items-center gap-3 overflow-x-auto py-1"
-                    >
-                        {visibleThumbs.map((page, i) => {
-                            const active = i === pageIndex;
-                            return (
-                                <button
-                                    key={i}
-                                    type="button"
-                                    data-page={i}
-                                    onClick={() => goToSpread(i)}
-                                    className="flex shrink-0 flex-col items-center gap-1"
-                                >
-                                    <div
-                                        className={`overflow-hidden rounded-lg transition-all ${
-                                            active
-                                                ? "h-14 w-14 border-2 border-[#5d2bc5]"
-                                                : "h-11 w-11 border border-[#e4e1eb] opacity-70 hover:opacity-100"
-                                        }`}
-                                    >
-                                        <img src={page.image} alt="" className="h-full w-full object-cover" />
+                                                <span className="pointer-events-none absolute left-7 top-7 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-[#dfcf9d]" />
+
+                                                <span className="pointer-events-none absolute right-7 top-7 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-[#dfcf9d]" />
+
+                                                <span className="pointer-events-none absolute bottom-7 left-7 h-8 w-8 rounded-bl-lg border-b-2 border-l-2 border-[#dfcf9d]" />
+
+                                                <span className="pointer-events-none absolute bottom-7 right-7 h-8 w-8 rounded-br-lg border-b-2 border-r-2 border-[#dfcf9d]" />
+
+                                                <h3 className="max-w-[520px] font-serif text-[40px] font-bold leading-tight text-[#29254d]">
+                                                    {leaf.page.heading}
+                                                </h3>
+
+                                                <p className="text-sm font-semibold text-[#9893a8]">
+                                                    {leaf.page.sub}
+                                                </p>
+
+                                            </div>
+
+                                        )}
+
                                     </div>
-                                    <span
-                                        className={`text-[10px] font-bold ${
-                                            active ? "text-[#5d2bc5]" : "text-[#b3aec4]"
-                                        }`}
-                                    >
-                                        {i + 1}
-                                    </span>
-                                </button>
-                            );
-                        })}
 
-                        {overflowCount > 0 && (
+                                ))}
+
+                            </HTMLFlipBook>
+
+
+                            {/* =================================================
+            CENTER PAGE CREASE
+        ================================================= */}
+
+                            <div className="pointer-events-none absolute inset-y-0 left-1/2 z-[50] w-[52px] -translate-x-1/2 bg-gradient-to-r from-transparent via-[#38334b]/10 to-transparent" />
+
+                            <div className="pointer-events-none absolute inset-y-0 left-1/2 z-[51] w-[2px] -translate-x-1/2 bg-gradient-to-b from-transparent via-[#4b4656]/10 to-transparent" />
+
+
+                            {/* =================================================
+            LEFT ARROW
+        ================================================= */}
+
                             <button
                                 type="button"
-                                onClick={() => setPageNavOpen(true)}
-                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#f3edff] text-[12px] font-bold text-[#5d2bc5] transition hover:bg-[#ece2ff]"
+                                onClick={goPrevPage}
+                                disabled={isFirstPage}
+                                aria-label="Previous page"
+                                className="absolute left-5 top-1/2 z-[100] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20"
                             >
-                                +{overflowCount}
+                                <ChevronLeft size={25} />
                             </button>
-                        )}
+
+
+                            {/* =================================================
+            RIGHT ARROW
+        ================================================= */}
+
+                            <button
+                                type="button"
+                                onClick={goNextPage}
+                                disabled={isLastPage}
+                                aria-label="Next page"
+                                className="absolute right-5 top-1/2 z-[100] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20"
+                            >
+                                <ChevronRight size={25} />
+                            </button>
+
+                        </div>
+
+
+                        {/* =================================================
+        SMALL BLUE COVER LIP
+    ================================================= */}
+
+                        <div className="pointer-events-none absolute bottom-[8px] left-[4%] right-[4%] z-[16] h-[10px] rounded-b-[18px] bg-[#163971]" />
+
+
+                        {/* =================================================
+        SOFT FLOOR SHADOW
+    ================================================= */}
+
+                        <div className="pointer-events-none absolute -bottom-6 left-1/2 z-[-1] h-[28px] w-[78%] -translate-x-1/2 rounded-full bg-[#535064]/25 blur-2xl" />
+
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={goNextPage}
-                        disabled={isLastPage}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#9893a8] transition hover:bg-[#f5f2ff] disabled:opacity-30"
-                    >
-                        <ChevronRight size={16} />
-                    </button>
+                    {/* =================================================
+                        SEPARATE PAGE NAVIGATION
+                    ================================================= */}
+
+                    <aside className="relative z-30 flex h-[650px] w-[78px] shrink-0 flex-col items-center justify-center bg-transparent">
+
+                        <div className="flex w-full flex-col items-center gap-3">
+
+                            {visibleThumbs.map((page, index) => {
+
+                                const active = index === pageIndex;
+
+                                return (
+                                    <button
+                                        key={index}
+                                        type="button"
+                                        onClick={() => goToSpread(index)}
+                                        aria-label={`Open page ${index + 1}`}
+                                        className="group flex flex-col items-center gap-1 outline-none"
+                                    >
+
+                                        <div className={`relative overflow-hidden rounded-[9px] bg-white transition-all duration-200 ${active ? "h-[58px] w-[68px] border-2 border-[#5d2bc5] shadow-[0_5px_16px_rgba(93,43,197,0.25)]" : "h-[54px] w-[64px] border border-transparent opacity-65 hover:border-[#b9a9df] hover:opacity-100"}`}>
+                                            <img src={page.image} alt="" draggable={false} className="h-full w-full object-cover" />
+                                        </div>
+
+                                        <span className={`text-[10px] font-bold ${active ? "text-[#5d2bc5]" : "text-[#aaa5b8]"}`}>
+                                            {index + 1}
+                                        </span>
+
+                                    </button>
+                                );
+                            })}
+
+
+                            {overflowCount > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setPageNavOpen(true)}
+                                    className="flex h-[34px] w-[62px] items-center justify-center rounded-lg border border-[#ded7ef] bg-transparent text-[10px] font-bold text-[#5d2bc5] transition hover:bg-white/60"
+                                >
+                                    +{overflowCount}
+                                </button>
+                            )}
+
+                        </div>
+
+                    </aside>
+
                 </div>
+
+
+                {/* =====================================================
+                    BOTTOM END INDICATOR
+                ===================================================== */}
+
+                <div className="pointer-events-none absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2">
+                    <span className="h-px w-20 bg-[#d8d3e3]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#b9b2cb]" />
+                    <span className="h-px w-20 bg-[#d8d3e3]" />
+                </div>
+
             </div>
+
+
+            {/* =========================================================
+                ALL PAGES POPUP
+            ========================================================== */}
+
+            {pageNavOpen && (
+                <div
+                    className="absolute inset-0 z-[200] flex items-center justify-center bg-[#29254d]/20 p-6 backdrop-blur-[3px]"
+                    onClick={() => setPageNavOpen(false)}
+                >
+
+                    <div
+                        className="relative max-h-[620px] w-[600px] overflow-hidden rounded-[24px] border border-[#e5dff2] bg-white p-6 shadow-[0_30px_80px_rgba(40,30,80,0.28)]"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+
+                        <div className="mb-5 flex items-center justify-between">
+
+                            <div>
+                                <p className="text-sm font-bold text-[#332f54]">
+                                    Book Pages
+                                </p>
+
+                                <p className="mt-1 text-[11px] text-[#9b96aa]">
+                                    Choose a page to open
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setPageNavOpen(false)}
+                                className="flex h-9 w-9 items-center justify-center rounded-full text-[#9893a8] transition hover:bg-[#f5f2ff] hover:text-[#5d2bc5]"
+                            >
+                                <X size={18} />
+                            </button>
+
+                        </div>
+
+
+                        <div className="grid grid-cols-4 gap-4">
+
+                            {pages.map((page, index) => {
+
+                                const active = index === pageIndex;
+
+                                return (
+                                    <button
+                                        key={index}
+                                        type="button"
+                                        onClick={() => goToSpread(index)}
+                                        className="group flex flex-col items-center gap-1.5"
+                                    >
+
+                                        <div className={`aspect-[4/3] w-full overflow-hidden rounded-xl bg-white transition-all ${active ? "border-2 border-[#5d2bc5] shadow-[0_5px_15px_rgba(93,43,197,0.18)]" : "border border-[#e4e1eb] group-hover:border-[#b9a9df]"}`}>
+                                            <img src={page.image} alt="" draggable={false} className="h-full w-full object-cover" />
+                                        </div>
+
+                                        <span className={`text-[10px] font-bold ${active ? "text-[#5d2bc5]" : "text-[#aaa5b8]"}`}>
+                                            Page {index + 1}
+                                        </span>
+
+                                    </button>
+                                );
+                            })}
+
+                        </div>
+
+                    </div>
+
+                </div>
+            )}
+
         </section>
     );
 };
+
+
+export default TemplateDetail;
