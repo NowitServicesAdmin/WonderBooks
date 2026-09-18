@@ -142,9 +142,9 @@ export const HeaderAnimationSearch = ({
     const [suggestionIndex, setSuggestionIndex] = useState(0);
 
 
-    /* =========================================================
-       ANIMATED MAIN PROMPT
-       ========================================================= */
+    // =========================================================
+    // ANIMATED MAIN PROMPT
+    // =========================================================
 
     useEffect(() => {
         const prompts = animatedPrompts(userName);
@@ -175,9 +175,9 @@ export const HeaderAnimationSearch = ({
     }, [userName]);
 
 
-    /* =========================================================
-       ANIMATED SUGGESTIONS
-       ========================================================= */
+    // =========================================================
+    // ANIMATED SUGGESTIONS
+    // =========================================================
 
     useEffect(() => {
 
@@ -194,9 +194,9 @@ export const HeaderAnimationSearch = ({
     }, []);
 
 
-    /* =========================================================
-       SUBMIT
-       ========================================================= */
+    // =========================================================
+    // SUBMIT
+    // =========================================================
 
     const handleCreate = () => {
 
@@ -210,9 +210,9 @@ export const HeaderAnimationSearch = ({
     };
 
 
-    /* =========================================================
-       SELECT SUGGESTION
-       ========================================================= */
+    // =========================================================
+    // SELECT SUGGESTION
+    // =========================================================
 
     const handleSuggestion = (text) => {
         setStory(text);
@@ -222,133 +222,31 @@ export const HeaderAnimationSearch = ({
     return (
         <div className="w-full">
 
-            {/* =====================================================
-                MAIN CREATION BAR
-               ===================================================== */}
 
-            <div
-                className="
-                    group
+            <div className="group flex h-[52px] w-full items-center gap-2.5 rounded-full border border-[#ddd1ff] bg-white/95 px-4 pr-1.5 shadow-[0_5px_24px_rgba(84,38,199,0.10)] backdrop-blur-md transition-all duration-300 hover:border-[#c8b5ff] hover:shadow-[0_8px_30px_rgba(84,38,199,0.16)] focus-within:border-[#a98aff] focus-within:shadow-[0_8px_32px_rgba(84,38,199,0.18)] animate-input-glow">
 
-                    flex
-                    h-[52px]
-                    w-full
+    
 
-                    items-center
-                    gap-2.5
-
-                    rounded-full
-
-                    border
-                    border-[#ddd1ff]
-
-                    bg-white/95
-
-                    px-4
-                    pr-1.5
-
-                    shadow-[0_5px_24px_rgba(84,38,199,0.10)]
-
-                    backdrop-blur-md
-
-                    transition-all
-                    duration-300
-
-                    hover:border-[#c8b5ff]
-
-                    hover:shadow-[0_8px_30px_rgba(84,38,199,0.16)]
-
-                    focus-within:border-[#a98aff]
-
-                    focus-within:shadow-[0_8px_32px_rgba(84,38,199,0.18)]
-
-                    animate-input-glow
-                "
-            >
-
-                {/* =================================================
-                    AI SPARKLE
-                   ================================================= */}
-
-                <div
-                    className="
-                        relative
-                        flex
-                        h-8
-                        w-8
-                        shrink-0
-                        items-center
-                        justify-center
-                    "
-                >
+                <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
                     <Sparkles
                         size={20}
                         strokeWidth={1.8}
-                        className="
-                            text-[#5426c7]
-                            animate-sparkle
-                        "
+                        className="text-[#5426c7] animate-sparkle"
                     />
 
-                    <span
-                        className="
-                            pointer-events-none
-                            absolute
-                            right-0
-                            top-0
-                            text-[8px]
-                            text-[#b894ff]
-                        "
-                    >
+                    <span className="pointer-events-none absolute right-0 top-0 text-[8px] text-[#b894ff]">
                         ✦
                     </span>
                 </div>
 
 
-                {/* =================================================
-                    INPUT
-                   ================================================= */}
+    
 
-                <div
-                    className="
-                        relative
-                        flex
-                        h-full
-                        min-w-0
-                        flex-1
-                        items-center
-                    "
-                >
+                <div className="relative flex h-full min-w-0 flex-1 items-center">
 
-                    {/* Animated placeholder */}
 
                     {!story && (
-                        <div
-                            className={`
-                                pointer-events-none
-                                absolute
-                                left-0
-                                right-0
-
-                                overflow-hidden
-                                text-ellipsis
-                                whitespace-nowrap
-
-                                text-[15px]
-                                font-medium
-
-                                text-[#8f86a6]
-
-                                transition-all
-                                duration-300
-
-                                ${
-                                    isChanging
-                                        ? "translate-y-1 opacity-0"
-                                        : "translate-y-0 opacity-100"
-                                }
-                            `}
-                        >
+                        <div className={`pointer-events-none absolute left-0 right-0 overflow-hidden text-ellipsis whitespace-nowrap text-[15px] font-medium text-[#8f86a6] transition-all duration-300 ${isChanging ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100"}`}>
                             <span className="font-bold text-[#5426c7]">
                                 {visiblePrompt.split("!")[0]}!
                             </span>
@@ -366,63 +264,22 @@ export const HeaderAnimationSearch = ({
                     <input
                         type="text"
                         value={story}
-                        onChange={(e) =>
-                            setStory(e.target.value)
-                        }
+                        onChange={(e) => setStory(e.target.value)}
                         onKeyDown={(e) => {
                             if (e.key === "Enter") {
                                 handleCreate();
                             }
                         }}
-                        className="
-                            relative
-                            z-10
-
-                            h-full
-                            w-full
-
-                            bg-transparent
-
-                            text-[15px]
-                            font-medium
-                            text-[#30215c]
-
-                            outline-none
-
-                            placeholder:text-[#aaa3bb]
-                        "
+                        className="relative z-10 h-full w-full bg-transparent text-[15px] font-medium text-[#30215c] outline-none placeholder:text-[#aaa3bb]"
                         aria-label="Create a WonderBook story"
                     />
                 </div>
 
 
-                {/* =================================================
-                    MICROPHONE
-                   ================================================= */}
-
                 <button
                     type="button"
                     aria-label="Voice input"
-                    className="
-                        flex
-                        h-9
-                        w-9
-                        shrink-0
-                        items-center
-                        justify-center
-
-                        rounded-full
-
-                        text-[#6b52c8]
-
-                        transition-all
-                        duration-200
-
-                        hover:bg-[#f2edff]
-                        hover:scale-105
-
-                        active:scale-95
-                    "
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#6b52c8] transition-all duration-200 hover:bg-[#f2edff] hover:scale-105 active:scale-95"
                 >
                     <Mic
                         size={19}
@@ -431,150 +288,47 @@ export const HeaderAnimationSearch = ({
                 </button>
 
 
-                {/* =================================================
-                    CREATE BUTTON
-                   ================================================= */}
-
                 <button
                     type="button"
                     onClick={handleCreate}
                     aria-label="Create story"
-                    className="
-                        group/send
-
-                        flex
-                        h-10
-                        w-10
-                        shrink-0
-
-                        items-center
-                        justify-center
-
-                        rounded-full
-
-                        bg-[#5426c7]
-
-                        text-white
-
-                        shadow-[0_5px_14px_rgba(84,38,199,0.28)]
-
-                        transition-all
-                        duration-300
-
-                        hover:bg-[#4520a7]
-
-                        hover:scale-105
-
-                        hover:shadow-[0_8px_22px_rgba(84,38,199,0.35)]
-
-                        active:scale-95
-                    "
+                    className="group/send flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#5426c7] text-white shadow-[0_5px_14px_rgba(84,38,199,0.28)] transition-all duration-300 hover:bg-[#4520a7] hover:scale-105 hover:shadow-[0_8px_22px_rgba(84,38,199,0.35)] active:scale-95"
                 >
                     <ArrowRight
                         size={19}
                         strokeWidth={2.2}
-                        className="
-                            transition-transform
-                            duration-300
-
-                            group-hover/send:translate-x-0.5
-                        "
+                        className="transition-transform duration-300 group-hover/send:translate-x-0.5"
                     />
                 </button>
 
             </div>
 
 
-            {/* =====================================================
-                TRY / INSPIRATION ROW
-               ===================================================== */}
+       
 
-            <div
-                className="
-                    mt-2
+            <div className="mt-2 flex min-w-0 items-center gap-2">
 
-                    flex
-                    min-w-0
-                    items-center
-                    gap-2
-                "
-            >
-
-                {/* Try icon */}
 
                 <Sparkles
                     size={14}
                     strokeWidth={1.8}
-                    className="
-                        shrink-0
-                        text-[#b06cff]
-                    "
+                    className="shrink-0 text-[#b06cff]"
                 />
 
-                <span
-                    className="
-                        shrink-0
-                        text-[12px]
-                        font-semibold
-                        text-[#5c4b86]
-                    "
-                >
+                <span className="shrink-0 text-[12px] font-semibold text-[#5c4b86]">
                     Try:
                 </span>
 
 
-                {/* Suggestions */}
 
-                <div
-                    className="
-                        flex
-                        min-w-0
-                        flex-1
-                        items-center
-                        gap-2
-                        overflow-hidden
-                    "
-                >
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
 
                     {suggestionIdeas.map((idea, index) => (
                         <button
                             key={idea}
                             type="button"
-                            onClick={() =>
-                                handleSuggestion(idea)
-                            }
-                            className="
-                                group/chip
-
-                                shrink-0
-
-                                max-w-[220px]
-
-                                truncate
-
-                                rounded-full
-
-                                border
-                                border-[#e8defd]
-
-                                bg-white/70
-
-                                px-3
-                                py-1
-
-                                text-[11px]
-                                font-medium
-
-                                text-[#66568b]
-
-                                transition-all
-                                duration-200
-
-                                hover:border-[#cbb7ff]
-                                hover:bg-[#f5f0ff]
-                                hover:text-[#5426c7]
-                                hover:-translate-y-[1px]
-                            "
+                            onClick={() => handleSuggestion(idea)}
+                            className="group/chip shrink-0 max-w-[220px] truncate rounded-full border border-[#e8defd] bg-white/70 px-3 py-1 text-[11px] font-medium text-[#66568b] transition-all duration-200 hover:border-[#cbb7ff] hover:bg-[#f5f0ff] hover:text-[#5426c7] hover:-translate-y-[1px]"
                         >
                             {idea}
                         </button>
@@ -583,8 +337,7 @@ export const HeaderAnimationSearch = ({
                 </div>
 
 
-                {/* Refresh */}
-
+            
                 <button
                     type="button"
                     aria-label="Refresh story ideas"
@@ -595,25 +348,7 @@ export const HeaderAnimationSearch = ({
                                 suggestionIdeas.length
                         )
                     }
-                    className="
-                        flex
-                        h-7
-                        w-7
-                        shrink-0
-                        items-center
-                        justify-center
-
-                        rounded-full
-
-                        text-[#a68ad9]
-
-                        transition-all
-                        duration-200
-
-                        hover:bg-white
-                        hover:text-[#5426c7]
-                        hover:rotate-180
-                    "
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#a68ad9] transition-all duration-200 hover:bg-white hover:text-[#5426c7] hover:rotate-180"
                 >
                     <RefreshCw size={14} />
                 </button>

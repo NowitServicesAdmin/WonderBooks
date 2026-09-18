@@ -1,89 +1,55 @@
-import { openai } from "../config/openai.js";
-import { createStoryPrompt } from "../components/storyPrompt.js";
+import crypto from "crypto";
+import { uploadToS3 } from "../services/s3Service.js";
 import { analyzeStory } from "../components/storyAnalyzer.js";
 import { generateImage } from "../components/imageGenerator.js";
 import { generateStory } from "../components/generateStory.js";
-
-// export const createBook = async (req, res) => {
-//     try {
-//         const { message } = req.body;
-
-//         if (!message?.trim()) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Story idea is required",
-//             });
-//         }
-
-//         console.log("Story idea received:", message);
-//         const prompt = createStoryPrompt(message);
-
-//         const response = await openai.responses.create({
-//             model: "gpt-5-mini",
-//             input: prompt,
-//         });
-
-//         console.log(response.output_text, "@prabhvua")
-//         res.json({
-//             success: true,
-//             data: response.output_text,
-//         });
-//     } catch (error) {
-//         console.log("Create book error:", error);
-
-//         res.status(500).json({
-//             success: false,
-//             message: "Something went wrong",
-//         });
-//     }
-// };
-
-
 import { generateImagePrompt } from "../components/generateImagePrompt.js";
-const generatedStory = {
-    title: 'Anya and Bolt: The Mystery of the Floating Island',
-    pages: [
-        {
-            pageNumber: 1,
-            content: "Anya loved asking how things worked. She wore her safety goggles and carried a notebook full of questions. Bolt, her pet robot with glowing LED eyes, beeped happily as they played in the backyard. Suddenly, a soft glow rose above the trees—a small island was floating in the sky! Anya's eyes grew wide. A mystery! she whispered."
-        },
-        {
-            pageNumber: 2,
-            content: 'Anya leaned on science. "We need a plan," she said, drawing ideas in her notebook. Bolt opened his gadget chest and showed a folding fan, a grappling arm, and strong balloons. Anya counted how many balloons they might need and talked about lift and balance in simple words. Teamwork began: Anya would be the scientist, Bolt would handle the gadgets.'
-        },
-        {
-            pageNumber: 3,
-            content: "They built a sky-lift: a sturdy basket, lots of balloons, and Bolt's hover fan for steady air. Anya tested the lift by adding pebbles and watching how the basket rose or sank. Bolt adjusted a pulley to keep the basket level. They tested again until the basket stayed steady—trial and error mixed with measurement."
-        },
-        {
-            pageNumber: 4,
-            content: 'Floating rocks drifted toward the island like stepping stones in the clouds. Each rock had a glowing symbol and a puzzle painted on it. The puzzles were not scary; they were logic and pattern games. "We solve each puzzle to pass," said Anya. Bolt flashed his LED eyes in agreement and extended a small bridge for them to step across.'
-        },
-        {
-            pageNumber: 5,
-            content: 'The first rock had a balancing puzzle: three stones on one side and two on the other. Anya used pebbles to show how weight and distance make things tip. She moved a stone closer to the center and the scale evened out. Bolt used his clamp to hold the last piece in place. They cheered when the light turned green and the rock floated them forward.'
-        },
-        {
-            pageNumber: 6,
-            content: 'The next puzzle was shapes that must fit together to make a bridge. Anya drew the shapes in her notebook and talked about angles and fitting corners. Bolt unfolded a tiny lever and pulley to move each shape gently. Working together, they slid the pieces into place and the bridge clicked open like a smile.'
-        },
-        {
-            pageNumber: 7,
-            content: 'At last they reached the floating island. Glowing plants and friendly cloudbirds peeped at them. The island leaned to one side and its glow was dim. Bolt scanned with a soft humming sound and found scattered glowing crystals that made the island float. Anya knelt and thought: "If the crystals are out of balance, the island will tilt. We can test position and adjust."'
-        },
-        {
-            pageNumber: 8,
-            content: "The biggest test was moving the crystals. They needed gentle hands and careful measuring. Anya used string to find the island's center, and Bolt used his magnetic gripper to lift each crystal. Sometimes a crystal made the island wobble, so they tried another spot. They used a simple idea of balance: spread weight evenly around the center. It took patience, and they helped each other the whole time."
-        },
-        {
-            pageNumber: 9,
-            content: "When the last crystal clicked into place, the island steadied and glowed bright again. Tiny plants perked up and cloudbirds sang. The sky ecosystem hummed with life because balance was restored. Anya smiled and told Bolt, Our curiosity gave us the questions, and teamwork helped us find answers. Bolt's LEDs blinked like a proud nod."
-        },
-        {
-            pageNumber: 10,
-            content: 'Back in the backyard, Anya planted a small glowing seed the island had gifted them. She wrote in her notebook: curiosity + teamwork = solutions. Bolt made a chart of what they had learned about balance, lift, and taking careful measurements. They looked up at the night sky and saw the island twinkle far away. Anya whispered, "More mysteries tomorrow?" Bolt beeped, ready for the next adventure.'
-        }
-    ]
+import { uploadImage } from "../services/storageService.js";
+import book from "../models/Book.js";
+const test_story= {
+  title: "Cherry's Jungle Adventure",
+  pages: [
+    {
+      pageNumber: 1,
+      content: 'Cherry sits by the edge of the jungle. He draws a blue waterfall on his paper. Puppy curls up at his feet. The red Car sits ready on the grass.'
+    },
+    {
+      pageNumber: 2,
+      content: `Cherry holds up his picture. "Let's find this!" he says. Puppy wags and bounces. The red Car waits to be pushed.`
+    },
+    {
+      pageNumber: 3,
+      content: 'They walk into the jungle. Big green leaves brush their heads. Little birds sing. The path is soft under their feet.'
+    },
+    {
+      pageNumber: 4,
+      content: 'A small stream runs across the path. The red Car gets stuck in the mud. Cherry looks at the water and feels unsure. Puppy splashes and tries to pull.'
+    },
+    {
+      pageNumber: 5,
+      content: 'Cherry finds shiny stones on the ground. He draws a little arrow on his paper. The stones make a bright path. They follow the sparkling trail.'
+    },
+    {
+      pageNumber: 6,
+      content: 'Rain falls hard. Drops drum on leaves. A big log falls and blocks the way. The red Car is trapped behind the log. Puppy hides close to Cherry.'
+    },
+    {
+      pageNumber: 7,
+      content: 'They work together. Puppy digs with his paws. Cherry pushes the red Car with all his hands. Cherry uses a stick and Pry, and the log moves. They cheer together.'
+    },
+    {
+      pageNumber: 8,
+      content: 'A loud roar fills the air. The waterfall is near. A dark cave stands before them. Cherry holds his drawing tight. He takes a small brave breath.'
+    },
+    {
+      pageNumber: 9,
+      content: 'Cherry steps into the cave first. Puppy stays very close. The red Car rolls beside them. Water sparkles ahead. They walk out and see the bright waterfall.'
+    },
+    {
+      pageNumber: 10,
+      content: 'They sit on a warm rock and share pizza. Cherry draws the waterfall again, smiling. Puppy licks his hand. The red Car shines in the sun. They go home feeling proud and close.'
+    }
+  ]
 }
 
 const buildStoryDataFromSelections = (selections = {}, characters = []) => {
@@ -98,70 +64,403 @@ const buildStoryDataFromSelections = (selections = {}, characters = []) => {
         language: pick("language") || "English",
         font: pick("font") || "Rounded & Playful",
         characters: (characters || []).map((character) => ({
+            id: character.id,
             type: character.type,
             name: character.name,
-            gender: character.gender,
-            age: character.age,
-            hobbies: character.hobbies,
-            favouriteFood: character.favouriteFood,
-            hasPhoto: Boolean(character.photo),
-        })),
+            gender: character.gender || "",
+            age: character.age || "",
+            hobbies: character.hobbies || "",
+            favouriteFood: character.favouriteFood || "",
+            hasPhoto: Boolean(character.hasPhoto),
+            photoUrl: null,
+            photoStorageProvider: null,
+            photoStorageKey: null
+        }))
     };
 };
 
 export const createBook = async (req, res) => {
     try {
-        const { mode, message, storySettings, characters } = req.body;
+        const mode = req.body.mode;
+        const message = req.body.message;
+
+        const storySettings =
+            typeof req.body.storySettings === "string"
+                ? JSON.parse(req.body.storySettings)
+                : req.body.storySettings;
+
+        const characters =
+            typeof req.body.characters === "string"
+                ? JSON.parse(req.body.characters)
+                : req.body.characters || [];
+
         let storyData;
 
         if (mode === "manual") {
-            // ---------- MANUAL MODE ----------
-            // Selections already came in structured from the step-by-step UI,
-            // so we skip the Gemini analysis step entirely.
             if (!storySettings || Object.keys(storySettings).length === 0) {
                 return res.status(400).json({
                     success: false,
-                    message: "Story settings are required for manual mode",
+                    message: "Story settings are required for manual mode"
                 });
             }
 
-            storyData = buildStoryDataFromSelections(storySettings, characters);
+            storyData = buildStoryDataFromSelections(
+                storySettings,
+                characters
+            );
 
-            console.log("Manual mode story data built:", storyData);
+            console.log(
+                "Manual mode story data built:",
+                storyData
+            );
         } else {
-            // ---------- AI / CHAT MODE (original behaviour) ----------
             if (!message?.trim()) {
                 return res.status(400).json({
                     success: false,
-                    message: "Story idea is required",
+                    message: "Story idea is required"
                 });
             }
 
             console.log("Story idea received:", message);
 
-            // STEP 1: Gemini analyzes the user's idea
             storyData = await analyzeStory(message);
 
-            console.log("Story analysis completed:", storyData);
+            console.log(
+                "Story analysis completed:",
+                storyData
+            );
         }
 
-        // STEP 2: OpenAI generates the actual story (shared by both modes)
-        const generatedStory = await generateStory(storyData);
-        console.log(generatedStory, "..GeneratedStory");
+        // Generate story
+        // const generatedStory = await generateStory(storyData);
 
-        console.log("Story generation completed");
+        const generatedStory = test_story;
 
-        res.json({
-            success: true,
+        console.log(
+            "Story generation completed:",
+            generatedStory
+        );
+
+        if (
+            !generatedStory?.title ||
+            generatedStory.title === "undefined" ||
+            !Array.isArray(generatedStory?.pages) ||
+            generatedStory.pages.length === 0
+        ) {
+            throw new Error(
+                "Generated story is invalid or contains no pages"
+            );
+        }
+
+        // Create book first so we have bookId
+        const new_book = await book.create({
+            title: generatedStory.title,
+            mode: mode === "manual" ? "manual" : "ai",
+            status: "generating",
             storyData,
-            story: generatedStory,
+            pages: generatedStory.pages.map((page, index) => ({
+                position: index + 1,
+                pageNumber: page.pageNumber || index + 1,
+                content: page.content || "",
+                imageUrl: null,
+                storageProvider: null,
+                storageKey: null,
+                imagePrompt: "",
+                status: "pending"
+            }))
+        });
+
+        const bookId = new_book._id.toString();
+
+        console.log(
+            "Book created:",
+            bookId
+        );
+
+        // Upload character photos to private AWS S3
+        const uploadedCharacters = [...storyData.characters];
+
+        for (const file of req.files || []) {
+            const match = file.fieldname.match(
+                /^characterPhoto-(.+)$/
+            );
+
+            if (!match) {
+                console.warn(
+                    "Skipping unknown uploaded file:",
+                    file.fieldname
+                );
+                continue;
+            }
+
+            const characterId = match[1];
+
+            const characterIndex =
+                uploadedCharacters.findIndex(
+                    (character) =>
+                        String(character.id) ===
+                        String(characterId)
+                );
+
+            if (characterIndex === -1) {
+                console.warn(
+                    "Character not found for file:",
+                    file.originalname
+                );
+                continue;
+            }
+
+            const extension =
+                file.originalname
+                    ?.split(".")
+                    .pop()
+                    ?.toLowerCase() || "jpg";
+
+            const key = `characters/${bookId}/${characterId}-${crypto.randomUUID()}.${extension}`;
+
+            console.log(
+                `Uploading photo for character ${uploadedCharacters[characterIndex].name}...`
+            );
+
+            const uploadedPhoto = await uploadToS3({
+                key,
+                buffer: file.buffer,
+                contentType: file.mimetype
+            });
+
+            uploadedCharacters[characterIndex].photoUrl =
+                uploadedPhoto.url;
+
+            uploadedCharacters[characterIndex].photoStorageProvider =
+                uploadedPhoto.provider;
+
+            uploadedCharacters[characterIndex].photoStorageKey =
+                uploadedPhoto.key;
+
+            console.log(
+                `Character photo uploaded: ${uploadedPhoto.url}`
+            );
+        }
+
+        // Save character photo URLs and storage information
+        await book.updateOne(
+            { _id: bookId },
+            {
+                $set: {
+                    "storyData.characters": uploadedCharacters
+                }
+            }
+        );
+
+        // Update local storyData so image prompt generation
+        // receives the uploaded photo information
+        storyData.characters = uploadedCharacters;
+
+        console.log(
+            "Character photos saved to MongoDB"
+        );
+
+        // Generate image prompts
+        const imagePrompts =
+            await generateImagePrompt(
+                generatedStory,
+                storyData
+            );
+
+        console.log(
+            "Image prompts generated"
+        );
+
+        if (
+            !imagePrompts?.images ||
+            !Array.isArray(imagePrompts.images)
+        ) {
+            throw new Error(
+                "Image prompts were not generated correctly"
+            );
+        }
+
+        // Save all generated prompts
+        await book.updateOne(
+            { _id: bookId },
+            {
+                $set: {
+                    imagePrompts: imagePrompts.images
+                }
+            }
+        );
+
+        // Generate page images
+        for (const imageData of imagePrompts.images) {
+            const pageNumber = imageData.pageNumber;
+            const prompt = imageData.prompt;
+
+            if (!pageNumber || !prompt) {
+                console.warn(
+                    "Skipping invalid image prompt:",
+                    imageData
+                );
+                continue;
+            }
+
+            try {
+                await book.updateOne(
+                    {
+                        _id: bookId,
+                        "pages.pageNumber": pageNumber
+                    },
+                    {
+                        $set: {
+                            "pages.$.status": "generating",
+                            "pages.$.imagePrompt": prompt
+                        }
+                    }
+                );
+
+                console.log(
+                    `Generating image for page ${pageNumber}...`
+                );
+
+                const imageBuffer =
+                    await generateImage(prompt);
+
+                if (
+                    !imageBuffer ||
+                    !imageBuffer.length
+                ) {
+                    throw new Error(
+                        `No image generated for page ${pageNumber}`
+                    );
+                }
+
+                console.log(
+                    `Generated image size: ${imageBuffer.length}`
+                );
+
+                const key =
+                    `books/${bookId}/page-${pageNumber}.png`;
+
+                const uploadedImage =
+                    await uploadImage({
+                        key,
+                        buffer: imageBuffer,
+                        contentType: "image/png"
+                    });
+
+                await book.updateOne(
+                    {
+                        _id: bookId,
+                        "pages.pageNumber": pageNumber
+                    },
+                    {
+                        $set: {
+                            "pages.$.imageUrl":
+                                uploadedImage.url,
+                            "pages.$.storageProvider":
+                                uploadedImage.provider,
+                            "pages.$.storageKey":
+                                uploadedImage.key,
+                            "pages.$.status":
+                                "completed"
+                        }
+                    }
+                );
+
+                console.log(
+                    `Page ${pageNumber} completed using ${uploadedImage.provider}`
+                );
+            } catch (pageError) {
+                console.error(
+                    `Page ${pageNumber} image generation failed:`,
+                    pageError
+                );
+
+                await book.updateOne(
+                    {
+                        _id: bookId,
+                        "pages.pageNumber": pageNumber
+                    },
+                    {
+                        $set: {
+                            "pages.$.status": "failed"
+                        }
+                    }
+                );
+            }
+        }
+
+        const completedBook =
+            await book.findById(bookId).lean();
+
+        const allPagesCompleted =
+            completedBook?.pages?.length > 0 &&
+            completedBook.pages.every(
+                (page) =>
+                    page.status === "completed"
+            );
+
+        await book.updateOne(
+            { _id: bookId },
+            {
+                $set: {
+                    status: allPagesCompleted
+                        ? "completed"
+                        : "failed"
+                }
+            }
+        );
+
+        console.log(
+            `Book ${bookId} status: ${allPagesCompleted ? "completed" : "failed"}`
+        );
+
+        return res.json({
+            success: true,
+            bookId,
+            status: allPagesCompleted
+                ? "completed"
+                : "failed"
         });
     } catch (error) {
-        console.error("Create book error:", error);
+        console.error(
+            "Create book error:",
+            error
+        );
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            message: "Something went wrong",
+            message:
+                error.message ||
+                "Something went wrong"
+        });
+    }
+};
+
+export const getBookById = async (req, res) => {
+    try {
+        const { bookId } = req.params;
+
+        const book = await Book.findById(bookId).lean();
+
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found"
+            });
+        }
+
+        book.pages = (book.pages || []).sort((a, b) => a.position - b.position);
+
+        return res.json({
+            success: true,
+            book
+        });
+    } catch (error) {
+        console.error("Get book error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch book"
         });
     }
 };
@@ -169,10 +468,12 @@ export const createBook = async (req, res) => {
 export const testImagePrompts = async (req, res) => {
     try {
         console.log("Triggering");
+
         const imagePrompts = await generateImagePrompt(generatedStory);
+
         console.log(imagePrompts, "@imagePrompt");
 
-        const page1Prompt = imagePrompts.images[1].prompt;
+        const page1Prompt = imagePrompts.images[0].prompt;
 
         console.log("Generating image for page 1...");
 
@@ -180,7 +481,7 @@ export const testImagePrompts = async (req, res) => {
 
         console.log("Generated image size:", imageBuffer.length);
 
-        res.set("Content-Type", "image/jpeg");
+        res.set("Content-Type", "image/png");
         res.send(imageBuffer);
     } catch (error) {
         console.error("Image generation error:", error);

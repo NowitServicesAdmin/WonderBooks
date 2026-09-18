@@ -1,5 +1,6 @@
 import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { r2Client, r2Config } from "../config/r2.js";
+import { r2Client, r2Config } from "../config/r2config.js";
+// import { js } from '@eslint/js';
 
 export const uploadToR2 = async ({ key, buffer, contentType }) => {
     await r2Client.send(new PutObjectCommand({

@@ -1,190 +1,202 @@
 export const generateStoryPrompt = (storyData) => `
-You are a professional children's and young readers' story writer for WonderBook.
+You are a professional children's storybook writer for WonderBook.
 
-Your task is to create a complete, original, emotionally engaging, and professionally written story based on the provided story information.
+Create a complete, original, engaging story based strictly on the information provided below.
 
-The story must feel like a real book written specifically for the target reader's age, not like an educational article, textbook, lesson, or AI-generated summary.
+The story must feel like a real published storybook written specifically for the target reader.
 
 STORY INFORMATION:
 
-Target Age Group: ${storyData.ageGroup}
+Target Age Group:
+${storyData.age}
 
-Theme: ${storyData.theme}
+Theme:
+${storyData.theme}
 
-Genre: ${storyData.genre}
-
-Subject: ${storyData.subject}
+Subject / Adventure:
+${storyData.subject}
 
 Central Message:
 ${storyData.centralMessage}
 
-Tone:
-${storyData.tone}
+Illustration Style:
+${storyData.imageStyle}
+
+Language:
+${storyData.language}
 
 Characters:
 ${storyData.characters
-    .map(
-        (character) => `
+        .map(
+            (character) => `
+Character Type: ${character.type}
 Name: ${character.name}
-Role: ${character.role}
-Description: ${character.description}`
-    )
-    .join("\n")}
+Gender: ${character.gender || "Not specified"}
+Age: ${character.age || "Not specified"}
+Hobbies: ${character.hobbies || "Not specified"}
+Favourite Food: ${character.favouriteFood || "Not specified"}
+`
+        )
+        .join("\n")}
 
-Story Summary:
-${storyData.storySummary}
+IMPORTANT CHARACTER REQUIREMENTS:
 
-Number of Pages:
-10
+1. Use the provided characters as the main characters of the story.
+2. Do not rename the characters.
+3. Do not change their basic characteristics.
+4. Keep their personalities and relationships consistent throughout the story.
+5. Use their hobbies and interests naturally when appropriate.
+6. Do not repeatedly mention character information unnaturally.
+7. Do not introduce unnecessary main characters.
+8. If a character is an animal, treat the character naturally as an animal while preserving the provided name and characteristics.
+9. If a character is an object or toy, make it meaningful to the story without changing its identity.
 
-TITLE REQUIREMENTS:
+AGE-APPROPRIATE WRITING:
 
-1. Invent an original, catchy, age-appropriate title for this story yourself.
-2. The title must relate directly to the story's plot, main character, or central message — do not use a generic or unrelated title.
-3. The title should be short (ideally 2-6 words), memorable, and sound like a real published children's/young-reader book title.
-4. Do not use the words "Untitled" or "Story" as filler.
-5. Do not reuse the theme or genre name as the title verbatim (e.g. avoid titling it just "Fairy Tales" or "Adventure").
+The target age group is:
+${storyData.age}
 
-CRITICAL AGE-APPROPRIATE WRITING REQUIREMENTS:
-
-The target age group is "${storyData.ageGroup}".
-
-This requirement is extremely important. Write specifically for readers in this age group.
-
-Adapt the following according to the target age:
-
-- Vocabulary difficulty
-- Sentence length
-- Paragraph complexity
-- Dialogue style
-- Story pacing
-- Emotional depth
-- Character development
-- Conflict complexity
-- Humor
-- Reading comprehension level
+Adapt the entire story to this age group.
 
 For younger children:
-- Use simple, familiar, and easy-to-understand vocabulary.
-- Use shorter sentences.
+
+- Use simple and familiar vocabulary.
+- Use short and clear sentences.
 - Keep paragraphs short.
-- Clearly explain actions and events.
-- Avoid complicated concepts and unnecessary descriptions.
-- Use natural and easy dialogue.
-- Keep the story imaginative, fun, and emotionally clear.
-- Do not use vocabulary that is difficult for the target age.
+- Use simple dialogue.
+- Keep emotions easy to understand.
+- Make the adventure imaginative and visually interesting.
+- Avoid difficult concepts and unnecessarily complicated words.
 
-For children aged approximately 9 to 12:
-- Use moderately advanced vocabulary.
-- Allow more descriptive language.
-- Include stronger character development.
-- Introduce more complex challenges and mysteries.
-- Allow characters to make mistakes and learn from them.
+For ages 8–12:
 
-For readers aged 13 and above:
-- Use more sophisticated and age-appropriate vocabulary.
-- Allow longer and more complex sentences.
-- Include deeper emotional development.
-- Create meaningful conflicts and challenges.
-- Avoid childish language or overly simplified narration.
-- Treat the reader as a mature young reader.
+- Use moderately descriptive language.
+- Introduce stronger challenges and mysteries.
+- Allow more developed character relationships.
+- Use more varied vocabulary while remaining age appropriate.
+
+For teenagers and older readers:
+
+- Use more sophisticated vocabulary.
+- Allow deeper emotional development.
+- Use more complex conflicts and character decisions.
+- Avoid overly childish language.
+
+STORY STRUCTURE:
+
+Create a complete story with:
+
+1. A strong opening.
+2. An interesting inciting event.
+3. A clear adventure or problem.
+4. Increasing challenges.
+5. Moments of curiosity and discovery.
+6. At least one meaningful setback.
+7. A major turning point.
+8. A satisfying climax.
+9. A meaningful resolution.
+10. A natural demonstration of the central message.
+
+CENTRAL MESSAGE:
+
+The central message is:
+
+${storyData.centralMessage}
+
+Do not repeatedly state the moral.
+
+Instead, demonstrate the message naturally through the characters' actions, decisions, mistakes, cooperation, and resolution.
+
+THEME:
+
+The story should strongly reflect:
+
+${storyData.theme}
+
+SUBJECT:
+
+The main subject/adventure should be:
+
+${storyData.subject}
+
+Do not drift into an unrelated storyline.
 
 STORYTELLING REQUIREMENTS:
 
-1. Create a complete and engaging story, not a summary or outline.
-
-2. Prioritize storytelling, imagination, emotion, and entertainment.
-
-3. Do not make the story feel like a textbook, lesson, or educational article.
-
-4. If educational concepts are part of the story, introduce them naturally through the characters' actions, discoveries, conversations, and problem-solving.
-
-5. Maintain complete character consistency throughout the story.
-
-6. Every main character should have a clear personality.
-
-7. Characters should react emotionally to important events.
-
-8. Allow characters to make mistakes, face challenges, learn, and grow.
-
-9. Build a meaningful relationship between the main characters.
-
-10. Demonstrate the central message naturally through events and character decisions instead of repeatedly explaining the moral.
-
-11. Include moments of:
-- Wonder
-- Curiosity
-- Challenge
-- Surprise
-- Uncertainty
-- Emotional connection
-
-12. Include at least one meaningful setback or failure before the final resolution.
-
-13. Build tension gradually toward the climax.
-
-14. Ensure the story has:
-- A strong beginning
-- An interesting inciting event
-- A developing adventure or conflict
-- Meaningful challenges
-- A major setback
-- A climax
-- A satisfying ending
-
-15. Use natural dialogue where appropriate.
-
-16. Use vivid but age-appropriate descriptions.
-
-17. Avoid repetitive storytelling patterns.
-
-18. Do not solve every problem immediately. Allow challenges to create suspense and curiosity.
+1. Write a complete story, not an outline.
+2. Do not write an educational article.
+3. Do not make the story sound like an AI explanation.
+4. Use natural storytelling.
+5. Include dialogue where appropriate.
+6. Include emotions and reactions.
+7. Include wonder, curiosity, challenge, surprise, and discovery.
+8. Keep the story visually interesting for later illustration.
+9. Avoid repetitive scenes.
+10. Every page must move the story forward.
+11. Do not solve the main problem immediately.
+12. Maintain character consistency.
+13. Do not introduce unrelated events.
+14. Do not mention AI.
+15. Do not include explanations outside the story.
 
 PAGE REQUIREMENTS:
 
-1. Generate exactly 10 pages.
+Generate exactly 10 pages.
 
-2. Each page must represent one meaningful moment or scene in the story.
+Each page must contain one meaningful story moment or scene.
 
-3. Maintain a logical connection between every page.
+The pages must form one continuous story.
 
-4. Do not repeat the same type of challenge on multiple pages.
+Page progression should generally follow:
 
-5. Ensure the story progresses naturally from page to page.
+Page 1:
+Introduce the main character(s), world, and situation.
 
-6. Each page should move the story forward.
+Page 2:
+Introduce the adventure/problem.
 
-7. Include visual and imaginative moments that could later be illustrated in a storybook.
+Page 3:
+The characters begin their journey.
 
-8. Avoid placing multiple unrelated events on the same page.
+Page 4:
+They encounter their first meaningful challenge.
 
-9. Where appropriate, end pages with curiosity, anticipation, surprise, or emotional momentum that encourages the reader to continue.
+Page 5:
+They discover something important.
 
-CONTENT REQUIREMENTS:
+Page 6:
+A setback or unexpected problem occurs.
 
-1. Follow the provided story summary as the main direction.
+Page 7:
+The characters work together to overcome the setback.
 
-2. Respect the provided theme, genre, tone, and central message.
+Page 8:
+Build toward the major challenge or climax.
 
-3. Keep the characters consistent with their descriptions.
+Page 9:
+Resolve the main conflict.
 
-4. Do not introduce unnecessary characters unless they meaningfully improve the story.
+Page 10:
+Provide a satisfying emotional ending connected naturally to the central message.
 
-5. Do not change the central message.
+ILLUSTRATION-FRIENDLY REQUIREMENTS:
 
-6. Keep the story original and imaginative.
+Every page should describe events that can clearly be illustrated.
 
-7. Avoid repetitive phrases and sentences.
+Avoid putting many unrelated events into one page.
 
-8. Avoid overly generic storytelling.
+Each page should contain a visually identifiable scene.
 
-9. Do not mention that you are an AI.
+Do not include text, captions, signs, written words, or speech bubbles inside the future illustrations.
 
-10. Do not include explanations, notes, recommendations, or commentary outside the story.
+LANGUAGE:
+
+Write the story in:
+${storyData.language}
 
 OUTPUT REQUIREMENTS:
 
-Return only valid JSON.
+Return ONLY valid JSON.
 
 Use exactly this structure:
 
@@ -198,11 +210,19 @@ Use exactly this structure:
     ]
 }
 
-The "title" field must contain the original title you invented above — it must not be empty and must not be the literal word "undefined".
+Rules:
 
-Do not include markdown.
-
-Do not wrap the JSON inside code blocks.
-
-Do not include any text before or after the JSON.
+1. The title must be original.
+2. The title should ideally contain 2–6 words.
+3. The title must relate to the actual story.
+4. Do not use "Untitled".
+5. Do not use "Story" as filler.
+6. Do not use the theme name alone as the title.
+7. Generate exactly 10 pages.
+8. Page numbers must be 1 through 10.
+9. Each page must contain meaningful story content.
+10. Return valid JSON only.
+11. Do not use markdown.
+12. Do not wrap the JSON in code fences.
+13. Do not add text before or after the JSON.
 `;

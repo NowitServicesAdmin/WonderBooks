@@ -150,22 +150,19 @@ import { useState } from "react";
 import { Bell } from "lucide-react";
 import { HeaderAnimationSearch } from "./HeaderAnimationSearch";
 
-/* =========================================================
-   WONDERBOOK HEADER IMAGE ASSETS
-   Replace these URLs with your Cloudinary URLs
-   ========================================================= */
+
 
 const imageUrls = {
     // Left side
     robot:
-        "https://res.cloudinary.com/djdct0pxu/image/upload/v1789607514/Screenshot_2026-09-17_063400_zdt2fq.png",
+        "https://res.cloudinary.com/djdct0pxu/image/upload/v1789624540/Screenshot_2026-09-17_063400-removebg-preview_nsy6e8.png",
 
     messageBubble:
-        "https://res.cloudinary.com/djdct0pxu/image/upload/v1789607513/Screenshot_2026-09-17_063408_txwy56.png",
+        "https://res.cloudinary.com/djdct0pxu/image/upload/v1789624539/Screenshot_2026-09-17_063408-removebg-preview_n4gc5b.png",
 
     // Complete soft background / cloud decoration
     background:
-        "https://res.cloudinary.com/djdct0pxu/image/upload/v1789607574/Screenshot_2026-09-17_063348_stqzfb.png",
+        "https://res.cloudinary.com/djdct0pxu/image/upload/v1789627251/ChatGPT_Image_Sep_17_2026_12_08_42_PM_jjxjjf.png",
 
     // Right side WonderBook illustration
     rightIllustration:
@@ -176,11 +173,6 @@ const imageUrls = {
         "https://res.cloudinary.com/djdct0pxu/image/upload/v1788416221/ChatGPT_Image_Sep_3_2026_11_46_34_AM_zjlan2.pngr",
 };
 
-
-/* =========================================================
-   HEADER
-   ========================================================= */
-
 export const Header = ({
     userName = "Arav",
     userRole = "Parent",
@@ -190,204 +182,72 @@ export const Header = ({
     const [story, setStory] = useState("");
 
     return (
-        <header
-            className="
-                relative isolate
-                w-full shrink-0
-                overflow-hidden
-                rounded-[24px]
-                border border-[#ebe5ff]
-                bg-[#fbf9ff]
-                shadow-[0_4px_24px_rgba(84,38,199,0.06)]
-            "
-        >
+        <header className="relative isolate w-full shrink-0 overflow-hidden rounded-r-[24px] border border-[#ebe5ff] bg-[#fbf9ff] shadow-[0_4px_24px_rgba(84,38,199,0.06)] h-[120px]">
+
             {/* =====================================================
                 BACKGROUND IMAGE
-               ===================================================== */}
+            ===================================================== */}
 
             {imageUrls.background && (
                 <img
                     src={imageUrls.background}
                     alt=""
                     aria-hidden="true"
-                    className="
-                        pointer-events-none
-                        absolute inset-0
-                        z-0
-                        h-full w-full
-                        object-cover
-                    "
+                    className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
                 />
             )}
 
             {/* Soft overlay to keep UI readable */}
-            <div
-                className="
-                    pointer-events-none
-                    absolute inset-0
-                    z-[1]
-                    bg-gradient-to-r
-                    from-white/30
-                    via-white/10
-                    to-white/20
-                "
-            />
+            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-white/30 via-white/10 to-white/20" />
 
             {/* =====================================================
                 RIGHT SIDE DECORATION
-               ===================================================== */}
+            ===================================================== */}
 
-            {imageUrls.rightIllustration && (
+            {/* {imageUrls.rightIllustration && (
                 <img
                     src={imageUrls.rightIllustration}
                     alt="WonderBook stories"
-                    className="
-                        pointer-events-none
-                        absolute
-                        right-[105px]
-                        bottom-0
-                        z-[2]
-
-                        h-[92px]
-                        w-[230px]
-
-                        object-contain
-                        object-bottom
-
-                        opacity-95
-
-                        drop-shadow-[0_8px_16px_rgba(84,38,199,0.10)]
-
-                        transition-transform
-                        duration-700
-                        hover:scale-[1.02]
-                    "
+                    className="pointer-events-none absolute right-[105px] bottom-0 z-[2] h-[92px] w-[230px] object-contain object-bottom opacity-95 drop-shadow-[0_8px_16px_rgba(84,38,199,0.10)] transition-transform duration-700 hover:scale-[1.02]"
                 />
-            )}
+            )} */}
 
             {/* =====================================================
                 TOP RIGHT CONTROLS
-               ===================================================== */}
+            ===================================================== */}
 
-            <div
-                className="
-                    absolute
-                    right-5
-                    top-5
-                    z-30
+            <div className="absolute right-5 top-4 z-30 flex items-center gap-3">
 
-                    flex
-                    items-center
-                    gap-2
-                "
-            >
                 {/* Notification */}
-
                 <button
                     type="button"
                     aria-label="Notifications"
-                    className="
-                        relative
-                        flex h-9 w-9
-                        items-center justify-center
-                        rounded-xl
-                        text-[#5426c7]
-
-                        transition-all
-                        duration-200
-
-                        hover:bg-white/70
-                        hover:scale-105
-                    "
+                    className="relative flex h-[46px] w-[46px] items-center justify-center rounded-xl text-[#5426c7] transition-all duration-200 hover:bg-white/70 hover:scale-105"
                 >
-                    <Bell
-                        size={23}
-                        strokeWidth={1.8}
-                    />
+                    <Bell size={28} strokeWidth={1.8} />
 
                     {notificationCount > 0 && (
-                        <span
-                            className="
-                                absolute
-                                right-[-1px]
-                                top-[-3px]
-
-                                flex
-                                h-[17px]
-                                min-w-[17px]
-
-                                items-center
-                                justify-center
-
-                                rounded-full
-                                bg-[#e94b4b]
-
-                                px-1
-
-                                text-[9px]
-                                font-bold
-                                text-white
-
-                                shadow-sm
-                            "
-                        >
+                        <span className="absolute right-[-3px] top-[-4px] flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-[#e94b4b] px-1 text-[10px] font-bold text-white shadow-sm">
                             {notificationCount}
                         </span>
                     )}
                 </button>
 
                 {/* Profile */}
-
                 <button
                     type="button"
                     aria-label="Profile"
-                    className="
-                        flex
-                        items-center
-                        justify-center
-                        rounded-full
-
-                        transition
-                        hover:scale-105
-                    "
+                    className="flex items-center justify-center rounded-full transition hover:scale-105"
                 >
-                    <div
-                        className="
-                            flex
-                            h-10 w-10
-                            shrink-0
-                            items-center
-                            justify-center
-
-                            overflow-hidden
-                            rounded-full
-
-                            border-2
-                            border-white
-
-                            bg-[#cfe8c1]
-
-                            shadow-[0_3px_12px_rgba(80,50,30,0.10)]
-                        "
-                    >
+                    <div className="flex h-[50px] w-[50px] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#cfe8c1] shadow-[0_3px_12px_rgba(80,50,30,0.10)]">
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
                                 alt={userName}
-                                className="
-                                    h-full
-                                    w-full
-                                    object-cover
-                                "
+                                className="h-full w-full object-cover"
                             />
                         ) : (
-                            <span
-                                className="
-                                    text-[15px]
-                                    font-bold
-                                    text-[#33502a]
-                                "
-                            >
+                            <span className="text-[17px] font-bold text-[#33502a]">
                                 {userName.charAt(0)}
                             </span>
                         )}
@@ -397,132 +257,49 @@ export const Header = ({
 
             {/* =====================================================
                 MAIN HEADER CONTENT
-               ===================================================== */}
+            ===================================================== */}
 
-            <div
-                className="
-                    relative
-                    z-10
-
-                    flex
-                    min-h-[118px]
-                    w-full
-                    items-center
-
-                    px-5
-                    py-3
-
-                    pr-[330px]
-                "
-            >
+            <div className="relative z-10 flex min-h-[118px] w-full items-center px-5 py-3 pr-[330px]">
 
                 {/* =================================================
                     LEFT ROBOT + MESSAGE
-                   ================================================= */}
+                ================================================= */}
 
-                <div
-                    className="
-                        flex
-                        shrink-0
-                        items-center
-                        gap-3
-                    "
-                >
+                <div className="flex shrink-0 items-center gap-3">
 
                     {/* Robot */}
-
-                    <div
-                        className="
-                            relative
-                            flex
-                            h-[92px]
-                            w-[82px]
-                            shrink-0
-                            items-center
-                            justify-center
-                        "
-                    >
+                    <div className="relative flex h-[92px] w-[82px] shrink-0 items-center justify-center">
                         {imageUrls.robot ? (
                             <img
                                 src={imageUrls.robot}
                                 alt="WonderBook AI assistant"
-                                className="
-                                    h-[88px]
-                                    w-[80px]
-                                    object-contain
-
-                                    drop-shadow-[0_7px_12px_rgba(84,38,199,0.14)]
-
-                                    animate-header-robot
-                                "
+                                className="h-[88px] w-[80px] object-contain drop-shadow-[0_7px_12px_rgba(84,38,199,0.14)] animate-header-robot"
                             />
                         ) : (
-                            <div
-                                className="
-                                    h-[75px]
-                                    w-[75px]
-                                    rounded-full
-                                    bg-[#f2edff]
-                                "
-                            />
+                            <div className="h-[75px] w-[75px] rounded-full bg-[#f2edff]" />
                         )}
 
                         {/* Tiny sparkle */}
-
-                        <span
-                            className="
-                                pointer-events-none
-                                absolute
-                                right-0
-                                top-1
-
-                                text-[14px]
-                                text-[#a879ff]
-
-                                animate-sparkle
-                            "
-                        >
+                        <span className="pointer-events-none absolute right-0 top-1 text-[14px] text-[#a879ff] animate-sparkle">
                             ✦
                         </span>
                     </div>
 
-
                     {/* Message bubble */}
-
                     {imageUrls.messageBubble && (
                         <img
                             src={imageUrls.messageBubble}
                             alt="Let's create something amazing"
-                            className="
-                                h-[78px]
-                                w-[105px]
-
-                                shrink-0
-                                object-contain
-
-                                drop-shadow-[0_5px_12px_rgba(84,38,199,0.08)]
-
-                                transition-transform
-                                duration-300
-
-                                hover:scale-[1.03]
-                            "
+                            className="h-[78px] w-[105px] shrink-0 object-contain drop-shadow-[0_5px_12px_rgba(84,38,199,0.08)] transition-transform duration-300 hover:scale-[1.03]"
                         />
                     )}
                 </div>
 
-
                 {/* =================================================
                     CENTER AI CREATION AREA
-                   ================================================= */}
+                ================================================= */}
 
-                <div
-                    className="
-                        ml-6
-                        min-w-0
-                        flex-1
-                    "
-                >
+                <div className="ml-6 min-w-0 flex-1">
                     <HeaderAnimationSearch
                         story={story}
                         setStory={setStory}
@@ -530,29 +307,17 @@ export const Header = ({
                     />
                 </div>
 
-
                 {/* =================================================
                     OPTIONAL WONDERBOOK BRAND
-                    Can be removed if logo is included in artwork
-                   ================================================= */}
+                ================================================= */}
 
-                {imageUrls.wonderBookLogo && (
+                {/* {imageUrls.wonderBookLogo && (
                     <img
                         src={imageUrls.wonderBookLogo}
                         alt="WonderBook"
-                        className="
-                            absolute
-                            right-[100px]
-                            top-[15px]
-                            z-10
-
-                            h-[42px]
-                            w-[115px]
-
-                            object-contain
-                        "
+                        className="absolute right-[100px] top-[15px] z-10 h-[42px] w-[115px] object-contain"
                     />
-                )}
+                )} */}
             </div>
         </header>
     );
