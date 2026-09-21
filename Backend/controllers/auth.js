@@ -19,6 +19,10 @@ const sanitizeUser = (user) => ({
     name: user.name || "",
     email: user.email,
     isVerified: Boolean(user.isVerified),
+    role: user.role || "user",
+    isSubscribed: Boolean(user.isSubscribed),
+    subscriptionPlan: user.subscriptionPlan || "",
+    subscriptionStatus: user.subscriptionStatus || null,
     createdAt: user.createdAt,
 });
 

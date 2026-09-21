@@ -23,8 +23,10 @@ import {
   FileText,
   Info,
   Check,
+  CreditCard,
 } from "lucide-react";
 import ReactSelect from "react-select";
+import SubscriptionPanel from "./SubscriptionPanel";
 
 const tokens = {
   ink: "#241B3A",
@@ -295,6 +297,7 @@ function HelpAboutPanel() {
 
 const CATEGORIES = [
   { id: "profile", icon: User, title: "Profile", description: "Your name, photo and language", Panel: ProfilePanel },
+  { id: "subscription", icon: CreditCard, title: "Subscription", description: "Plans, billing and payment history", Panel: SubscriptionPanel },
   { id: "notifications", icon: Bell, title: "Notifications", description: "Choose what you hear about", Panel: NotificationsPanel },
   { id: "account", icon: Lock, title: "Account & privacy", description: "Security and data settings", Panel: AccountPrivacyPanel },
   { id: "help", icon: HelpCircle, title: "Help & about", description: "App info and support", Panel: HelpAboutPanel },
