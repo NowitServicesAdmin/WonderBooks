@@ -330,7 +330,6 @@ const isRetryableError = (error) => {
 };
 
 // OpenAI only accepts a fixed set of output sizes for gpt-image models.
-// Map the requested width/height to the closest supported size.
 const closestSupportedSize = (width, height) => {
     const ratio = width / height;
 
@@ -341,11 +340,42 @@ const closestSupportedSize = (width, height) => {
     return ratio < 1 ? "1024x1536" : "1536x1024";
 };
 
+// When a real uploaded photo is attached as a reference, force the
+// model to treat it as the literal identity source: first lock onto
+// an enhanced, dynamic photographic likeness of the real person/pet,
+// THEN re-render that exact likeness in the requested illustration
+// style. Without this instruction, the model tends to treat the
+// reference as loose "inspiration" rather than an identity to match.
+const buildPromptWithReferenceInstruction = (prompt, hasReferences) => {
+    if (!hasReferences) {
+        return prompt;
+    }
+
+    return `
+IDENTITY SOURCE: One or more reference photos of the real person/pet
+are attached to this request. Treat the attached photo(s) as the
+definitive identity source for the main character's face, hair,
+skin tone, body type, and any distinguishing features.
+
+STEP 1 - IDENTITY LOCK: First establish a dynamic, enhanced,
+photo-realistic likeness of the exact person/pet shown in the
+reference photo(s) - same face shape, same features, same
+proportions, same recognizable details. Do not invent a different
+looking character.
+
+STEP 2 - STYLE TRANSFER: Then render that exact identity fully in
+the illustration style described below. The final image must be a
+full illustration in the requested style (not a photo), but the
+character within it must clearly be recognizable as the same person
+shown in the reference photo(s).
+
+SCENE AND STYLE INSTRUCTIONS:
+${prompt}
+`.trim();
+};
+
 /**
- * Generates an image using OpenAI's gpt-image-1 / gpt-image-1-mini,
- * using reference images (e.g. canonical character references
- * generated elsewhere, including by a different provider like Gemini)
- * as visual input via the image edit endpoint.
+ * Generates an image using OpenAI's gpt-image-1 / gpt-image-1-mini.
  *
  * @param {Object} params
  * @param {string} params.prompt
@@ -373,8 +403,6 @@ export const generateImage = async ({
             (image) => image?.buffer
         );
 
-        // OpenAI's edit endpoint accepts multiple reference images
-        // per request. Convert raw buffers into upload-ready Files.
         const imageFiles = await Promise.all(
             validReferences.slice(0, 4).map((image, index) =>
                 toFile(
@@ -383,6 +411,11 @@ export const generateImage = async ({
                     { type: image.contentType || "image/png" }
                 )
             )
+        );
+
+        const finalPrompt = buildPromptWithReferenceInstruction(
+            prompt,
+            imageFiles.length > 0
         );
 
         console.log(
@@ -396,22 +429,17 @@ export const generateImage = async ({
                 let response;
 
                 if (imageFiles.length > 0) {
-                    // Reference images present -> use the edit endpoint
-                    // so the model treats them as visual context.
                     response = await client.images.edit({
                         model: MODEL,
                         image: imageFiles,
-                        prompt,
+                        prompt: finalPrompt,
                         size,
                         quality: QUALITY
                     });
                 } else {
-                    // No references (e.g. the very first canonical
-                    // reference for a character with no uploaded photo)
-                    // -> plain text-to-image generation.
                     response = await client.images.generate({
                         model: MODEL,
-                        prompt,
+                        prompt: finalPrompt,
                         size,
                         quality: QUALITY
                     });
@@ -420,9 +448,7 @@ export const generateImage = async ({
                 const b64 = response?.data?.[0]?.b64_json;
 
                 if (!b64) {
-                    throw new Error(
-                        "OpenAI did not return image data."
-                    );
+                    throw new Error("OpenAI did not return image data.");
                 }
 
                 const imageBuffer = Buffer.from(b64, "base64");

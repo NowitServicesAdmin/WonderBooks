@@ -10,8 +10,8 @@ import {
     uploadImage,
     getStorageImage
 } from "../services/storageService.js";
-import { generateCharacterBible } from "../components/characterBible.js";
-import { generateCharacterReferences } from "../services/characterReferenceService.js";
+import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
+import { overlayTitleOnCover } from "../components/Covertitleoverlay.js";
 
 const test_story = {
     title: "Cherry's Jungle Adventure",
@@ -734,6 +734,8 @@ const getCharacterReferenceImages = async (
     return references.slice(0, 4);
 };
 
+
+
 export const createBook = async (req, res) => {
     try {
         const mode = req.body.mode;
@@ -856,20 +858,16 @@ export const createBook = async (req, res) => {
 
         storyData.characters = uploadedCharacters;
 
-        // Generate the Character Bible + canonical references
-        // SKIPPED FOR THIS TEST — uncomment when testing the full flow:
-        //
-        // const characterBible = await generateCharacterBible({ story: generatedStory, storyData });
-        // const charactersWithReferences = await generateCharacterReferences({
-        //     bookId,
-        //     characters: characterBible.characters,
-        //     imageStyle: storyData.imageStyle
-        // });
-        // storyData.characters = charactersWithReferences;
-        // await book.updateOne(
-        //     { _id: bookId },
-        //     { $set: { "storyData.characters": charactersWithReferences } }
-        // );
+        // Load the real uploaded photo(s) ONCE, reused for both the
+        // cover and every page — this is what makes the character
+        // actually resemble the uploaded photo.
+        const referenceImages = await getCharacterPhotoReferenceImages(
+            storyData.characters
+        );
+
+        console.log(
+            `Loaded ${referenceImages.length} character reference photo(s) for generation.`
+        );
 
         // Generate image prompts (cover + pages)
         const imagePrompts = await generateImagePrompt(generatedStory, storyData);
@@ -890,23 +888,33 @@ export const createBook = async (req, res) => {
         );
 
         // -----------------------------------------------------------
-        // Generate the cover
+        // Generate the cover (with reference photo + title overlay)
         // -----------------------------------------------------------
         console.log("Generating cover image...");
 
         try {
-            const coverBuffer = await generateImage({
+            const rawCoverBuffer = await generateImage({
                 prompt: imagePrompts.cover.prompt,
-                referenceImages: [], // add character refs back in once re-enabled above
+                referenceImages,
                 width: 768,
                 height: 1024
             });
+
+            const finalCoverBuffer = await overlayTitleOnCover(
+                rawCoverBuffer,
+                generatedStory.title,
+                {
+                    fontFamily:
+                        storyData?.font?.fontFamily ||
+                        "Baloo 2, Comic Sans MS, cursive"
+                }
+            );
 
             const coverKey = `books/${bookId}/cover.png`;
 
             const uploadedCover = await uploadImage({
                 key: coverKey,
-                buffer: coverBuffer,
+                buffer: finalCoverBuffer,
                 contentType: "image/png"
             });
 
@@ -923,11 +931,10 @@ export const createBook = async (req, res) => {
             console.log("Cover completed:", uploadedCover.url);
         } catch (coverError) {
             console.error("Cover generation failed:", coverError);
-            // Continue on to pages even if the cover fails — don't block the whole book.
         }
 
         // -----------------------------------------------------------
-        // Generate page images
+        // Generate page images (same reference photo(s) reused)
         // -----------------------------------------------------------
         for (const imageData of imagePrompts.images) {
             const pageNumber = imageData.pageNumber;
@@ -950,11 +957,6 @@ export const createBook = async (req, res) => {
                 );
 
                 console.log(`Generating image for page ${pageNumber}...`);
-
-                const referenceImages = await getCharacterReferenceImages(
-                    storyData.characters,
-                    imageData.characters || []
-                );
 
                 const imageBuffer = await generateImage({
                     prompt,
@@ -1011,8 +1013,6 @@ export const createBook = async (req, res) => {
 
         console.log(`Book ${bookId} status: ${allPagesCompleted ? "completed" : "failed"}`);
 
-        // Return the FULL book, including all image URLs, so the
-        // frontend can render the cover + pages directly from this response.
         const finalBook = await book.findById(bookId).lean();
 
         return res.json({
