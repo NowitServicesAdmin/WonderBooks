@@ -47,7 +47,7 @@
 //     });
 // };
 
-import { uploadToR2 } from "./r2Service.js";
+import { uploadToR2 ,getFromR2} from "./r2Service.js";
 
 export const getStorageProvider = async () => {
     return {
@@ -61,4 +61,8 @@ export const uploadImage = async ({ key, buffer, contentType }) => {
         buffer,
         contentType
     });
+};
+
+export const getStorageImage = async (key) => {
+    return getFromR2(key);
 };

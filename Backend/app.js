@@ -8,8 +8,11 @@ import cors from "cors";
 import connectDB from "./config.db.js";
 import bookRoutes from "./routes/books.js";
 import authRoutes from "./routes/auth.js";
+import OpenAI from "openai";
 
 const app = express();
+
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const PORT = process.env.PORT || 5000;
 
@@ -22,6 +25,20 @@ app.get("/api/health", (req, res) => {
     message: "WonderBook backend is running",
   });
 });
+const test = async () => {
+  try {
+    const response = await client.images.generate({
+      model: "gpt-image-1-mini",
+      prompt: "a simple test image of a red apple",
+      size: "1024x1024"
+    });
+    console.log("Success! Image generated.@Prabhuva",response);
+  } catch (error) {
+    console.log("Failed:", error?.status, error?.message);
+  }
+};
+
+// test();
 
 app.use("/api/auth", authRoutes);
 app.use("/api/book", bookRoutes);
