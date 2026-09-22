@@ -1,8 +1,9 @@
-
-
-import React, { useMemo, useState } from "react";
+/* eslint-disable react-hooks/static-components */
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Heart, Crown, Lock, BookOpen, Clock } from "lucide-react";
+import { Search, Heart, Crown,} from "lucide-react";
 import { templates, categories, categoryThemes } from './../../Data/Templatesdata';
 import { useEffect } from "react";
 
@@ -31,11 +32,11 @@ export const Templates = () => {
 
       return categoryMatch && searchMatch;
     });
-  }, []);
+  }, [activeCategory, search]);
   // Animatd search
   const AnimatedSearch = ({ search, setSearch }) => {
     return (
-      <div className="flex h-11 w-[420px] items-center gap-2 rounded-xl border border-[#e4e1ed] bg-[#faf9fc] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)]">
+      <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-[#e4e1ed] bg-[#faf9fc] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
         <Search
           size={18}
           strokeWidth={2}
@@ -102,6 +103,19 @@ export const Templates = () => {
   const handleTemplateClick = (id) => {
     navigate(`/templates/${id}`);
   };
+
+  const toggleFavorite = (event, id) => {
+    event.stopPropagation();
+    setFavorites((current) =>
+      current.includes(id)
+        ? current.filter((favoriteId) => favoriteId !== id)
+        : [...current, id],
+    );
+    setHeartBursts((current) => ({ ...current, [id]: true }));
+    setTimeout(() => {
+      setHeartBursts((current) => ({ ...current, [id]: false }));
+    }, 700);
+  };
   console.log("Filtered Templates:@j", filteredTemplates); // Debugging line
   return (
     <section className="w-full overflow-hidden rounded-2xl bg-transparent">
@@ -128,7 +142,7 @@ export const Templates = () => {
         </div>
 
         {/* Categories */}
-        <div className="mb-7 flex gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="scrollbar-none mb-7 flex gap-2.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
           {categories.map((category) => {
             const active = activeCategory === category;
 
@@ -169,9 +183,9 @@ export const Templates = () => {
                 {/* BOOK COVER */}
                 <div
                   className="
-            relative aspect-[3/4]
+            relative aspect-3/4
             overflow-hidden
-            rounded-r-[18px] rounded-l-[8px]
+            rounded-r-[18px] rounded-l-lg
             bg-[#1f1b28]
             transition-all duration-300 ease-out
             group-hover:-translate-y-1.5
@@ -185,7 +199,7 @@ export const Templates = () => {
                 >
                   {/* LEFT BOOK SPINE */}
                   <div
-                    className="absolute inset-y-0 left-0 z-30 w-[7px]"
+                    className="absolute inset-y-0 left-0 z-30 w-1.75"
                     style={{
                       background: `linear-gradient(
                 to right,
@@ -197,7 +211,7 @@ export const Templates = () => {
 
                   {/* RIGHT PAGE EDGE */}
                   <div
-                    className="absolute inset-y-[4px] right-0 z-10 w-[3px] opacity-60"
+                    className="absolute inset-y-1 right-0 z-10 w-0.75 opacity-60"
                     style={{
                       background:
                         "linear-gradient(to bottom, #ffffff, #ece7dc, #ffffff)",
@@ -219,7 +233,7 @@ export const Templates = () => {
 
                   {/* TOP COLOR OVERLAY */}
                   <div
-                    className="absolute inset-0 z-[1]"
+                    className="absolute inset-0 z-1"
                     style={{
                       background: `
                 linear-gradient(
@@ -411,7 +425,7 @@ export const Templates = () => {
                 items-center justify-center
                 rounded-full
                 border border-[#ffe6a0]
-                bg-gradient-to-br
+                bg-linear-to-br
                 from-[#fff6c7]
                 via-[#ffd96b]
                 to-[#e5a42d]
@@ -425,7 +439,7 @@ export const Templates = () => {
                       {/* Inner highlight */}
                       <div
                         className="
-                  absolute inset-[3px]
+                  absolute inset-0.75
                   rounded-full
                   border border-white/40
                 "
@@ -444,7 +458,7 @@ export const Templates = () => {
                     <div
                       className="
                 pointer-events-none
-                absolute bottom-0 right-0 z-[5]
+                absolute bottom-0 right-0 z-5
                 h-24 w-24
                 rounded-full
                 opacity-30 blur-2xl
@@ -476,7 +490,7 @@ export const Templates = () => {
         </div>
 
         {filteredTemplates.length === 0 && (
-          <div className="flex min-h-[300px] items-center justify-center">
+          <div className="flex min-h-75 items-center justify-center">
             <div className="text-center">
               <p className="text-base font-semibold text-[#4a4665]">
                 No templates found

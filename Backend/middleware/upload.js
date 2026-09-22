@@ -8,3 +8,10 @@ export const uploadCharacterPhotos = multer({
         fileSize: 5 * 1024 * 1024
     }
 }).any();
+
+export const uploadAvatarPhoto = multer({
+    storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024
+    }
+}).single("avatar");

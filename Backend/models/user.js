@@ -35,6 +35,41 @@ const userSchema = new mongoose.Schema(
             type: Date,
             select: false,
         },
+        language: {
+            type: String,
+            default: "English",
+        },
+        ageGroup: {
+            type: String,
+            default: "",
+        },
+        favoriteCharacters: {
+            type: [String],
+            default: [],
+        },
+        about: {
+            type: String,
+            trim: true,
+            default: "",
+            maxlength: 200,
+        },
+        avatarUrl: {
+            type: String,
+            default: null,
+        },
+        avatarStorageProvider: {
+            type: String,
+            enum: ["r2", "s3", null],
+            default: null,
+        },
+        avatarStorageKey: {
+            type: String,
+            default: null,
+        },
+        lastDataExportRequestedAt: {
+            type: Date,
+            select: false,
+        },
     },
     { timestamps: true }
 );

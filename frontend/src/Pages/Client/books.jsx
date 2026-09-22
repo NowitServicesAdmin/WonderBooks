@@ -1,14 +1,25 @@
-import React, { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, Crown, BookOpen, Clock, Search, MoreHorizontal } from "lucide-react";
+import { BookOpen, Clock, Search } from "lucide-react";
 import { myBooks } from "./../../Data/Templatesdata";
+
+const AnimatedSearch = ({ search, setSearch, placeholder }) => (
+  <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-[#e4e1ed] bg-[#faf9fc] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
+    <Search size={18} strokeWidth={2} className="shrink-0 text-[#8c87a3]" />
+    <input
+      type="text"
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      placeholder={placeholder}
+      className="w-full bg-transparent text-sm text-[#403b61] outline-none placeholder:text-[#aaa7b8]"
+    />
+  </div>
+);
 
 export const Books = () => {
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
-  const [favorites, setFavorites] = useState([]);
-  const [heartBursts, setHeartBursts] = useState({});
   const fullPlaceholder = "Search Your Books";
   const [placeholder, setPlaceholder] = useState("");
 
@@ -24,24 +35,7 @@ export const Books = () => {
     );
   }, [search]);
 
-  const AnimatedSearch = ({ search, setSearch }) => (
-    <div className="flex h-11 w-[420px] items-center gap-2 rounded-xl border border-[#e4e1ed] bg-[#faf9fc] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)]">
-      <Search size={18} strokeWidth={2} className="shrink-0 text-[#8c87a3]" />
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-transparent text-sm text-[#403b61] outline-none placeholder:text-[#aaa7b8]"
-      />
-    </div>
-  );
-
   useEffect(() => {
-    if (search) {
-      setPlaceholder("");
-      return;
-    }
     let index = 0;
     let deleting = false;
     let timeoutId;
@@ -72,14 +66,6 @@ export const Books = () => {
 
   const handleBookClick = (id) => navigate(`/templates/${id}`);
 
-  const toggleFavorite = (event, id) => {
-    event.stopPropagation();
-    setFavorites((prev) =>
-      prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]
-    );
-  };
-
-
   return (
     <section className="w-full overflow-hidden rounded-2xl bg-transparent">
       <div className="p-3">
@@ -94,7 +80,11 @@ export const Books = () => {
             </p>
           </div>
 
-          <AnimatedSearch search={search} setSearch={setSearch} />
+          <AnimatedSearch
+            search={search}
+            setSearch={setSearch}
+            placeholder={search ? "" : placeholder}
+          />
         </div>
 
         {/* Grid */}
@@ -149,7 +139,7 @@ export const Books = () => {
               <div
                 className="
                   relative
-                  aspect-[3/4]
+                  aspect-3/4
                   overflow-hidden
                   rounded-t-[14px]
                 "
@@ -170,7 +160,7 @@ export const Books = () => {
                     alt={book.title ?? "Book cover"}
                     className="
                       absolute inset-0
-                      z-[1]
+                      z-1
                       h-full w-full
                       object-cover
                     "
@@ -182,7 +172,7 @@ export const Books = () => {
                     Makes the title readable
                 ====================================== */}
                 <div
-                  className="absolute inset-0 z-[5]"
+                  className="absolute inset-0 z-5"
                   style={{
                     background: isEmpty
                       ? "linear-gradient(to top, rgba(20,15,35,0.45), transparent 65%)"
@@ -206,7 +196,7 @@ export const Books = () => {
                     absolute
                     inset-x-0
                     bottom-0
-                    z-[20]
+                    z-20
                     px-5
                     pb-7
                     pt-16
@@ -254,7 +244,7 @@ export const Books = () => {
                     BOOK SPINE
                 ====================================== */}
                 <div
-                  className="absolute inset-y-0 left-0 z-30 w-[14px]"
+                  className="absolute inset-y-0 left-0 z-30 w-3.5"
                   style={{
                     background: `
                       linear-gradient(
@@ -273,7 +263,7 @@ export const Books = () => {
                 >
                   {/* subtle spine edge */}
                   <div
-                    className="absolute inset-y-0 right-0 w-[1px]"
+                    className="absolute inset-y-0 right-0 w-px"
                     style={{
                       background: "rgba(255,255,255,0.18)",
                     }}
@@ -288,7 +278,7 @@ export const Books = () => {
                     pointer-events-none
                     absolute left-0 top-0
                     z-40
-                    h-full w-[22px]
+                    h-full w-5.5
                   "
                   viewBox="0 0 22 400"
                   preserveAspectRatio="none"
@@ -315,9 +305,9 @@ export const Books = () => {
                   className="
                     pointer-events-none
                     absolute inset-y-0
-                    left-[14px]
-                    z-[35]
-                    w-[5px]
+                    left-3.5
+                    z-35
+                    w-1.25
                   "
                   style={{
                     background:
@@ -350,10 +340,10 @@ export const Books = () => {
 
                 {/* EMPTY BOOK DECORATION */}
                 {isEmpty && (
-                  <div className="absolute bottom-5 left-4 right-4 z-[25]">
+                  <div className="absolute bottom-5 left-4 right-4 z-25">
                     <div className="flex justify-end gap-1">
-                      <span className="h-[3px] w-5 rounded-full bg-white/30" />
-                      <span className="h-[3px] w-2 rounded-full bg-white/30" />
+                      <span className="h-0.75 w-5 rounded-full bg-white/30" />
+                      <span className="h-0.75 w-2 rounded-full bg-white/30" />
                     </div>
                   </div>
                 )}
@@ -363,7 +353,7 @@ export const Books = () => {
               <div
                 className="
                   relative
-                  h-[20px]
+                  h-5
                   w-full
                   overflow-visible
                   rounded-b-[10px]
@@ -390,8 +380,8 @@ export const Books = () => {
                   className="
                     absolute
                     left-4 right-3
-                    top-[5px]
-                    h-[1px]
+                    top-1.25
+                    h-px
                   "
                   style={{
                     background:
@@ -404,8 +394,8 @@ export const Books = () => {
                   className="
                     absolute
                     left-6 right-4
-                    top-[11px]
-                    h-[1px]
+                    top-2.75
+                    h-px
                   "
                   style={{
                     background:
@@ -420,10 +410,10 @@ export const Books = () => {
                   className="
                     absolute
                     left-6
-                    top-[-2px]
-                    z-[5]
-                    h-[34px]
-                    w-[16px]
+                    -top-0.5
+                    z-5
+                    h-8.5
+                    w-4
                   "
                   style={{
                     background: dark,
@@ -441,10 +431,10 @@ export const Books = () => {
                   className="
                     absolute
                     left-6
-                    top-[-2px]
+                    -top-0.5
                     z-20
-                    h-[34px]
-                    w-[16px]
+                    h-8.5
+                    w-4
                   "
                   style={{
                     background: `
@@ -505,7 +495,7 @@ export const Books = () => {
   })}
 </div>
         {filteredBooks.length === 0 && (
-          <div className="flex min-h-[300px] items-center justify-center">
+          <div className="flex min-h-75 items-center justify-center">
             <div className="text-center">
               <p className="text-base font-semibold text-[#4a4665]">No books found</p>
               <p className="mt-1.5 text-sm text-[#9995aa]">Try another search.</p>

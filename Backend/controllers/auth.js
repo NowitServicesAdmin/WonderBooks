@@ -19,6 +19,7 @@ const sanitizeUser = (user) => ({
     name: user.name || "",
     email: user.email,
     isVerified: Boolean(user.isVerified),
+    avatarUrl: user.avatarUrl || null,
     role: user.role || "user",
     isSubscribed: Boolean(user.isSubscribed),
     subscriptionPlan: user.subscriptionPlan || "",
@@ -360,6 +361,7 @@ export const getMe = async (req, res) => {
         if (!req.userId) {
             return res.status(401).json({
                 success: false,
+                code: "NO_TOKEN",
                 message: "Authentication required",
             });
         }
@@ -376,6 +378,7 @@ export const getMe = async (req, res) => {
         if (!user.isVerified) {
             return res.status(401).json({
                 success: false,
+                code: "EMAIL_NOT_VERIFIED",
                 message: "Please verify your email address",
             });
         }

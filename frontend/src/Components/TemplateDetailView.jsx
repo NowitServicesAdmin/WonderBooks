@@ -1,5 +1,5 @@
-
-import React, { useEffect, useMemo, useRef, useState } from "react";
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import HTMLFlipBook from "react-pageflip";
 
@@ -114,7 +114,7 @@ export const TemplateDetail = () => {
     //    notfound
     if (!selectedTemplate) {
         return (
-            <section className="flex min-h-[500px] w-full items-center justify-center rounded-2xl border border-[#e6e3f2] bg-white p-8 text-center">
+            <section className="flex min-h-125 w-full items-center justify-center rounded-2xl border border-[#e6e3f2] bg-white p-8 text-center">
                 <div>
                     <p className="text-lg font-bold text-[#332f54]">
                         Template not found
@@ -154,10 +154,10 @@ export const TemplateDetail = () => {
 
 
     return (
-        <section className="relative w-full overflow-hidden rounded-[24px] border border-[#e4e0ef] bg-gradient-to-br from-[#fbfaff] via-[#f8f6fc] to-[#f0edf7]
-        max-h-[100%]">
+        <section className="relative w-full overflow-hidden rounded-3xl border border-[#e4e0ef] bg-linear-to-br from-[#fbfaff] via-[#f8f6fc] to-[#f0edf7]
+        max-h-full">
 
-            <div className="relative flex h-[860px] w-full items-center justify-center overflow-hidden px-4 pt-2 pb-24">
+            <div className="relative flex h-120 w-full items-center justify-center overflow-hidden px-2 pt-2 pb-16 sm:h-215 sm:px-4 sm:pb-24">
 
                 {/* =================================================
                     BOOK + NAVIGATION
@@ -170,15 +170,15 @@ export const TemplateDetail = () => {
     3D BOOK BACKGROUND
 ================================================= */}
 
-                    <div className="relative flex h-[690px] min-w-0 flex-1 items-center justify-center">
+                    <div className="relative flex h-100 min-w-0 flex-1 items-center justify-center sm:h-172.5">
 
                         {/* =================================================
         BLUE HARD COVER
     ================================================= */}
 
-                        <div className="pointer-events-none absolute bottom-[8px] left-[1.4%] right-[1.4%] top-[10px] z-0 rounded-[29px] bg-[#163971] shadow-[0_24px_38px_rgba(22,57,113,0.28)]" />
+                        <div className="pointer-events-none absolute bottom-2 left-[1.4%] right-[1.4%] top-2.5 z-0 rounded-[29px] bg-[#163971] shadow-[0_24px_38px_rgba(22,57,113,0.28)]" />
 
-                        <div className="pointer-events-none absolute bottom-[15px] left-[1.8%] right-[1.8%] top-[15px] z-[1] rounded-[27px] bg-[#163971]" />
+                        <div className="pointer-events-none absolute bottom-3.75 left-[1.8%] right-[1.8%] top-3.75 z-1 rounded-[27px] bg-[#163971]" />
 
 
                         {/* =================================================
@@ -186,13 +186,13 @@ export const TemplateDetail = () => {
         These are NOT gray cards.
     ================================================= */}
 
-                        <div className="pointer-events-none absolute bottom-[26px] left-[2.25%] right-[2.25%] top-[17px] z-[2] rounded-[25px] bg-[#e9e7e1] shadow-[0_2px_4px_rgba(45,42,35,0.14)]" />
+                        <div className="pointer-events-none absolute bottom-6.5 left-[2.25%] right-[2.25%] top-4.25 z-2 rounded-[25px] bg-[#e9e7e1] shadow-[0_2px_4px_rgba(45,42,35,0.14)]" />
 
-                        <div className="pointer-events-none absolute bottom-[28px] left-[2.1%] right-[2.1%] top-[15px] z-[3] rounded-[24px] bg-[#efede8]" />
+                        <div className="pointer-events-none absolute bottom-7 left-[2.1%] right-[2.1%] top-3.75 z-3 rounded-3xl bg-[#efede8]" />
 
-                        <div className="pointer-events-none absolute bottom-[30px] left-[1.95%] right-[1.95%] top-[13px] z-[4] rounded-[23px] bg-[#f4f2ed]" />
+                        <div className="pointer-events-none absolute bottom-7.5 left-[1.95%] right-[1.95%] top-3.25 z-4 rounded-[23px] bg-[#f4f2ed]" />
 
-                        <div className="pointer-events-none absolute bottom-[32px] left-[1.8%] right-[1.8%] top-[11px] z-[5] rounded-[22px] bg-[#f8f7f3]" />
+                        <div className="pointer-events-none absolute bottom-8 left-[1.8%] right-[1.8%] top-2.75 z-5 rounded-[22px] bg-[#f8f7f3]" />
 
 
                         {/* =================================================
@@ -201,26 +201,26 @@ export const TemplateDetail = () => {
         Very thin — these should read as paper.
     ================================================= */}
 
-                        <div className="pointer-events-none absolute bottom-[38px] left-[1.95%] top-[23px] z-[8] w-[2px] rounded-l-full bg-[#dedbd4]" />
+                        <div className="pointer-events-none absolute bottom-9.5 left-[1.95%] top-5.75 z-8 w-0.5 rounded-l-full bg-[#dedbd4]" />
 
-                        <div className="pointer-events-none absolute bottom-[41px] left-[2.18%] top-[20px] z-[8] w-[1px] rounded-l-full bg-[#ebe9e4]" />
+                        <div className="pointer-events-none absolute bottom-10.25 left-[2.18%] top-5 z-8 w-px rounded-l-full bg-[#ebe9e4]" />
 
-                        <div className="pointer-events-none absolute bottom-[44px] left-[2.38%] top-[17px] z-[8] w-[1px] rounded-l-full bg-[#d8d5ce]" />
+                        <div className="pointer-events-none absolute bottom-11 left-[2.38%] top-4.25 z-8 w-px rounded-l-full bg-[#d8d5ce]" />
 
-                        <div className="pointer-events-none absolute bottom-[47px] left-[2.57%] top-[14px] z-[8] w-[1px] rounded-l-full bg-[#f0eee9]" />
+                        <div className="pointer-events-none absolute bottom-11.75 left-[2.57%] top-3.5 z-8 w-px rounded-l-full bg-[#f0eee9]" />
 
 
                         {/* =================================================
         RIGHT INVISIBLE PAGE EDGES
     ================================================= */}
 
-                        <div className="pointer-events-none absolute bottom-[38px] right-[1.95%] top-[23px] z-[8] w-[2px] rounded-r-full bg-[#dedbd4]" />
+                        <div className="pointer-events-none absolute bottom-9.5 right-[1.95%] top-5.75 z-8 w-0.5 rounded-r-full bg-[#dedbd4]" />
 
-                        <div className="pointer-events-none absolute bottom-[41px] right-[2.18%] top-[20px] z-[8] w-[1px] rounded-r-full bg-[#ebe9e4]" />
+                        <div className="pointer-events-none absolute bottom-10.25 right-[2.18%] top-5 z-8 w-px rounded-r-full bg-[#ebe9e4]" />
 
-                        <div className="pointer-events-none absolute bottom-[44px] right-[2.38%] top-[17px] z-[8] w-[1px] rounded-r-full bg-[#d8d5ce]" />
+                        <div className="pointer-events-none absolute bottom-11 right-[2.38%] top-4.25 z-8 w-px rounded-r-full bg-[#d8d5ce]" />
 
-                        <div className="pointer-events-none absolute bottom-[47px] right-[2.57%] top-[14px] z-[8] w-[1px] rounded-r-full bg-[#f0eee9]" />
+                        <div className="pointer-events-none absolute bottom-11.75 right-[2.57%] top-3.5 z-8 w-px rounded-r-full bg-[#f0eee9]" />
 
 
                         {/* =================================================
@@ -229,20 +229,20 @@ export const TemplateDetail = () => {
         Thin curved layers, NOT gray bars.
     ================================================= */}
 
-                        <div className="pointer-events-none absolute bottom-[25px] left-[4.2%] right-[4.2%] z-[7] h-[10px] rounded-b-[45%] bg-[#dedbd5]" />
+                        <div className="pointer-events-none absolute bottom-6.25 left-[4.2%] right-[4.2%] z-7 h-2.5 rounded-b-[45%] bg-[#dedbd5]" />
 
-                        <div className="pointer-events-none absolute bottom-[28px] left-[4.35%] right-[4.35%] z-[8] h-[7px] rounded-b-[45%] bg-[#ebe9e4]" />
+                        <div className="pointer-events-none absolute bottom-7 left-[4.35%] right-[4.35%] z-8 h-1.75 rounded-b-[45%] bg-[#ebe9e4]" />
 
-                        <div className="pointer-events-none absolute bottom-[31px] left-[4.5%] right-[4.5%] z-[9] h-[5px] rounded-b-[45%] bg-[#f4f2ed]" />
+                        <div className="pointer-events-none absolute bottom-7.75 left-[4.5%] right-[4.5%] z-9 h-1.25 rounded-b-[45%] bg-[#f4f2ed]" />
 
-                        <div className="pointer-events-none absolute bottom-[34px] left-[4.65%] right-[4.65%] z-[10] h-[3px] rounded-b-[45%] bg-[#faf9f6]" />
+                        <div className="pointer-events-none absolute bottom-8.5 left-[4.65%] right-[4.65%] z-10 h-0.75 rounded-b-[45%] bg-[#faf9f6]" />
 
 
                         {/* =================================================
         ACTUAL OPEN BOOK
     ================================================= */}
 
-                        <div className="relative z-20 h-[640px] w-[92%] overflow-hidden rounded-[22px] bg-white shadow-[0_9px_24px_rgba(35,35,70,0.14)]">
+                        <div className="relative z-20 h-90 w-[92%] overflow-hidden rounded-[22px] bg-white shadow-[0_9px_24px_rgba(35,35,70,0.14)] sm:h-160">
 
                             <HTMLFlipBook
                                 ref={bookRef}
@@ -261,7 +261,7 @@ export const TemplateDetail = () => {
                                 flippingTime={650}
                                 startPage={0}
                                 onFlip={handleFlip}
-                                className="story-flipbook h-full w-full"
+                                className="story-book h-full w-full"
                                 style={{ margin: 0 }}
                             >
 
@@ -309,7 +309,7 @@ export const TemplateDetail = () => {
 
                                             <div className="flex h-full w-full items-center justify-center bg-white px-14 text-center">
 
-                                                <p className="max-w-[470px] font-serif text-[19px] leading-9 text-[#3c3860]">
+                                                    <p className="max-w-117.5 font-serif text-[19px] leading-9 text-[#3c3860]">
                                                     {leaf.page.text}
                                                 </p>
 
@@ -336,7 +336,7 @@ export const TemplateDetail = () => {
 
                                                 {/* TITLE */}
 
-                                                <h3 className="max-w-[570px] font-serif text-[40px] font-bold leading-[1.12] text-[#29254d]">
+                                                    <h3 className="max-w-142.5 font-serif text-[40px] font-bold leading-[1.12] text-[#29254d]">
                                                     {leaf.page.heading}
                                                 </h3>
 
@@ -359,14 +359,14 @@ export const TemplateDetail = () => {
 
                                                 {/* DESCRIPTION */}
 
-                                                <p className="mt-6 max-w-[520px] text-[14px] leading-7 text-[#77738b]">
+                                                <p className="mt-6 max-w-130 text-[14px] leading-7 text-[#77738b]">
                                                     {selectedTemplate.description}
                                                 </p>
 
 
                                                 {/* INFO */}
 
-                                                <div className="mt-6 grid w-full max-w-[520px] grid-cols-3 rounded-[20px] border border-[#e8e2f2] bg-white p-4">
+                                                <div className="mt-6 grid w-full max-w-130 grid-cols-3 rounded-[20px] border border-[#e8e2f2] bg-white p-4">
 
                                                     <div className="flex flex-col items-center gap-1">
                                                         <BookOpen size={18} className="text-[#5d2bc5]" />
@@ -403,7 +403,7 @@ export const TemplateDetail = () => {
 
                                                 {/* STORY INPUT */}
 
-                                                <div className="mt-5 w-full max-w-[520px] rounded-[20px] border border-[#e7e0f4] bg-[#faf9ff] p-4 text-left">
+                                                <div className="mt-5 w-full max-w-130 rounded-[20px] border border-[#e7e0f4] bg-[#faf9ff] p-4 text-left">
 
                                                     <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold text-[#5d2bc5]">
                                                         <Mic size={13} />
@@ -434,7 +434,7 @@ export const TemplateDetail = () => {
 
                                                 <span className="pointer-events-none absolute bottom-7 right-7 h-8 w-8 rounded-br-lg border-b-2 border-r-2 border-[#dfcf9d]" />
 
-                                                <h3 className="max-w-[520px] font-serif text-[40px] font-bold leading-tight text-[#29254d]">
+                                                <h3 className="max-w-130 font-serif text-[40px] font-bold leading-tight text-[#29254d]">
                                                     {leaf.page.heading}
                                                 </h3>
 
@@ -457,9 +457,9 @@ export const TemplateDetail = () => {
             CENTER PAGE CREASE
         ================================================= */}
 
-                            <div className="pointer-events-none absolute inset-y-0 left-1/2 z-[50] w-[52px] -translate-x-1/2 bg-gradient-to-r from-transparent via-[#38334b]/10 to-transparent" />
+                            <div className="pointer-events-none absolute inset-y-0 left-1/2 z-50 w-13 -translate-x-1/2 bg-linear-to-r from-transparent via-[#38334b]/10 to-transparent" />
 
-                            <div className="pointer-events-none absolute inset-y-0 left-1/2 z-[51] w-[2px] -translate-x-1/2 bg-gradient-to-b from-transparent via-[#4b4656]/10 to-transparent" />
+                            <div className="pointer-events-none absolute inset-y-0 left-1/2 z-51 w-0.5 -translate-x-1/2 bg-linear-to-b from-transparent via-[#4b4656]/10 to-transparent" />
 
 
                             {/* =================================================
@@ -471,7 +471,7 @@ export const TemplateDetail = () => {
                                 onClick={goPrevPage}
                                 disabled={isFirstPage}
                                 aria-label="Previous page"
-                                className="absolute left-5 top-1/2 z-[100] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20"
+                                className="absolute left-5 top-1/2 z-100 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20"
                             >
                                 <ChevronLeft size={25} />
                             </button>
@@ -486,7 +486,7 @@ export const TemplateDetail = () => {
                                 onClick={goNextPage}
                                 disabled={isLastPage}
                                 aria-label="Next page"
-                                className="absolute right-5 top-1/2 z-[100] flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20"
+                                className="absolute right-5 top-1/2 z-100 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20"
                             >
                                 <ChevronRight size={25} />
                             </button>
@@ -498,14 +498,14 @@ export const TemplateDetail = () => {
         SMALL BLUE COVER LIP
     ================================================= */}
 
-                        <div className="pointer-events-none absolute bottom-[8px] left-[4%] right-[4%] z-[16] h-[10px] rounded-b-[18px] bg-[#163971]" />
+                        <div className="pointer-events-none absolute bottom-2 left-[4%] right-[4%] z-16 h-2.5 rounded-b-[18px] bg-[#163971]" />
 
 
                         {/* =================================================
         SOFT FLOOR SHADOW
     ================================================= */}
 
-                        <div className="pointer-events-none absolute -bottom-6 left-1/2 z-[-1] h-[28px] w-[78%] -translate-x-1/2 rounded-full bg-[#535064]/25 blur-2xl" />
+                        <div className="pointer-events-none absolute -bottom-6 left-1/2 z-[-1] h-7 w-[78%] -translate-x-1/2 rounded-full bg-[#535064]/25 blur-2xl" />
 
                     </div>
 
@@ -513,9 +513,9 @@ export const TemplateDetail = () => {
                         SEPARATE PAGE NAVIGATION
                     ================================================= */}
 
-                    <aside className="relative z-30 flex h-[650px] w-[78px] shrink-0 flex-col items-center justify-center bg-transparent">
+                    <aside className="relative z-30 flex h-100 w-13.5 shrink-0 flex-col items-center justify-center bg-transparent sm:h-162.5 sm:w-19.5">
 
-                        <div className="flex w-full flex-col items-center gap-3">
+                        <div className="flex w-full flex-col items-center gap-2 sm:gap-3">
 
                             {visibleThumbs.map((page, index) => {
 
@@ -530,7 +530,7 @@ export const TemplateDetail = () => {
                                         className="group flex flex-col items-center gap-1 outline-none"
                                     >
 
-                                        <div className={`relative overflow-hidden rounded-[9px] bg-white transition-all duration-200 ${active ? "h-[58px] w-[68px] border-2 border-[#5d2bc5] shadow-[0_5px_16px_rgba(93,43,197,0.25)]" : "h-[54px] w-[64px] border border-transparent opacity-65 hover:border-[#b9a9df] hover:opacity-100"}`}>
+                                        <div className={`relative overflow-hidden rounded-[9px] bg-white transition-all duration-200 ${active ? "h-10.5 w-12 border-2 border-[#5d2bc5] shadow-[0_5px_16px_rgba(93,43,197,0.25)] sm:h-14.5 sm:w-17" : "h-9.5 w-11 border border-transparent opacity-65 hover:border-[#b9a9df] hover:opacity-100 sm:h-13.5 sm:w-16"}`}>
                                             <img src={page.image} alt="" draggable={false} className="h-full w-full object-cover" />
                                         </div>
 
@@ -547,7 +547,7 @@ export const TemplateDetail = () => {
                                 <button
                                     type="button"
                                     onClick={() => setPageNavOpen(true)}
-                                    className="flex h-[34px] w-[62px] items-center justify-center rounded-lg border border-[#ded7ef] bg-transparent text-[10px] font-bold text-[#5d2bc5] transition hover:bg-white/60"
+                                    className="flex h-8.5 w-15.5 items-center justify-center rounded-lg border border-[#ded7ef] bg-transparent text-[10px] font-bold text-[#5d2bc5] transition hover:bg-white/60"
                                 >
                                     +{overflowCount}
                                 </button>
@@ -579,12 +579,12 @@ export const TemplateDetail = () => {
 
             {pageNavOpen && (
                 <div
-                    className="absolute inset-0 z-[200] flex items-center justify-center bg-[#29254d]/20 p-6 backdrop-blur-[3px]"
+                    className="absolute inset-0 z-200 flex items-center justify-center bg-[#29254d]/20 p-6 backdrop-blur-[3px]"
                     onClick={() => setPageNavOpen(false)}
                 >
 
                     <div
-                        className="relative max-h-[620px] w-[600px] overflow-hidden rounded-[24px] border border-[#e5dff2] bg-white p-6 shadow-[0_30px_80px_rgba(40,30,80,0.28)]"
+                        className="relative max-h-155 w-full max-w-150 overflow-y-auto rounded-3xl border border-[#e5dff2] bg-white p-4 shadow-[0_30px_80px_rgba(40,30,80,0.28)] sm:p-6"
                         onClick={(event) => event.stopPropagation()}
                     >
 
@@ -611,7 +611,7 @@ export const TemplateDetail = () => {
                         </div>
 
 
-                        <div className="grid grid-cols-4 gap-4">
+                        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4">
 
                             {pages.map((page, index) => {
 
@@ -625,7 +625,7 @@ export const TemplateDetail = () => {
                                         className="group flex flex-col items-center gap-1.5"
                                     >
 
-                                        <div className={`aspect-[4/3] w-full overflow-hidden rounded-xl bg-white transition-all ${active ? "border-2 border-[#5d2bc5] shadow-[0_5px_15px_rgba(93,43,197,0.18)]" : "border border-[#e4e1eb] group-hover:border-[#b9a9df]"}`}>
+                                        <div className={`aspect-4/3 w-full overflow-hidden rounded-xl bg-white transition-all ${active ? "border-2 border-[#5d2bc5] shadow-[0_5px_15px_rgba(93,43,197,0.18)]" : "border border-[#e4e1eb] group-hover:border-[#b9a9df]"}`}>
                                             <img src={page.image} alt="" draggable={false} className="h-full w-full object-cover" />
                                         </div>
 

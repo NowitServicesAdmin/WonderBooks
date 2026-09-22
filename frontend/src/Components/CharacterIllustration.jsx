@@ -247,7 +247,7 @@ export const CharacterWorkspace = ({
         border
         border-[#e3deea]
         bg-[#fcfbfd]
-        px-11
+        px-5
         py-3.5
         text-[13px]
         leading-relaxed
@@ -291,11 +291,13 @@ export const CharacterWorkspace = ({
                     justify-between
                     border-b
                     border-[#eeeaf3]
-                    bg-gradient-to-r
+                    bg-linear-to-r
                     from-[#faf8ff]
                     to-white
-                    px-7
-                    py-5
+                    px-4
+                    py-4
+                    sm:px-7
+                    sm:py-5
                 "
             >
                 <div className="flex items-center gap-4">
@@ -353,7 +355,7 @@ export const CharacterWorkspace = ({
                 CONTENT
             ========================================================= */}
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-7 py-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-7 sm:py-5">
 
                 {/* =========================================================
     CHARACTER TYPE
@@ -372,7 +374,7 @@ export const CharacterWorkspace = ({
                     </div>
 
                     {/* ORIGINAL BUTTON STYLE */}
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3">
                         {CHARACTER_TYPES.map((type) => {
                             const Icon = type.icon;
 
@@ -388,7 +390,7 @@ export const CharacterWorkspace = ({
                                     }
                                     className={`
                         flex
-                        h-[48px]
+                        h-12
                         items-center
                         gap-2.5
                         rounded-[14px]
@@ -473,8 +475,9 @@ export const CharacterWorkspace = ({
                     <div
                         className="
                             grid
-                            grid-cols-[minmax(0,1.5fr)_minmax(110px,0.7fr)_minmax(300px,1.45fr)]
+                            grid-cols-1
                             gap-4
+                            sm:grid-cols-[1.5fr_0.7fr_1.45fr]
                         "
                     >
                         {/* NAME */}
@@ -499,19 +502,6 @@ export const CharacterWorkspace = ({
                                 Main character name
                             </label>
 
-                            <div className="relative">
-                                <UserRound
-                                    size={17}
-                                    className="
-                                        pointer-events-none
-                                        absolute
-                                        left-4
-                                        top-1/2
-                                        -translate-y-1/2
-                                        text-[#aaa2b2]
-                                    "
-                                />
-
                                 <input
                                     type="text"
                                     value={formData.name}
@@ -522,9 +512,8 @@ export const CharacterWorkspace = ({
                                         )
                                     }
                                     placeholder="e.g. Emma, Leo, Luna..."
-                                    className={`${inputClass} pl-11 pr-4`}
+                                    className={`${inputClass} pl-5 pr-4`}
                                 />
-                            </div>
                         </div>
 
                         {/* AGE */}
@@ -549,20 +538,7 @@ export const CharacterWorkspace = ({
                                 Age
                             </label>
 
-                            <div className="relative">
-                                <CalendarDays
-                                    size={17}
-                                    className="
-                                        pointer-events-none
-                                        absolute
-                                        left-4
-                                        top-1/2
-                                        -translate-y-1/2
-                                        text-[#aaa2b2]
-                                    "
-                                />
-
-                                <input
+                            <input
                                     type="number"
                                     min="0"
                                     value={formData.age}
@@ -573,9 +549,8 @@ export const CharacterWorkspace = ({
                                         )
                                     }
                                     placeholder="e.g. 7"
-                                    className={`${inputClass} pl-11 pr-3`}
+                                    className={`${inputClass} pl-5 pr-3`}
                                 />
-                            </div>
                         </div>
 
                         {/* GENDER */}
@@ -600,7 +575,7 @@ export const CharacterWorkspace = ({
                                 Gender
                             </label>
 
-                            <div className="grid h-[52px] grid-cols-3 gap-2">
+                            <div className="grid h-13 grid-cols-3 gap-1.5">
                                 {genderOptions.map((option) => {
                                     const isSelected =
                                         formData.gender === option.id;
@@ -620,11 +595,14 @@ export const CharacterWorkspace = ({
                                                 min-w-0
                                                 items-center
                                                 justify-center
-                                                gap-2
+                                                gap-1
                                                 rounded-[14px]
                                                 border
-                                                px-2.5
-                                                text-[12px]
+                                                px-1
+                                                text-[10px]
+                                                lg:px-2.5
+                                                lg:text-[12px]
+                                                lg:gap-2
                                                 font-semibold
                                                 transition-all
                                                 duration-200
@@ -643,23 +621,24 @@ export const CharacterWorkspace = ({
                                         >
                                             <span
                                                 className={`
-                                                    flex
-                                                    h-[21px]
-                                                    w-[21px]
+                                                    hidden
+                                                    h-4.5
+                                                    w-4.5
                                                     shrink-0
                                                     items-center
                                                     justify-center
                                                     rounded-full
                                                     border-2
                                                     bg-white
+                                                    lg:flex
                                                     ${option.dotClass}
                                                 `}
                                             >
                                                 {isSelected && (
                                                     <span
                                                         className="
-                                                            h-2.5
-                                                            w-2.5
+                                                            h-2
+                                                            w-2
                                                             rounded-full
                                                             bg-current
                                                         "
@@ -667,7 +646,7 @@ export const CharacterWorkspace = ({
                                                 )}
                                             </span>
 
-                                            <span className="text-[17px] leading-none">
+                                            <span className="text-[14px] leading-none lg:text-[17px]">
                                                 {option.emoji}
                                             </span>
 
@@ -685,7 +664,7 @@ export const CharacterWorkspace = ({
                         HOBBIES + FOOD
                     ================================================= */}
 
-                    <div className="mt-5 grid grid-cols-2 gap-4">
+                    <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
 
                         {/* HOBBIES */}
 
@@ -694,6 +673,7 @@ export const CharacterWorkspace = ({
                                 className="
                                     mb-2
                                     flex
+                                    flex-wrap
                                     items-center
                                     gap-1.5
                                     text-[12px]
@@ -719,19 +699,6 @@ export const CharacterWorkspace = ({
                                     Optional
                                 </span>
                             </label>
-
-                            <div className="relative">
-                                <Heart
-                                    size={17}
-                                    className="
-                                        pointer-events-none
-                                        absolute
-                                        left-4
-                                        top-4
-                                        text-[#aaa2b2]
-                                    "
-                                />
-
                                 <textarea
                                     value={formData.hobbies}
                                     onChange={(event) =>
@@ -743,7 +710,6 @@ export const CharacterWorkspace = ({
                                     placeholder="e.g. Drawing, cycling, playing football..."
                                     className={textareaClass}
                                 />
-                            </div>
                         </div>
 
                         {/* FAVOURITE FOOD */}
@@ -753,6 +719,7 @@ export const CharacterWorkspace = ({
                                 className="
                                     mb-2
                                     flex
+                                    flex-wrap
                                     items-center
                                     gap-1.5
                                     text-[12px]
@@ -779,18 +746,6 @@ export const CharacterWorkspace = ({
                                 </span>
                             </label>
 
-                            <div className="relative">
-                                <Utensils
-                                    size={17}
-                                    className="
-                                        pointer-events-none
-                                        absolute
-                                        left-4
-                                        top-4
-                                        text-[#aaa2b2]
-                                    "
-                                />
-
                                 <textarea
                                     value={formData.favouriteFood}
                                     onChange={(event) =>
@@ -802,7 +757,6 @@ export const CharacterWorkspace = ({
                                     placeholder="e.g. Pizza, ice cream, mangoes..."
                                     className={textareaClass}
                                 />
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -849,7 +803,7 @@ export const CharacterWorkspace = ({
                         </div>
 
                         <p className="mt-1 text-[11px] text-[#9c96a5]">
-                            Add a photo to help create a more personalised
+                            Add a photo to help create a more personalized
                             character.
                         </p>
                     </div>
@@ -874,7 +828,7 @@ export const CharacterWorkspace = ({
                             }
                             className="
                                 flex
-                                h-[64px]
+                                h-16
                                 w-full
                                 items-center
                                 justify-between
@@ -892,21 +846,6 @@ export const CharacterWorkspace = ({
                             "
                         >
                             <div className="flex items-center gap-3">
-                                <div
-                                    className="
-                                        flex
-                                        h-9
-                                        w-9
-                                        items-center
-                                        justify-center
-                                        rounded-[11px]
-                                        bg-[#eee9ff]
-                                        text-[#6848cf]
-                                    "
-                                >
-                                    <ImagePlus size={17} />
-                                </div>
-
                                 <div>
                                     <p
                                         className="
@@ -968,8 +907,8 @@ export const CharacterWorkspace = ({
                                 src={formData.photo.preview}
                                 alt="Selected character reference"
                                 className="
-                                    h-[48px]
-                                    w-[48px]
+                                    h-12
+                                    w-12
                                     rounded-[10px]
                                     object-cover
                                 "
@@ -1099,7 +1038,7 @@ export const CharacterWorkspace = ({
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
                         {/* LANGUAGE */}
 
@@ -1136,7 +1075,7 @@ export const CharacterWorkspace = ({
                                             }
                                             className={`
                                                 flex
-                                                h-[48px]
+                                                h-12
                                                 items-center
                                                 justify-center
                                                 gap-2
@@ -1209,7 +1148,7 @@ export const CharacterWorkspace = ({
                                             }
                                             className={`
                                                 flex
-                                                h-[48px]
+                                                h-12
                                                 items-center
                                                 justify-center
                                                 gap-2
@@ -1294,7 +1233,7 @@ export const CharacterWorkspace = ({
                     disabled={!formData.name.trim()}
                     className={`
                         flex
-                        h-[46px]
+                        h-11.5
                         items-center
                         gap-2
                         rounded-[13px]

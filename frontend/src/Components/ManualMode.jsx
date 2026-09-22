@@ -200,12 +200,79 @@ const STORY_OPTIONS = {
     },
 
     imageStyle: [
-        { id: "normal", label: "Normal", image: "https://res.cloudinary.com/djdct0pxu/image/upload/v1788602715/ChatGPT_Image_Sep_5_2026_03_15_54_PM_lizdnq.png" },
-        { id: "3d", label: "3D Animation", image: "https://cdn-icons-png.flaticon.com/512/2489/2489756.png" },
-        { id: "watercolor", label: "Watercolour", image: "https://cdn-icons-png.flaticon.com/512/2972/2972185.png" },
-        { id: "geometric", label: "Geometric", image: "https://cdn-icons-png.flaticon.com/512/201/201623.png" },
-        { id: "claymation", label: "Claymation", image: "https://cdn-icons-png.flaticon.com/512/3145/3145765.png" },
-        { id: "storybook", label: "Classic Storybook", image: "https://cdn-icons-png.flaticon.com/512/3145/3145765.png" },
+        {
+            id: "3d",
+            label: "3D Storybook",
+            description: "Cinematic, expressive characters with depth and detail. Perfect for modern children's stories.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790075085/6ef597c0-c295-42c7-93ee-9821e2adcad7_cqfn7m.png",
+        },
+        {
+            id: "watercolor",
+            label: "Watercolour",
+            description: "Hand-painted, dreamy visuals with soft colours. Ideal for gentle and emotional stories.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790075160/83527e1b-7840-4ab8-a862-33a98b6c2c12_o5cxje.png",
+        },
+        {
+            id: "classic-illustrated",
+            label: "Classic Illustrated",
+            description: "Timeless storybook style with rich textures and warm tones. Great for traditional tales.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790075304/ca533bbe-bc4b-4d97-ac9b-226cddfc4217_grq8q3.png",
+        },
+        {
+            id: "picture-book",
+            label: "Picture Book (Kids)",
+            description: "Simple, colourful and friendly visuals. Perfect for early readers and playful stories.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790075741/f3f0e914-ff65-4f6e-bbae-1fd6023ac83c_z6pwbd.png",
+        },
+        {
+            id: "sketch",
+            label: "Black & White (Sketch)",
+            description: "Clean hand-drawn sketches. Perfect for draft versions or a minimal, classic look.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790076399/508abf41-241c-44ec-aa00-a0aa262cc9ac_yqwwdk.png",
+        },
+        {
+            id: "minimal-modern",
+            label: "Minimal / Modern",
+            description: "Clean and modern visuals with minimal details. Works well for educational and moral stories.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790076669/02432874-e5dc-4f33-bb2b-08663ab86ddd_vehdub.png",
+        },
+        {
+            id: "vintage-retro",
+            label: "Vintage / Retro",
+            description: "Nostalgic, old-book charm with textured and muted tones. Perfect for classic and heritage stories.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790076776/323cb471-e4bd-4226-b435-f60beace0435_o1bobj.png",
+        },
+        {
+            id: "fairy-tale",
+            label: "Fairy Tale",
+            description: "Magical and enchanting visuals with a dreamy atmosphere. Perfect for fantasy stories.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790075909/de372c9c-c1d8-4bb0-ac17-28a430642053_zfmyg8.png",
+        },
+        {
+            id: "night-bedtime",
+            label: "Night / Bedtime",
+            description: "Calming, cosy visuals for bedtime stories. Creates a warm and soothing mood.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790076015/1af04a9a-900c-417c-8a7e-8476166edaf6_dcmdur.png",
+        },
+        {
+            id: "adventure-style",
+            label: "Adventure",
+            description: "Bold and dynamic visuals for exciting journeys and exploration stories.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790076141/800003a9-156c-4931-9dbe-dfe49c372a8e_wxtfny.png",
+        },
+        {
+            id: "line-art",
+            label: "Line Art (Colouring)",
+            description: "Simple outlines for colouring books. Great for interactive and activity-based stories.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790076557/fbbbeb51-b726-4411-a16c-4f3ec7d5282e_ljqce2.png",
+        },
+        {
+            id: "seasonal-autumn",
+            label: "Seasonal (Autumn)",
+            description: "Rich seasonal colours and atmosphere. Great for stories set in different times of the year.",
+            image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790076266/3d5fd589-efb4-4efc-b293-fa3b7ce091da_efgead.png",
+        },
+        
     ],
 
     language: [
@@ -234,9 +301,6 @@ const STORY_OPTIONS = {
         { id: "typewriter", label: "Typewriter", fontFamily: '"Courier New", Courier, monospace' },
     ],
 };
-
-// Pastel background tints cycled across the image-style cards (see screenshot reference).
-const IMAGE_STYLE_PALETTE = ["#f7ded1", "#dbe6e7", "#f6d9e1", "#f3dee1", "#e4dcf2", "#dcecdd"];
 
 const PANEL_META = {
     age: { icon: Cake, heading: "Age group", description: "Select the perfect age range for your story." },
@@ -361,7 +425,7 @@ const FlyingGhost = ({ ghost, onLanded }) => {
     const rect = landed ? ghost.target : ghost.source;
     return (
         <div
-            className="option-flying-ghost pointer-events-none fixed z-[999] flex items-center justify-center overflow-hidden rounded-[16px] border border-[#d9cdf5] bg-white shadow-[0_16px_34px_rgba(105,71,215,0.30)]"
+            className="option-flying-ghost pointer-events-none fixed z-999 flex items-center justify-center overflow-hidden rounded-2xl border border-[#d9cdf5] bg-white shadow-[0_16px_34px_rgba(105,71,215,0.30)]"
             style={{
                 top: rect.top,
                 left: rect.left,
@@ -398,11 +462,10 @@ const CompactOptionCard = ({ option, isSelected, onSelect, index = 0 }) => {
             onClick={(event) => onSelect(option, event)}
             style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
             className={`
-        group relative aspect-square
+        group relative aspect-square w-full max-w-37.5
         animate-card-fade-in
         rounded-[20px] border 
         transition-all duration-200
-        h-[150px] w-[150px]
 
         ${isSelected
                     ? "border-[#7252dc] bg-[#f6f2ff] shadow-[0_10px_24px_rgba(105,71,215,0.16)] animate-select-pulse"
@@ -429,16 +492,16 @@ const CompactOptionCard = ({ option, isSelected, onSelect, index = 0 }) => {
                         <img
                             src={option.image}
                             alt={option.label}
-                            className="h-[70px] w-[70px] object-contain transition-transform duration-200 group-hover:scale-105"
+                            className="h-17.5 w-17.5 object-contain transition-transform duration-200 group-hover:scale-105"
                         />
                     ) : (
                         <span className="text-[52px] leading-none">{option.emoji}</span>
                     )}
                 </div>
 
-                <div className="flex min-h-[38px] items-center justify-center">
+                <div className="flex min-h-9.5 items-center justify-center">
                     <span
-                        className={`text-center text-[14px] font-bold leading-[1.25] ${isSelected ? "text-[#6041ca]" : "text-[#3f4254]"
+                        className={`text-center text-[14px] font-bold leading-tight ${isSelected ? "text-[#6041ca]" : "text-[#3f4254]"
                             }`}
                     >
                         {option.label}
@@ -449,9 +512,12 @@ const CompactOptionCard = ({ option, isSelected, onSelect, index = 0 }) => {
     );
 };
 
-// image Card
+const IMAGE_STYLE_PALETTE = ["#f7ded1", "#dbe6e7", "#f6d9e1", "#f3dee1", "#e4dcf2", "#dcecdd"];
+const IMAGE_STYLE_TEXT_TINT = ["#f7ded1", "#dbe6e7", "#f6d9e1", "#f3dee1", "#e4dcf2", "#dcecdd"];
+
 const ImageStyleCard = ({ option, isSelected, onSelect, index = 0 }) => {
     const tint = IMAGE_STYLE_PALETTE[index % IMAGE_STYLE_PALETTE.length];
+    const textTint = IMAGE_STYLE_TEXT_TINT[index % IMAGE_STYLE_TEXT_TINT.length];
 
     return (
         <button
@@ -459,49 +525,51 @@ const ImageStyleCard = ({ option, isSelected, onSelect, index = 0 }) => {
             onClick={(event) => onSelect(option, event)}
             style={{ animationDelay: `${Math.min(index, 12) * 35}ms` }}
             className={`
-        group relative flex w-full flex-col overflow-hidden rounded-[20px]
+        group relative flex w-full flex-col overflow-hidden rounded-2xl
         border-2 bg-white text-left
         animate-card-fade-in
         transition-all duration-200
         ${isSelected
-                    ? "border-[#e6791b] shadow-[0_10px_26px_rgba(230,121,27,0.22)]"
+                    ? "border-[#e6791b] shadow-[0_10px_26px_rgba(230,121,27,0.18)] animate-select-pulse"
                     : "border-transparent hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(87,67,150,0.10)]"
                 }
       `}
         >
-            {/* Image + label live on the tinted panel */}
+            {/* Photo fills the whole panel */}
             <div
-                className="flex flex-col gap-3 rounded-t-[18px] p-3 pb-4"
+                className="relative aspect-4/3 w-full overflow-hidden"
                 style={{ backgroundColor: tint }}
             >
-                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[14px] bg-white/40">
-                    {option.image && (
-                        <img
-                            src={option.image}
-                            alt={option.label}
-                            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                        />
-                    )}
-                    {isSelected && (
-                        <div className="absolute right-2.5 top-2.5 flex h-6 w-6 items-center justify-center rounded-full bg-[#e6791b] text-white shadow-sm">
-                            <Check size={14} strokeWidth={3} />
-                        </div>
-                    )}
-                </div>
+                {option.image && (
+                    <img
+                        src={option.image}
+                        alt={option.label}
+                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    />
+                )}
+                {isSelected && (
+                    <div className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#e6791b] text-white shadow-sm">
+                        <Check size={12} strokeWidth={3} />
+                    </div>
+                )}
+            </div>
 
-                <span
-                    className={`text-center text-[15px] font-bold leading-tight ${isSelected ? "text-[#e6791b]" : "text-[#332f42]"
+            {/* Title + description — tinted to match the photo above it */}
+            <div
+                className="px-3 py-2.5 transition-colors duration-200"
+                style={{ backgroundColor: isSelected ? "#fdf0e4" : textTint }}
+            >
+                <h4
+                    className={`text-[12.5px] font-bold leading-tight ${isSelected ? "text-[#e6791b]" : "text-[#2f2b3d]"
                         }`}
                 >
                     {option.label}
-                </span>
-            </div>
-
-            {/* Footer strip */}
-            <div className="border-t border-black/5 bg-[#fdfbf7] px-3 py-2.5 text-center">
-                <span className="text-[12px] font-medium text-[#9a94a3] group-hover:text-[#6947d7] group-hover:underline">
-                    View example
-                </span>
+                </h4>
+                {option.description && (
+                    <p className="mt-1 text-[10.5px] leading-snug text-[#928c9c]">
+                        {option.description}
+                    </p>
+                )}
             </div>
         </button>
     );
@@ -537,7 +605,7 @@ const CategoryPanel = ({ categoryId, selections, onSelect, showHeader }) => {
             )}
 
             {themeMissing ? (
-                <div className="rounded-[16px] border border-dashed border-[#e5e1eb] bg-[#faf8fd] p-6 text-center text-[13px] text-[#928c9c]">
+                <div className="rounded-2xl border border-dashed border-[#e5e1eb] bg-[#faf8fd] p-6 text-center text-[13px] text-[#928c9c]">
                     Pick a theme first to see matching options here.
                 </div>
             ) : isImageStyle ? (
@@ -833,59 +901,11 @@ export const ManualMode = () => {
         }
     };
 
-    // const handleCreateStory = async () => {
-    //     // const missingSteps = STEPS.filter((step) => !isStepComplete(step, selections, characters));
-
-    //     // if (missingSteps.length > 0) {
-    //     //     alert(`Please complete: ${missingSteps.map((step) => step.title).join(", ")}`);
-    //     //     setActiveStepId(missingSteps[0].id);
-    //     //     return;
-    //     // }
-
-    //     // TEMPORARY: hardcoded test object matching exactly what generateStoryPrompt expects
-    //     const testStoryData = {
-    //         ageGroup: "4-7 years",
-    //         theme: "Fairy Tales",
-    //         genre: "Adventure",
-    //         subject: "Courage",
-    //         centralMessage: "Being brave means doing the right thing even when you're scared.",
-    //         tone: "Warm, gentle, and a little magical",
-    //         storySummary: "A shy young girl named Mira discovers that the village's magical Heart-Tree has stopped glowing. To save it, she must journey into the Whispering Woods, face her fear of the dark, and find the courage to help her community, even though she feels small and unsure of herself.",
-    //         recommendedPages: 8,
-    //         characters: [
-    //             {
-    //                 name: "Mira",
-    //                 role: "Main character",
-    //                 description: "A quiet, kind-hearted 6-year-old girl who loves collecting pretty stones and is scared of the dark, but has a big heart.",
-    //             },
-    //         ],
-    //     };
-
-    //     const payload = {
-    //         mode: "manual",
-    //         storySettings: testStoryData, // sent straight through as storyData on backend
-    //         characters,
-    //     };
-
-    //     try {
-    //         const response = await createBook(payload);
-    //         console.log(response, "Response @jesus");
-    //     } catch (error) {
-    //         console.error("Failed to create story:", error);
-    //         alert("Something went wrong while creating your story. Please try again.");
-    //     }
-    // };
-
     const handlePrimary = () => {
-        // if (isLastStep) {
         handleCreateStory();
-        //     return;
-        // }
-
         setActiveStepId(ALL_STEPS[activeStepIndex + 1].id);
     };
 
-    // console.log(selections, "Selections All going on here......")
     return (
         <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
             {/* Top Header */}
@@ -940,7 +960,7 @@ export const ManualMode = () => {
                         type="button"
                         onClick={handlePrimary}
                         disabled={!isLastStep && !isStepComplete(activeStep, selections, characters)}
-                        className="rounded-full bg-gradient-to-r from-[#8f6ff0] to-[#5f38d6] px-7 py-2.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(105,71,215,0.25)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+                        className="rounded-full bg-linear-to-r from-[#8f6ff0] to-[#5f38d6] px-7 py-2.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(105,71,215,0.25)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         {isLastStep ? "Create My Story ✨" : "Next"}
                     </button>

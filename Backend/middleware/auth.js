@@ -8,6 +8,7 @@ export const requireAuth = (req, res, next) => {
   if (!token) {
     return res.status(401).json({
       success: false,
+      code: "NO_TOKEN",
       message: "Please log in to continue",
     });
   }
@@ -19,6 +20,7 @@ export const requireAuth = (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       success: false,
+      code: "TOKEN_INVALID",
       message: "Your session has expired, please log in again",
     });
   }
@@ -31,6 +33,7 @@ export const attachUser = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({
         success: false,
+        code: "ACCOUNT_NOT_FOUND",
         message: "Account not found",
       });
     }

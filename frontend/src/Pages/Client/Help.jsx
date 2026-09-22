@@ -288,7 +288,7 @@ export const Help = () => {
                                     </button>
 
                                     {isOpen && (
-                                        <p className="px-2 pb-4 pl-[52px] pr-4 text-[13.5px] leading-relaxed text-[#71698c]">
+                                        <p className="px-2 pb-4 pl-13 pr-4 text-[13.5px] leading-relaxed text-[#71698c]">
                                             {faq.answer}
                                         </p>
                                     )}

@@ -1,4 +1,5 @@
-import { useState } from "react";
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import {
     Home,
@@ -33,6 +34,8 @@ const superadminMenu = [
     { name: "Subscriptions", path: "/superadmin/subscriptions", icon: CreditCard },
 ];
 
+const DESKTOP_BREAKPOINT = 1024; // Tailwind's `lg`
+
 export function SideNav({
     superadmin = false,
     onLogout,
@@ -41,13 +44,35 @@ export function SideNav({
 }) {
     // Desktop collapse state (icons only vs. icons + labels)
     const [isOpen, setIsOpen] = useState(true);
+
+    const [tabletHovered, setTabletHovered] = useState(false);
+
+    const [isDesktop, setIsDesktop] = useState(
+        () => typeof window !== "undefined" && window.innerWidth >= DESKTOP_BREAKPOINT
+    );
+
     const { user } = useAuth();
 
     const activeMenu = superadmin ? superadminMenu : menuItems;
 
-    // The mobile drawer should always show full labels regardless of
-    // whatever collapse state was left over from desktop.
-    const expanded = isOpen || mobileMenuOpen;
+    const expanded = mobileMenuOpen || (isDesktop ? isOpen : tabletHovered);
+
+    useEffect(() => {
+        const mq = window.matchMedia(`(min-width: ${DESKTOP_BREAKPOINT}px)`);
+        const handleChange = (event) => {
+            setIsDesktop(event.matches);
+            if (event.matches) setTabletHovered(false);
+        };
+        setIsDesktop(mq.matches);
+        mq.addEventListener("change", handleChange);
+        return () => mq.removeEventListener("change", handleChange);
+    }, []);
+
+    const handleTabletMouseEnter = () => {
+        if (!isDesktop) {
+            setTabletHovered(true);
+        }
+    };
 
     const displayName = user?.name || user?.email?.split("@")[0] || "User";
     const avatarUrl = user?.profileImage || user?.avatar;
@@ -62,25 +87,26 @@ export function SideNav({
                 />
             )}
 
-            {/* Wrapper: positions the sidebar and lets the toggle sit on its border */}
             <div
+                onMouseEnter={handleTabletMouseEnter}
+                onMouseLeave={() => setTabletHovered(false)}
                 className={`
                     fixed left-0 top-0 z-50 h-screen shrink-0
                     transition-all duration-300 ease-in-out
-                    md:relative
+                    lg:relative
                     ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
                     w-[78vw] max-w-70
-                    ${isOpen ? "md:w-57.5" : "md:w-24"}
+                    ${tabletHovered ? "md:w-57.5" : "md:w-24"}
+                    ${isOpen ? "lg:w-57.5" : "lg:w-24"}
+                    ${tabletHovered ? "md:shadow-[0_20px_50px_rgba(20,10,60,0.18)] lg:shadow-none" : ""}
                 `}
             >
-                {/* Desktop collapse arrow on the border line (only while open;
-                    when collapsed, the logo icon is used to expand) */}
                 {isOpen && (
                     <button
                         type="button"
                         aria-label="Collapse sidebar"
                         onClick={() => setIsOpen(false)}
-                        className="absolute -right-3 top-7 z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-[#e3dbfa] bg-white text-[#5426c7] shadow-[0_2px_8px_rgba(84,38,199,0.15)] transition-all duration-200 hover:scale-110 hover:bg-[#5426c7] hover:text-white active:scale-95 md:flex"
+                        className="absolute -right-3 top-7 z-10 hidden h-6 w-6 items-center justify-center rounded-full border border-[#e3dbfa] bg-white text-[#5426c7] shadow-[0_2px_8px_rgba(84,38,199,0.15)] transition-all duration-200 hover:scale-110 hover:bg-[#5426c7] hover:text-white active:scale-95 lg:flex"
                     >
                         <ChevronLeft size={14} strokeWidth={2.5} />
                     </button>
@@ -213,6 +239,11 @@ export function SideNav({
                 </div>
             </aside>
             </div>
+
+            <div
+                aria-hidden="true"
+                className="hidden w-24 shrink-0 md:block lg:hidden"
+            />
         </>
     );
 }

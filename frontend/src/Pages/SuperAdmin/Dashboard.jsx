@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability */
 import { useState, useMemo } from "react";
 import {
     Users,
@@ -169,7 +170,7 @@ export const SuperAdminDashboard = ({ onNavigate }) => {
     return (
         <div className="p-2">
             {/* Stat Cards */}
-            <div className="mb-6 grid grid-cols-4 gap-5">
+            <div className="mb-6 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
                 {statCards.map((card) => {
                     const Icon = card.icon;
                     return (
@@ -202,7 +203,7 @@ export const SuperAdminDashboard = ({ onNavigate }) => {
             </div>
 
             {/* Charts */}
-            <div className="mb-6 grid grid-cols-2 gap-5">
+            <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <div className="rounded-2xl border border-[#eeeafa] bg-white p-5">
                     <div className="mb-4 flex items-center justify-between">
                         <h3 className="text-lg font-bold">User Growth</h3>
@@ -231,7 +232,7 @@ export const SuperAdminDashboard = ({ onNavigate }) => {
             </div>
 
             {/* Activity + Quick Actions */}
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <div className="rounded-2xl border border-[#eeeafa] bg-white p-5">
                     <h3 className="mb-4 text-lg font-bold">Recent Activity</h3>
                     <div className="flex flex-col gap-4">

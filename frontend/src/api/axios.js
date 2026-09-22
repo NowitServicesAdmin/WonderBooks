@@ -13,11 +13,19 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+const SESSION_INVALID_CODES = new Set([
+    "NO_TOKEN",
+    "TOKEN_INVALID",
+    "ACCOUNT_NOT_FOUND",
+]);
 
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        const status = error.response?.status;
+        const code = error.response?.data?.code;
+
+        if (status === 401 && SESSION_INVALID_CODES.has(code)) {
             localStorage.removeItem("wb_token");
             localStorage.removeItem("wb_user");
             if (window.location.pathname !== "/auth") {

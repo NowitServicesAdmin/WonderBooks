@@ -27,10 +27,18 @@ export const AuthProvider = ({ children }) => {
                 setUser(data.user);
                 localStorage.setItem("wb_user", JSON.stringify(data.user));
             } catch (error) {
-                localStorage.removeItem("wb_token");
-                localStorage.removeItem("wb_user");
-                setUser(null);
-                setToken(null);
+                const code = error?.response?.data?.code;
+                const status = error?.response?.status;
+                const tokenIsDead =
+                    status === 401 &&
+                    ["NO_TOKEN", "TOKEN_INVALID", "ACCOUNT_NOT_FOUND"].includes(code);
+
+                if (tokenIsDead) {
+                    localStorage.removeItem("wb_token");
+                    localStorage.removeItem("wb_user");
+                    setUser(null);
+                    setToken(null);
+                }
                 console.log(error)
             } finally {
                 setLoading(false);
@@ -54,6 +62,14 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
     };
 
+    const updateUser = (partialUser) => {
+        setUser((prev) => {
+            const next = { ...(prev || {}), ...partialUser };
+            localStorage.setItem("wb_user", JSON.stringify(next));
+            return next;
+        });
+    };
+
     return (
         <AuthContext.Provider
             value={{
@@ -63,6 +79,7 @@ export const AuthProvider = ({ children }) => {
                 isAuthenticated: Boolean(token),
                 login,
                 logout,
+                updateUser,
             }}
         >
             {children}

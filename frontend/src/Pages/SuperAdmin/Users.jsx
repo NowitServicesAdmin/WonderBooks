@@ -147,8 +147,8 @@ export function SuperAdminUsers() {
                 </button>
             </div>
 
-            <div className="overflow-visible rounded-2xl border border-[#eeeafa] bg-white">
-                <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-2xl border border-[#eeeafa] bg-white">
+                <table className="w-full min-w-150 text-sm">
                     <thead className="border-[#eeeafa] bg-[#faf8ff] ">
                         <tr className="border-b border-[#eeeafa] text-left text-[#70698a]">
                             <th className="px-4 py-3 font-semibold">UserID</th>

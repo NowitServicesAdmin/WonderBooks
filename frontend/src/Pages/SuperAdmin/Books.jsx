@@ -48,8 +48,8 @@ export function SuperAdminBooks() {
                 </button>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-[#eeeafa] bg-white">
-                <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-2xl border border-[#eeeafa] bg-white">
+                <table className="w-full min-w-150 text-sm">
                     <thead>
                         <tr className="border-b border-[#eeeafa] bg-[#faf8ff] text-left text-[#5e5779]">
                             <th className="px-4 py-3.5 font-semibold">BookID</th>

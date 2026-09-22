@@ -1,5 +1,3 @@
-
-
 import { useState } from "react";
 import { Sparkles, Mic, Send, Lightbulb } from "lucide-react";
 import { createBook, TestImage } from "../services/bookService";
@@ -87,19 +85,19 @@ export const AiBookCreation = () => {
     return (
         <div className="relative w-full overflow-hidden pb-8">
             {/* Background Glow */}
-            <div className="pointer-events-none absolute left-1/2 top-[100px] h-[420px] w-[900px] -translate-x-1/2 rounded-full bg-[#eee8ff]/30 blur-[120px]" />
+            <div className="pointer-events-none absolute left-1/2 top-25 h-105 w-225 -translate-x-1/2 rounded-full bg-[#eee8ff]/30 blur-[120px]" />
 
-            <div className="relative z-10 mx-auto flex w-full max-w-[1260px] flex-col">
+            <div className="relative z-10 mx-auto flex w-full max-w-315 flex-col">
                 {/* ================= ROBOT + MESSAGE ================= */}
                 <div className="mt-12 flex items-center justify-center gap-8">
                     {/* Robot */}
-                    <div className="relative flex h-[300px] w-[390px] shrink-0 items-center justify-center">
+                    <div className="relative flex h-57.5 w-75 shrink-0 items-center justify-center sm:h-75 sm:w-97.5">
                         {/* Decorative sparkles */}
-                        <Sparkles size={22} className="absolute left-[5px] top-[60px] text-[#c29aff]" fill="currentColor" />
+                        <Sparkles size={22} className="absolute left-1.25 top-15 text-[#c29aff]" fill="currentColor" />
 
-                        <Sparkles size={28} className="absolute right-[15px] top-[55px] text-[#ffc34e]" fill="currentColor" />
+                        <Sparkles size={28} className="absolute right-3.75 top-13.75 text-[#ffc34e]" fill="currentColor" />
 
-                        <Sparkles size={18} className="absolute bottom-[55px] left-[25px] text-[#f3b13b]" fill="currentColor" />
+                        <Sparkles size={18} className="absolute bottom-13.75 left-6.25 text-[#f3b13b]" fill="currentColor" />
 
                         {/* Robot Image */}
                         <img src={AI_ROBOT_IMAGE} alt="AI Story Assistant" className="h-full w-full object-contain" />
@@ -108,7 +106,7 @@ export const AiBookCreation = () => {
 
                 {/* Story Ideas */}
                 <div className="mt-4 flex w-full justify-center">
-                    <div className="grid grid-cols-5 gap-4">
+                    <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
                         {storyIdeas.map((idea, index) => {
                             const isSelected = storyIdea === idea.text;
 
@@ -141,14 +139,14 @@ export const AiBookCreation = () => {
                                 <button
                                     key={index}
                                     onClick={() => handleIdeaClick(idea.text)}
-                                    className={`group relative flex h-[96px] w-[210px] items-center gap-3 overflow-hidden rounded-[20px] border px-4 text-left transition-all duration-300 ease-out ${isSelected ? "border-[#7654d8] bg-gradient-to-br from-[#faf8ff] to-[#f1edff] shadow-[0_10px_28px_rgba(99,66,190,0.16)]" : `border-[#e5e1ed] bg-white/75 ${theme.border} ${theme.glow}`} hover:-translate-y-[3px] active:translate-y-0`}
+                                    className={`group relative flex h-24 w-full items-center gap-3 overflow-hidden rounded-[20px] border px-4 text-left transition-all duration-300 ease-out ${isSelected ? "border-[#7654d8] bg-linear-to-br from-[#faf8ff] to-[#f1edff] shadow-[0_10px_28px_rgba(99,66,190,0.16)]" : `border-[#e5e1ed] bg-white/75 ${theme.border} ${theme.glow}`} hover:-translate-y-0.75 active:translate-y-0`}
                                 >
                                     {/* Background Glow */}
-                                    <div className="absolute -right-5 -top-5 h-[80px] w-[80px] rounded-full bg-white/50 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
+                                    <div className="absolute -right-5 -top-5 h-20 w-20 rounded-full bg-white/50 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
 
                                     {/* Emoji */}
                                     <div
-                                        className={`relative z-10 flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[17px] ${theme.iconBg} shadow-[0_6px_14px_rgba(80,60,150,0.08)] transition-all duration-300 group-hover:scale-110 group-hover:rotate-[-4deg]`}
+                                        className={`relative z-10 flex h-13.5 w-13.5 shrink-0 items-center justify-center rounded-[17px] ${theme.iconBg} shadow-[0_6px_14px_rgba(80,60,150,0.08)] transition-all duration-300 group-hover:scale-110 group-hover:rotate-[-4deg]`}
                                     >
                                         <span className="text-[32px] leading-none">{idea.emoji}</span>
 
@@ -183,13 +181,13 @@ export const AiBookCreation = () => {
                                 const randomIdea = storyIdeas[Math.floor(Math.random() * storyIdeas.length)];
                                 setStoryIdea(randomIdea.text);
                             }}
-                            className="group relative flex h-[96px] w-[210px] items-center gap-3 overflow-hidden rounded-[20px] border border-[#eadfbd] bg-gradient-to-br from-[#fffdf7] to-[#fff3cf] px-4 text-left shadow-[0_5px_18px_rgba(180,130,30,0.06)] transition-all duration-300 ease-out hover:-translate-y-[3px] hover:border-[#f0c75f] hover:shadow-[0_12px_28px_rgba(180,130,30,0.14)] active:translate-y-0"
+                            className="group relative flex h-24 w-full items-center gap-3 overflow-hidden rounded-[20px] border border-[#eadfbd] bg-linear-to-br from-[#fffdf7] to-[#fff3cf] px-4 text-left shadow-[0_5px_18px_rgba(180,130,30,0.06)] transition-all duration-300 ease-out hover:-translate-y-0.75 hover:border-[#f0c75f] hover:shadow-[0_12px_28px_rgba(180,130,30,0.14)] active:translate-y-0"
                         >
                             {/* Background Glow */}
-                            <div className="absolute -right-5 -top-5 h-[85px] w-[85px] rounded-full bg-[#ffe9a9]/50 blur-xl" />
+                            <div className="absolute -right-5 -top-5 h-21.25 w-21.25 rounded-full bg-[#ffe9a9]/50 blur-xl" />
 
                             {/* Icon */}
-                            <div className="relative z-10 flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[17px] bg-gradient-to-br from-[#fff0b3] to-[#ffd66f] shadow-[0_6px_16px_rgba(214,160,35,0.15)] transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+                            <div className="relative z-10 flex h-13.5 w-13.5 shrink-0 items-center justify-center rounded-[17px] bg-linear-to-br from-[#fff0b3] to-[#ffd66f] shadow-[0_6px_16px_rgba(214,160,35,0.15)] transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
                                 <Lightbulb size={27} className="text-[#d99614]" fill="currentColor" />
 
                                 <Sparkles size={10} className="absolute -right-1 -top-1 text-[#f0a71b]" fill="currentColor" />
@@ -205,7 +203,7 @@ export const AiBookCreation = () => {
                     </div>
                 </div>
                 {messages.length > 0 && (
-                    <div className="mx-auto mt-8 flex w-full max-w-[1100px] flex-col gap-4">
+                    <div className="mx-auto mt-8 flex w-full max-w-275 flex-col gap-4">
                         {messages.map((message, index) => (
                             <div
                                 key={index}
@@ -214,8 +212,8 @@ export const AiBookCreation = () => {
                             >
                                 <div
                                     className={`max-w-[75%] rounded-[20px] px-5 py-3.5 text-[15px] leading-6 ${message.role === "user"
-                                        ? "rounded-br-[6px] bg-[#5A39C7] text-white"
-                                        : "rounded-bl-[6px] border border-[#E5E1ED] bg-white text-[#53577D]"
+                                        ? "rounded-br-md bg-[#5A39C7] text-white"
+                                        : "rounded-bl-md border border-[#E5E1ED] bg-white text-[#53577D]"
                                         }`}
                                 >
                                     {message.content}
@@ -225,7 +223,7 @@ export const AiBookCreation = () => {
 
                         {isLoading && (
                             <div className="flex justify-start">
-                                <div className="rounded-[20px] rounded-bl-[6px] border border-[#E5E1ED] bg-white px-5 py-3.5 text-[14px] text-[#777A9B]">
+                                <div className="rounded-[20px] rounded-bl-md border border-[#E5E1ED] bg-white px-5 py-3.5 text-[14px] text-[#777A9B]">
                                     Creating your story...
                                 </div>
                             </div>
@@ -249,10 +247,10 @@ export const AiBookCreation = () => {
                 )}
 
                 {/* ================= PROMPT INPUT ================= */}
-                <div className="mx-auto mt-10 w-full max-w-[1100px]">
+                <div className="mx-auto mt-10 w-full max-w-275">
                     <div className="flex items-center rounded-[22px] border border-[#DED9EE] bg-white px-5 py-2 shadow-[0_12px_35px_rgba(120,100,180,0.08)] transition-all duration-300 focus-within:border-[#B9A7E8] focus-within:shadow-[0_16px_40px_rgba(74,50,145,0.12)]">
                         {/* Left AI Icon */}
-                        <div className="mr-4 flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#F0EAFF] to-[#E3D7FF] text-[#5A39C7]">
+                        <div className="mr-4 flex h-11.5 w-11.5 shrink-0 items-center justify-center rounded-[14px] bg-linear-to-br from-[#F0EAFF] to-[#E3D7FF] text-[#5A39C7]">
                             <Sparkles size={23} />
                         </div>
 
@@ -263,16 +261,16 @@ export const AiBookCreation = () => {
                             onKeyDown={handleKeyDown}
                             placeholder="Type your story idea here..."
                             rows={1}
-                            className="min-h-[50px] max-h-[120px] flex-1 resize-none bg-transparent py-3 text-[17px] text-[#38345F] outline-none placeholder:text-[#9693A8]"
+                            className="min-h-12.5 max-h-30 flex-1 resize-none bg-transparent py-3 text-[17px] text-[#38345F] outline-none placeholder:text-[#9693A8]"
                         />
 
                         {/* Divider */}
-                        <div className="mx-3 h-[36px] w-px bg-[#E7E3EF]" />
+                        <div className="mx-3 h-9 w-px bg-[#E7E3EF]" />
 
                         {/* Microphone */}
                         <button
                             type="button"
-                            className="mr-3 flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-[12px] text-[#5B3BC4] transition-all duration-200 hover:bg-[#F3EFFF] hover:text-[#4323B2]"
+                            className="mr-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#5B3BC4] transition-all duration-200 hover:bg-[#F3EFFF] hover:text-[#4323B2]"
                             aria-label="Voice input"
                         >
                             <Mic size={24} />
@@ -282,7 +280,7 @@ export const AiBookCreation = () => {
                         <button
                             onClick={handleSubmit}
                             disabled={!storyIdea.trim()}
-                            className="flex h-[52px] w-[58px] shrink-0 items-center justify-center rounded-[10px] bg-gradient-to-r from-[#6539D5] to-[#4822B8] text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)] active:translate-y-0 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-13 w-14.5 shrink-0 items-center justify-center rounded-[10px] bg-linear-to-r from-[#6539D5] to-[#4822B8] text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)] active:translate-y-0 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
                             aria-label="Create book"
                         >
                             <Send size={22} strokeWidth={2.3} />

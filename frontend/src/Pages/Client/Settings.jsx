@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, User, BookOpen, Bell, Lock, HelpCircle, ChevronRight, ChevronDown, Globe, Users, Mail, Camera, Trash2, FileText, Info, Check, Crown, Heart, MessageCircle, Circle, Lightbulb, Package, Megaphone, CalendarDays, ArrowRight, Eye, ShieldCheck, Laptop, Smartphone, Monitor, Download, TriangleAlert, Headset, CreditCard,} from "lucide-react";
+import { Sparkles, User, BookOpen, Bell, HelpCircle, ChevronRight, ChevronDown, Globe, Users, Mail, Camera, Trash2, FileText, Info, Check, Crown, Heart, MessageCircle, Lightbulb, Package, Megaphone, CalendarDays, ArrowRight, ShieldCheck, Download, TriangleAlert, Headset, CreditCard, Loader2,} from "lucide-react";
 import ReactSelect from "react-select";
 import { useAuth } from "../../context/AuthContext";
 import SubscriptionPanel from "./SubscriptionPanel";
+import {
+    getProfile as fetchProfile,
+    updateProfile as saveProfile,
+    uploadAvatar as uploadAvatarPhoto,
+} from "../../services/settingsService";
 
 const tokens = {
     ink: "#241B3A",
@@ -13,17 +18,6 @@ const tokens = {
     purpleTint: "#F1EBFC",
     danger: "#D64545",
 };
-
-const READING_PREFERENCES = [
-    "Adventure",
-    "Fantasy",
-    "Animals",
-    "Friendship",
-    "Science",
-    "Moral Stories",
-    "Funny",
-    "Bedtime",
-];
 
 const FAVORITE_CHARACTERS = [
     { id: "Animals", emoji: "🐶" },
@@ -106,7 +100,7 @@ function Divider() {
 }
 
 /* Text input with a leading icon */
-function IconInput({ icon: Icon, value, onChange, type = "text" }) {
+function IconInput({ icon: Icon, value, onChange, type = "text", disabled = false }) {
     return (
         <div className="relative">
             <Icon
@@ -118,7 +112,8 @@ function IconInput({ icon: Icon, value, onChange, type = "text" }) {
                 type={type}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="h-11 w-full rounded-lg border bg-white pl-11 pr-3 text-sm outline-none transition focus:border-[#a98aff] focus:ring-2 focus:ring-[#a98aff]/25"
+                disabled={disabled}
+                className="h-11 w-full rounded-lg border bg-white pl-11 pr-3 text-sm outline-none transition focus:border-[#a98aff] focus:ring-2 focus:ring-[#a98aff]/25 disabled:cursor-not-allowed disabled:bg-[#f7f5fc] disabled:text-[#9b93b0]"
                 style={{ borderColor: tokens.line, color: tokens.ink }}
             />
         </div>
@@ -259,21 +254,48 @@ function AccordionCard({ icon, iconBg, iconColor, title, titleColor, subtitle, d
    PROFILE
 =================================================================*/
 function ProfilePanel() {
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
 
-    const buildInitial = () => ({
-        name: user?.name || "Ananya",
-        email: user?.email || "ananya@email.com",
-        language: "English",
-        ageGroup: "6 – 8 years",
-        preferences: ["Adventure", "Fantasy"],
-        characters: ["Animals"],
-        about: "",
+    const buildInitial = (profile) => ({
+        name: profile?.name || user?.name || "",
+        email: profile?.email || user?.email || "",
+        language: profile?.language || "English",
+        ageGroup: profile?.ageGroup || "6 – 8 years",
+        characters: profile?.favoriteCharacters || [],
+        about: profile?.about || "",
+        avatarUrl: profile?.avatarUrl || user?.avatarUrl || null,
     });
 
-    const [saved, setSaved] = useState(buildInitial);
+    const [saved, setSaved] = useState(buildInitial());
     const [form, setForm] = useState(saved);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [justSaved, setJustSaved] = useState(false);
+    const [error, setError] = useState("");
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const [avatarError, setAvatarError] = useState("");
+    const fileInputRef = useRef(null);
+
+    useEffect(() => {
+        let mounted = true;
+
+        fetchProfile()
+            .then(({ profile }) => {
+                if (!mounted) return;
+                const next = buildInitial(profile);
+                setSaved(next);
+                setForm(next);
+            })
+            .catch(() => {
+                // Fall back to whatever we already have from auth context.
+            })
+            .finally(() => mounted && setLoading(false));
+
+        return () => {
+            mounted = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -283,14 +305,56 @@ function ProfilePanel() {
             [key]: f[key].includes(item) ? f[key].filter((x) => x !== item) : [...f[key], item],
         }));
 
-    const handleSave = () => {
-        setSaved(form);
-        setJustSaved(true);
-        setTimeout(() => setJustSaved(false), 2000);
-        // Put your API call here.
+    const handleSave = async () => {
+        setError("");
+        setSaving(true);
+        try {
+            const { profile } = await saveProfile({
+                name: form.name,
+                language: form.language,
+                ageGroup: form.ageGroup,
+                favoriteCharacters: form.characters,
+                about: form.about,
+            });
+            const next = buildInitial(profile);
+            setSaved(next);
+            setForm(next);
+            updateUser({ name: profile.name, avatarUrl: profile.avatarUrl });
+            setJustSaved(true);
+            setTimeout(() => setJustSaved(false), 2000);
+        } catch (err) {
+            setError(
+                err.response?.data?.message || "Something went wrong while saving your profile"
+            );
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const initials = form.name
+    const handleAvatarClick = () => fileInputRef.current?.click();
+
+    const handleAvatarChange = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+
+        setAvatarError("");
+        setAvatarUploading(true);
+        try {
+            const { avatarUrl } = await uploadAvatarPhoto(file);
+            setForm((f) => ({ ...f, avatarUrl }));
+            setSaved((s) => ({ ...s, avatarUrl }));
+            updateUser({ avatarUrl });
+        } catch (err) {
+            setAvatarError(
+                err.response?.data?.message || "Something went wrong while uploading your photo"
+            );
+        } finally {
+            setAvatarUploading(false);
+        }
+    };
+
+    const initials = (form.name || "U")
         .split(" ")
         .map((w) => w[0])
         .join("")
@@ -298,6 +362,7 @@ function ProfilePanel() {
         .toUpperCase();
 
     return (
+        <div className="flex flex-col gap-4">
         <div
             className="flex flex-col gap-5 rounded-3xl border bg-white p-4 shadow-[0_4px_24px_rgba(84,38,199,0.05)] sm:p-6"
             style={{ borderColor: tokens.line }}
@@ -306,19 +371,40 @@ function ProfilePanel() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
                     <div className="relative shrink-0">
-                        <div
-                            className="flex h-20 w-20 items-center justify-center rounded-full text-2xl font-bold text-white sm:h-24 sm:w-24"
-                            style={{ background: "linear-gradient(135deg,#B98CF0,#5426C7)" }}
-                        >
-                            {initials || "U"}
-                        </div>
+                        {form.avatarUrl ? (
+                            <img
+                                src={form.avatarUrl}
+                                alt="Profile"
+                                className="h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24"
+                            />
+                        ) : (
+                            <div
+                                className="flex h-20 w-20 items-center justify-center rounded-full text-2xl font-bold text-white sm:h-24 sm:w-24"
+                                style={{ background: "linear-gradient(135deg,#B98CF0,#5426C7)" }}
+                            >
+                                {initials || "U"}
+                            </div>
+                        )}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            className="hidden"
+                            onChange={handleAvatarChange}
+                        />
                         <button
                             type="button"
                             aria-label="Change photo"
-                            className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-[#eeeafa] bg-white shadow-md"
+                            onClick={handleAvatarClick}
+                            disabled={avatarUploading}
+                            className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-[#eeeafa] bg-white shadow-md disabled:opacity-60"
                             style={{ color: tokens.purple }}
                         >
-                            <Camera size={15} />
+                            {avatarUploading ? (
+                                <Loader2 size={15} className="animate-spin" />
+                            ) : (
+                                <Camera size={15} />
+                            )}
                         </button>
                     </div>
 
@@ -336,15 +422,13 @@ function ProfilePanel() {
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    className="flex h-11 items-center justify-center gap-2 self-start rounded-xl border bg-white px-5 text-sm font-semibold transition hover:bg-[#f5f1ff] sm:self-auto"
-                    style={{ borderColor: "#cbb7ff", color: tokens.purple }}
-                >
-                    <Camera size={17} />
-                    Change photo
-                </button>
             </div>
+
+            {avatarError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-600">
+                    {avatarError}
+                </div>
+            )}
 
             {/* Fields */}
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
@@ -359,7 +443,7 @@ function ProfilePanel() {
                     <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
                         Email
                     </span>
-                    <IconInput icon={Mail} type="email" value={form.email} onChange={(v) => set("email", v)} />
+                    <IconInput icon={Mail} type="email" value={form.email} onChange={() => {}} disabled />
                 </label>
 
                 <div className="text-sm">
@@ -377,42 +461,6 @@ function ProfilePanel() {
                 </div>
             </div>
 
-            {/* Reading preferences */}
-            <Section
-                icon={User}
-                title="Reading preferences"
-                description="Choose what your child loves to read."
-                tint="#F4EFFF"
-                iconBg="#EADFFF"
-                iconColor={tokens.purple}
-            >
-                <div className="flex flex-wrap gap-2.5">
-                    {READING_PREFERENCES.map((pref) => {
-                        const active = form.preferences.includes(pref);
-                        return (
-                            <button
-                                key={pref}
-                                type="button"
-                                onClick={() => toggleIn("preferences", pref)}
-                                aria-pressed={active}
-                                className={`flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-all duration-200 ${active
-                                        ? "border-transparent bg-[#5426c7] text-white shadow-[0_5px_12px_rgba(84,38,199,0.22)]"
-                                        : "border-[#e8defd] bg-white text-[#5B5372] hover:border-[#cbb7ff] hover:bg-[#f9f6ff]"
-                                    }`}
-                            >
-                                {active ? (
-                                    <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-white/25">
-                                        <Check size={12} strokeWidth={3} />
-                                    </span>
-                                ) : (
-                                    <Circle size={16} className="text-[#cbc3e0]" />
-                                )}
-                                {pref}
-                            </button>
-                        );
-                    })}
-                </div>
-            </Section>
 
             {/* Favorite characters */}
             <Section
@@ -479,12 +527,19 @@ function ProfilePanel() {
                 </div>
             </Section>
 
+            {error && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-600">
+                    {error}
+                </div>
+            )}
+
             {/* Actions */}
             <div className="flex items-center justify-end gap-3 pb-2">
                 <button
                     type="button"
                     onClick={() => setForm(saved)}
-                    className="h-12 rounded-xl border bg-white px-7 text-sm font-semibold transition hover:bg-[#f5f1ff] active:scale-[0.98]"
+                    disabled={saving || loading}
+                    className="h-12 rounded-xl border bg-white px-7 text-sm font-semibold transition hover:bg-[#f5f1ff] active:scale-[0.98] disabled:opacity-60"
                     style={{ borderColor: tokens.line, color: tokens.ink }}
                 >
                     Cancel
@@ -492,13 +547,24 @@ function ProfilePanel() {
                 <button
                     type="button"
                     onClick={handleSave}
-                    className="flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(84,38,199,0.28)] transition hover:bg-[#4520a7] active:scale-[0.98]"
+                    disabled={saving || loading}
+                    className="flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(84,38,199,0.28)] transition hover:bg-[#4520a7] active:scale-[0.98] disabled:opacity-60"
                     style={{ backgroundColor: tokens.purple }}
                 >
-                    {justSaved ? <Check size={17} /> : <Sparkles size={17} />}
-                    {justSaved ? "Saved!" : "Save changes"}
+                    {saving ? (
+                        <Loader2 size={17} className="animate-spin" />
+                    ) : justSaved ? (
+                        <Check size={17} />
+                    ) : (
+                        <Sparkles size={17} />
+                    )}
+                    {saving ? "Saving…" : justSaved ? "Saved!" : "Save changes"}
                 </button>
             </div>
+        </div>
+
+        <DownloadDataCard />
+        <DeleteAccountCard />
         </div>
     );
 }
@@ -657,218 +723,6 @@ function NotificationsPanel({ goTo }) {
     );
 }
 
-function TwoStepCard() {
-    const [enabled, setEnabled] = useState(true);
-    const [method, setMethod] = useState("email");
-    const methods = [
-        { id: "email", icon: Mail, title: "Email", desc: "Get codes via your email" },
-        { id: "app", icon: Smartphone, title: "Authenticator app", desc: "Use an authenticator app" },
-    ];
-    return (
-        <AccordionCard
-            icon={Lock}
-            iconBg="#DCE8FF"
-            iconColor="#4F7BE8"
-            title="Two-Step Verification"
-            titleColor={tokens.purple}
-            subtitle="Add an extra layer of security to your account."
-        >
-            <div className="flex items-center justify-between gap-4">
-                <div>
-                    <p className="text-sm font-semibold" style={{ color: tokens.ink }}>
-                        Enable two-step verification
-                    </p>
-                    <p className="text-sm" style={{ color: tokens.inkSoft }}>
-                        When enabled, you'll need to enter an extra verification code when you log in.
-                    </p>
-                </div>
-                <Toggle checked={enabled} onChange={setEnabled} />
-            </div>
-
-            {enabled && (
-                <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_minmax(0,1.4fr)] lg:items-center">
-                    <div>
-                        <p className="text-sm font-semibold" style={{ color: tokens.ink }}>
-                            Verification method
-                        </p>
-                        <p className="text-sm" style={{ color: tokens.inkSoft }}>
-                            Choose how you want to receive verification codes.
-                        </p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {methods.map((m) => {
-                            const active = method === m.id;
-                            return (
-                                <button
-                                    key={m.id}
-                                    type="button"
-                                    onClick={() => setMethod(m.id)}
-                                    aria-pressed={active}
-                                    className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${active
-                                            ? "border-[#5426c7] bg-[#F4EFFF] shadow-[0_0_0_1px_#5426c7]"
-                                            : "border-[#e8e1f7] bg-white hover:border-[#cbb7ff]"
-                                        }`}
-                                >
-                                    <m.icon size={22} style={{ color: tokens.purple }} />
-                                    <span>
-                                        <span className="block text-sm font-semibold" style={{ color: tokens.ink }}>
-                                            {m.title}
-                                        </span>
-                                        <span className="block text-xs" style={{ color: tokens.inkSoft }}>
-                                            {m.desc}
-                                        </span>
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-        </AccordionCard>
-    );
-}
-
-const INITIAL_SESSIONS = [
-    { id: 1, icon: Laptop, device: "Windows • Chrome", place: "Vijayawada, India", when: "Active now", current: true },
-    { id: 2, icon: Smartphone, device: "iPhone • Safari", place: "Vijayawada, India", when: "Last active 2 days ago" },
-    { id: 3, icon: Smartphone, device: "Android • Chrome", place: "Bengaluru, India", when: "Last active 5 days ago" },
-];
-
-function SessionsCard() {
-    const [sessions, setSessions] = useState(INITIAL_SESSIONS);
-    const others = sessions.filter((s) => !s.current);
-
-    return (
-        <AccordionCard
-            icon={Monitor}
-            iconBg="#D9F3E8"
-            iconColor="#1F9D63"
-            title="Active Sessions"
-            titleColor={tokens.purple}
-            subtitle="Manage and view devices where you're logged in."
-        >
-            <div className="overflow-hidden rounded-xl border" style={{ borderColor: tokens.line }}>
-                {sessions.map((s, i) => (
-                    <div
-                        key={s.id}
-                        className={`flex items-center gap-3 px-3 py-3 sm:px-4 ${i > 0 ? "border-t" : ""}`}
-                        style={{ borderColor: tokens.line }}
-                    >
-                        <s.icon size={22} className="shrink-0" style={{ color: tokens.inkSoft }} />
-                        <div className="min-w-0 flex-1">
-                            <p className="flex flex-wrap items-center gap-2 text-sm font-semibold" style={{ color: tokens.ink }}>
-                                {s.device}
-                                {s.current && (
-                                    <span className="rounded-full bg-[#DDF6E9] px-2.5 py-0.5 text-[11px] font-semibold text-[#1F9D63]">
-                                        Current
-                                    </span>
-                                )}
-                            </p>
-                            <p className="text-xs" style={{ color: tokens.inkSoft }}>
-                                {s.place} • {s.when}
-                            </p>
-                        </div>
-                        {!s.current && (
-                            <button
-                                type="button"
-                                onClick={() => setSessions((list) => list.filter((x) => x.id !== s.id))}
-                                className="shrink-0 rounded-lg bg-[#FFECEC] px-4 py-1.5 text-sm font-semibold text-[#E94B4B] transition hover:bg-[#FFDCDC]"
-                            >
-                                Sign out
-                            </button>
-                        )}
-                    </div>
-                ))}
-            </div>
-
-            {others.length > 0 && (
-                <div className="mt-3 flex justify-end">
-                    <button
-                        type="button"
-                        onClick={() => setSessions((list) => list.filter((x) => x.current))}
-                        className="h-10 rounded-lg border bg-[#F4EFFF] px-5 text-sm font-semibold transition hover:bg-[#EADFFF]"
-                        style={{ borderColor: "#d9c9ff", color: tokens.purple }}
-                    >
-                        Sign out from all devices
-                    </button>
-                </div>
-            )}
-        </AccordionCard>
-    );
-}
-
-function PrivacyPreferencesCard() {
-    const [recs, setRecs] = useState(true);
-    const [analytics, setAnalytics] = useState(true);
-    const [marketing, setMarketing] = useState(false);
-    const items = [
-        { title: "Improve story recommendations", desc: "Allow us to use your activity to suggest better stories.", checked: recs, set: setRecs },
-        { title: "Allow usage analytics", desc: "Help us improve the app experience.", checked: analytics, set: setAnalytics },
-        { title: "Marketing communications", desc: "Receive updates about new features, offers and stories.", checked: marketing, set: setMarketing },
-    ];
-    return (
-        <AccordionCard
-            icon={Eye}
-            iconBg="#FFF0C7"
-            iconColor="#E0A21B"
-            title="Privacy Preferences"
-            titleColor="#C67A05"
-            subtitle="Manage how your information is used."
-        >
-            <div className="grid grid-cols-1 gap-4 rounded-xl border p-4 md:grid-cols-3 md:gap-6" style={{ borderColor: tokens.line }}>
-                {items.map((it) => (
-                    <div key={it.title} className="flex items-start gap-3">
-                        <Toggle checked={it.checked} onChange={it.set} />
-                        <div>
-                            <p className="text-sm font-semibold" style={{ color: tokens.ink }}>
-                                {it.title}
-                            </p>
-                            <p className="text-xs leading-relaxed" style={{ color: tokens.inkSoft }}>
-                                {it.desc}
-                            </p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </AccordionCard>
-    );
-}
-
-function ChildrenPrivacyCard() {
-    return (
-        <AccordionCard
-            icon={Users}
-            iconBg="#FFDDE8"
-            iconColor="#E23B7A"
-            title="Children's Privacy"
-            titleColor="#D6336C"
-            subtitle="We follow strict guidelines to keep children's data safe."
-        >
-            <div className="flex flex-col gap-3 rounded-xl bg-[#FFF0F5] p-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex items-start gap-3">
-                    <ShieldCheck size={30} className="shrink-0" style={{ color: "#E23B7A" }} />
-                    <div>
-                        <p className="text-sm font-bold" style={{ color: tokens.ink }}>
-                            Our commitment
-                        </p>
-                        <p className="text-sm" style={{ color: tokens.inkSoft }}>
-                            We follow COPPA and other child safety guidelines. We only collect the necessary information to provide a safe and personalized experience for your child.
-                        </p>
-                    </div>
-                </div>
-                <button
-                    type="button"
-                    className="flex shrink-0 items-center gap-1 self-start text-sm font-semibold md:self-auto"
-                    style={{ color: tokens.purple }}
-                >
-                    Learn more about how we keep their data safe
-                    <ChevronRight size={16} />
-                </button>
-            </div>
-        </AccordionCard>
-    );
-}
-
 function DownloadDataCard() {
     const [requested, setRequested] = useState(false);
     return (
@@ -960,19 +814,6 @@ function DeleteAccountCard() {
                 )}
             </div>
         </AccordionCard>
-    );
-}
-
-function AccountPrivacyPanel() {
-    return (
-        <div className="flex flex-col gap-4">
-            <TwoStepCard />
-            <SessionsCard />
-            <PrivacyPreferencesCard />
-            <ChildrenPrivacyCard />
-            <DownloadDataCard />
-            <DeleteAccountCard />
-        </div>
     );
 }
 
@@ -1110,7 +951,6 @@ const CATEGORIES = [
     { id: "profile", icon: User, title: "Profile", Panel: ProfilePanel },
     { id: "subscription", icon: CreditCard, title: "Subscription", Panel: SubscriptionPanel },
     { id: "notifications", icon: Bell, title: "Notifications", Panel: NotificationsPanel },
-    { id: "account", icon: Lock, title: "Account & Privacy", Panel: AccountPrivacyPanel },
     { id: "help", icon: HelpCircle, title: "Help & About", Panel: HelpAboutPanel },
 ];
 
@@ -1193,10 +1033,12 @@ export const Settings = () => {
     const active = CATEGORIES.find((c) => c.id === activeId);
 
     return (
-        <div className="w-full px-4 pb-6 pt-4 sm:px-6">
-            <SettingsBreadcrumb activeId={activeId} onSelect={setActiveId} />
+        <div className="w-full pb-6">
+            <div className="sticky top-0 z-20 bg-white px-4 pb-3 pt-4 sm:px-6">
+                <SettingsBreadcrumb activeId={activeId} onSelect={setActiveId} />
+            </div>
 
-            <div className="mt-4">
+            <div className="px-4 pt-1 sm:px-6">
                 <active.Panel key={active.id} goTo={setActiveId} />
             </div>
         </div>
