@@ -12,8 +12,6 @@ import {
 } from "../services/storageService.js";
 import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
 import { overlayTitleOnCover } from "../components/Covertitleoverlay.js";
-import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
-import { overlayTitleOnCover } from "../components/Covertitleoverlay.js";
 
 const test_story = {
     title: "Cherry's Jungle Adventure",
@@ -895,24 +893,12 @@ export const createBook = async (req, res) => {
 
         try {
             const rawCoverBuffer = await generateImage({
-            const rawCoverBuffer = await generateImage({
                 prompt: imagePrompts.cover.prompt,
                 referenceImages,
                 referenceImages,
                 width: 768,
                 height: 1024
             });
-
-            const finalCoverBuffer = await overlayTitleOnCover(
-                rawCoverBuffer,
-                generatedStory.title,
-                {
-                    fontFamily:
-                        storyData?.font?.fontFamily ||
-                        "Baloo 2, Comic Sans MS, cursive"
-                }
-            );
-
             const finalCoverBuffer = await overlayTitleOnCover(
                 rawCoverBuffer,
                 generatedStory.title,
