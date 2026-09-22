@@ -223,11 +223,11 @@ export const HeaderAnimationSearch = ({
         <div className="w-full">
 
 
-            <div className="group flex h-[52px] w-full items-center gap-2.5 rounded-full border border-[#ddd1ff] bg-white/95 px-4 pr-1.5 shadow-[0_5px_24px_rgba(84,38,199,0.10)] backdrop-blur-md transition-all duration-300 hover:border-[#c8b5ff] hover:shadow-[0_8px_30px_rgba(84,38,199,0.16)] focus-within:border-[#a98aff] focus-within:shadow-[0_8px_32px_rgba(84,38,199,0.18)] animate-input-glow">
+            <div className="group flex h-11 w-full items-center gap-2 rounded-full md:h-[52px] md:gap-2.5 border border-[#ddd1ff] bg-white/95 px-3 pr-1.5 sm:px-4 shadow-[0_5px_24px_rgba(84,38,199,0.10)] backdrop-blur-md transition-all duration-300 hover:border-[#c8b5ff] hover:shadow-[0_8px_30px_rgba(84,38,199,0.16)] focus-within:border-[#a98aff] focus-within:shadow-[0_8px_32px_rgba(84,38,199,0.18)] animate-input-glow">
 
     
 
-                <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
+                <div className="relative flex h-7 w-7 shrink-0 items-center justify-center md:h-8 md:w-8">
                     <Sparkles
                         size={20}
                         strokeWidth={1.8}
@@ -246,7 +246,7 @@ export const HeaderAnimationSearch = ({
 
 
                     {!story && (
-                        <div className={`pointer-events-none absolute left-0 right-0 overflow-hidden text-ellipsis whitespace-nowrap text-[15px] font-medium text-[#8f86a6] transition-all duration-300 ${isChanging ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100"}`}>
+                        <div className={`pointer-events-none absolute left-0 right-0 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-medium text-[#8f86a6] sm:text-[15px] transition-all duration-300 ${isChanging ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100"}`}>
                             <span className="font-bold text-[#5426c7]">
                                 {visiblePrompt.split("!")[0]}!
                             </span>
@@ -270,7 +270,7 @@ export const HeaderAnimationSearch = ({
                                 handleCreate();
                             }
                         }}
-                        className="relative z-10 h-full w-full bg-transparent text-[15px] font-medium text-[#30215c] outline-none placeholder:text-[#aaa3bb]"
+                        className="relative z-10 h-full w-full bg-transparent text-[14px] font-medium text-[#30215c] sm:text-[15px] outline-none placeholder:text-[#aaa3bb]"
                         aria-label="Create a WonderBook story"
                     />
                 </div>
@@ -279,7 +279,7 @@ export const HeaderAnimationSearch = ({
                 <button
                     type="button"
                     aria-label="Voice input"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#6b52c8] transition-all duration-200 hover:bg-[#f2edff] hover:scale-105 active:scale-95"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#6b52c8] sm:h-9 sm:w-9 transition-all duration-200 hover:bg-[#f2edff] hover:scale-105 active:scale-95"
                 >
                     <Mic
                         size={19}
@@ -292,7 +292,7 @@ export const HeaderAnimationSearch = ({
                     type="button"
                     onClick={handleCreate}
                     aria-label="Create story"
-                    className="group/send flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#5426c7] text-white shadow-[0_5px_14px_rgba(84,38,199,0.28)] transition-all duration-300 hover:bg-[#4520a7] hover:scale-105 hover:shadow-[0_8px_22px_rgba(84,38,199,0.35)] active:scale-95"
+                    className="group/send flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5426c7] sm:h-10 sm:w-10 text-white shadow-[0_5px_14px_rgba(84,38,199,0.28)] transition-all duration-300 hover:bg-[#4520a7] hover:scale-105 hover:shadow-[0_8px_22px_rgba(84,38,199,0.35)] active:scale-95"
                 >
                     <ArrowRight
                         size={19}
@@ -321,14 +321,14 @@ export const HeaderAnimationSearch = ({
 
 
 
-                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+                <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-hide xl:overflow-hidden">
 
                     {suggestionIdeas.map((idea, index) => (
                         <button
                             key={idea}
                             type="button"
                             onClick={() => handleSuggestion(idea)}
-                            className="group/chip shrink-0 max-w-[220px] truncate rounded-full border border-[#e8defd] bg-white/70 px-3 py-1 text-[11px] font-medium text-[#66568b] transition-all duration-200 hover:border-[#cbb7ff] hover:bg-[#f5f0ff] hover:text-[#5426c7] hover:-translate-y-[1px]"
+                            className="group/chip shrink-0 max-w-45 truncate sm:max-w-55 rounded-full border border-[#e8defd] bg-white/70 px-3 py-1 text-[11px] font-medium text-[#66568b] transition-all duration-200 hover:border-[#cbb7ff] hover:bg-[#f5f0ff] hover:text-[#5426c7] hover:-translate-y-px"
                         >
                             {idea}
                         </button>
@@ -356,4 +356,4 @@ export const HeaderAnimationSearch = ({
             </div>
         </div>
     );
-};
+}; 

@@ -182,7 +182,7 @@ export const Header = ({
     const [story, setStory] = useState("");
 
     return (
-        <header className="relative isolate w-full shrink-0 overflow-hidden rounded-r-[24px] border border-[#ebe5ff] bg-[#fbf9ff] shadow-[0_4px_24px_rgba(84,38,199,0.06)] h-[120px]">
+        <header className="relative isolate w-full shrink-0 overflow-hidden rounded-b-[20px] border border-[#ebe5ff] bg-[#fbf9ff] shadow-[0_4px_24px_rgba(84,38,199,0.06)] md:h-30 md:rounded-b-none md:rounded-r-3xl">
 
             {/* =====================================================
                 BACKGROUND IMAGE
@@ -198,7 +198,7 @@ export const Header = ({
             )}
 
             {/* Soft overlay to keep UI readable */}
-            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-r from-white/30 via-white/10 to-white/20" />
+            <div className="pointer-events-none absolute inset-0 z-1 bg-linear-to-r from-white/30 via-white/10 to-white/20" />
 
             {/* =====================================================
                 RIGHT SIDE DECORATION
@@ -216,18 +216,18 @@ export const Header = ({
                 TOP RIGHT CONTROLS
             ===================================================== */}
 
-            <div className="absolute right-5 top-4 z-30 flex items-center gap-3">
+            <div className="absolute right-3 top-3 z-30 flex items-center gap-2 md:right-5 md:top-4 md:gap-3">
 
                 {/* Notification */}
                 <button
                     type="button"
                     aria-label="Notifications"
-                    className="relative flex h-[46px] w-[46px] items-center justify-center rounded-xl text-[#5426c7] transition-all duration-200 hover:bg-white/70 hover:scale-105"
+                    className="relative flex h-10 w-10 items-center justify-center rounded-xl md:h-11.5 md:w-11.5 text-[#5426c7] transition-all duration-200 hover:bg-white/70 hover:scale-105"
                 >
-                    <Bell size={28} strokeWidth={1.8} />
+                    <Bell size={28} strokeWidth={1.8} className="h-6 w-6 md:h-7 md:w-7" />
 
                     {notificationCount > 0 && (
-                        <span className="absolute right-[-3px] top-[-4px] flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-[#e94b4b] px-1 text-[10px] font-bold text-white shadow-sm">
+                        <span className="absolute -right-0.75 -top-1 flex h-4.75 min-w-4.75 items-center justify-center rounded-full bg-[#e94b4b] px-1 text-[10px] font-bold text-white shadow-sm">
                             {notificationCount}
                         </span>
                     )}
@@ -239,7 +239,7 @@ export const Header = ({
                     aria-label="Profile"
                     className="flex items-center justify-center rounded-full transition hover:scale-105"
                 >
-                    <div className="flex h-[50px] w-[50px] shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#cfe8c1] shadow-[0_3px_12px_rgba(80,50,30,0.10)]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full md:h-12.5 md:w-12.5 border-2 border-white bg-[#cfe8c1] shadow-[0_3px_12px_rgba(80,50,30,0.10)]">
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
@@ -259,24 +259,24 @@ export const Header = ({
                 MAIN HEADER CONTENT
             ===================================================== */}
 
-            <div className="relative z-10 flex min-h-[118px] w-full items-center px-5 py-3 pr-[330px]">
+            <div className="relative z-10 flex w-full flex-col justify-center gap-2 px-3 py-3 sm:px-5 md:min-h-29.5 md:flex-row md:items-center md:gap-0 md:pr-37.5 xl:pr-82.5">
 
                 {/* =================================================
                     LEFT ROBOT + MESSAGE
                 ================================================= */}
 
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="flex shrink-0 items-center gap-2 pl-11 md:gap-3 md:pl-0">
 
                     {/* Robot */}
-                    <div className="relative flex h-[92px] w-[82px] shrink-0 items-center justify-center">
+                    <div className="relative flex h-16 w-14.5 shrink-0 items-center justify-center md:h-23 md:w-20.5">
                         {imageUrls.robot ? (
                             <img
                                 src={imageUrls.robot}
                                 alt="WonderBook AI assistant"
-                                className="h-[88px] w-[80px] object-contain drop-shadow-[0_7px_12px_rgba(84,38,199,0.14)] animate-header-robot"
+                                className="h-15.5 w-14 object-contain drop-shadow-[0_7px_12px_rgba(84,38,199,0.14)] animate-header-robot md:h-22 md:w-20"
                             />
                         ) : (
-                            <div className="h-[75px] w-[75px] rounded-full bg-[#f2edff]" />
+                            <div className="h-18.75 w-18.75 rounded-full bg-[#f2edff]" />
                         )}
 
                         {/* Tiny sparkle */}
@@ -290,7 +290,7 @@ export const Header = ({
                         <img
                             src={imageUrls.messageBubble}
                             alt="Let's create something amazing"
-                            className="h-[78px] w-[105px] shrink-0 object-contain drop-shadow-[0_5px_12px_rgba(84,38,199,0.08)] transition-transform duration-300 hover:scale-[1.03]"
+                            className="h-14 w-19 shrink-0 object-contain drop-shadow-[0_5px_12px_rgba(84,38,199,0.08)] transition-transform duration-300 hover:scale-[1.03] md:hidden lg:block lg:h-19.5 lg:w-26.25"
                         />
                     )}
                 </div>
@@ -299,7 +299,7 @@ export const Header = ({
                     CENTER AI CREATION AREA
                 ================================================= */}
 
-                <div className="ml-6 min-w-0 flex-1">
+                <div className="w-full min-w-0 md:ml-6 md:w-auto md:flex-1">
                     <HeaderAnimationSearch
                         story={story}
                         setStory={setStory}
