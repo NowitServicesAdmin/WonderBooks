@@ -12,6 +12,8 @@ import {
 } from "../services/storageService.js";
 import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
 import { overlayTitleOnCover } from "../components/Covertitleoverlay.js";
+import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
+import { overlayTitleOnCover } from "../components/Covertitleoverlay.js";
 
 const test_story = {
     title: "Cherry's Jungle Adventure",
@@ -736,6 +738,8 @@ const getCharacterReferenceImages = async (
 
 
 
+
+
 export const createBook = async (req, res) => {
     try {
         const mode = req.body.mode;
@@ -885,12 +889,15 @@ export const createBook = async (req, res) => {
 
         // -----------------------------------------------------------
         // Generate the cover (with reference photo + title overlay)
+        // Generate the cover (with reference photo + title overlay)
         // -----------------------------------------------------------
         console.log("Generating cover image...");
 
         try {
             const rawCoverBuffer = await generateImage({
+            const rawCoverBuffer = await generateImage({
                 prompt: imagePrompts.cover.prompt,
+                referenceImages,
                 referenceImages,
                 width: 768,
                 height: 1024
@@ -906,10 +913,21 @@ export const createBook = async (req, res) => {
                 }
             );
 
+            const finalCoverBuffer = await overlayTitleOnCover(
+                rawCoverBuffer,
+                generatedStory.title,
+                {
+                    fontFamily:
+                        storyData?.font?.fontFamily ||
+                        "Baloo 2, Comic Sans MS, cursive"
+                }
+            );
+
             const coverKey = `books/${bookId}/cover.png`;
 
             const uploadedCover = await uploadImage({
                 key: coverKey,
+                buffer: finalCoverBuffer,
                 buffer: finalCoverBuffer,
                 contentType: "image/png"
             });
@@ -930,6 +948,7 @@ export const createBook = async (req, res) => {
         }
 
         // -----------------------------------------------------------
+        // Generate page images (same reference photo(s) reused)
         // Generate page images (same reference photo(s) reused)
         // -----------------------------------------------------------
         for (const imageData of imagePrompts.images) {

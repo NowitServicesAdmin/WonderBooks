@@ -340,12 +340,18 @@ const closestSupportedSize = (width, height) => {
   return ratio < 1 ? "1024x1536" : "1536x1024";
 };
 
+// When a real uploaded photo is attached as a reference, force the
+// model to treat it as the literal identity source: first lock onto
+// an enhanced, dynamic photographic likeness of the real person/pet,
+// THEN re-render that exact likeness in the requested illustration
+// style. Without this instruction, the model tends to treat the
+// reference as loose "inspiration" rather than an identity to match.
 const buildPromptWithReferenceInstruction = (prompt, hasReferences) => {
-  if (!hasReferences) {
-    return prompt;
-  }
+    if (!hasReferences) {
+        return prompt;
+    }
 
-  return `
+    return `
 IDENTITY SOURCE: One or more reference photos of the real person/pet
 are attached to this request. Treat the attached photo(s) as the
 definitive identity source for the main character's face, hair,
@@ -395,20 +401,20 @@ export const generateImage = async ({
 
     const validReferences = referenceImages.filter((image) => image?.buffer);
 
-    const imageFiles = await Promise.all(
-      validReferences
-        .slice(0, 4)
-        .map((image, index) =>
-          toFile(image.buffer, `reference-${index}.png`, {
-            type: image.contentType || "image/png",
-          }),
-        ),
-    );
+        const imageFiles = await Promise.all(
+            validReferences.slice(0, 4).map((image, index) =>
+                toFile(
+                    image.buffer,
+                    `reference-${index}.png`,
+                    { type: image.contentType || "image/png" }
+                )
+            )
+        );
 
-    const finalPrompt = buildPromptWithReferenceInstruction(
-      prompt,
-      imageFiles.length > 0,
-    );
+        const finalPrompt = buildPromptWithReferenceInstruction(
+            prompt,
+            imageFiles.length > 0
+        );
 
     console.log(
       `Generating OpenAI image (${MODEL}, quality: ${QUALITY}) with ${imageFiles.length} reference image(s), size ${size}...`,
@@ -420,28 +426,28 @@ export const generateImage = async ({
       try {
         let response;
 
-        if (imageFiles.length > 0) {
-          response = await client.images.edit({
-            model: MODEL,
-            image: imageFiles,
-            prompt: finalPrompt,
-            size,
-            quality: QUALITY,
-          });
-        } else {
-          response = await client.images.generate({
-            model: MODEL,
-            prompt: finalPrompt,
-            size,
-            quality: QUALITY,
-          });
-        }
+                if (imageFiles.length > 0) {
+                    response = await client.images.edit({
+                        model: MODEL,
+                        image: imageFiles,
+                        prompt: finalPrompt,
+                        size,
+                        quality: QUALITY
+                    });
+                } else {
+                    response = await client.images.generate({
+                        model: MODEL,
+                        prompt: finalPrompt,
+                        size,
+                        quality: QUALITY
+                    });
+                }
 
         const b64 = response?.data?.[0]?.b64_json;
 
-        if (!b64) {
-          throw new Error("OpenAI did not return image data.");
-        }
+                if (!b64) {
+                    throw new Error("OpenAI did not return image data.");
+                }
 
         const imageBuffer = Buffer.from(b64, "base64");
 
