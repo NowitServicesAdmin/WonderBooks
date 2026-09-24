@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import mongoose from "mongoose";
 import book from "../models/book.js";
 import { analyzeStory } from "../components/storyAnalyzer.js";
 import { generateStory } from "../components/generateStory.js";
@@ -11,7 +12,6 @@ import {
     getStorageImage
 } from "../services/storageService.js";
 import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
-import { overlayTitleOnCover } from "../components/Covertitleoverlay.js";
 
 const test_story = {
     title: "Cherry's Jungle Adventure",
@@ -738,41 +738,25 @@ const getCharacterReferenceImages = async (
 
 
 
-export const createBook = async (req, res) => {
+// Runs the whole (slow) generation pipeline AFTER the HTTP response has already
+// been sent. The book document (status: "generating") exists before this starts,
+// so the "My Books" page can show a loading skeleton and poll until it finishes.
+const generateBookInBackground = async ({
+    bookId,
+    mode,
+    message,
+    storySettings,
+    characters,
+    files
+}) => {
     try {
-        const mode = req.body.mode;
-        const message = req.body.message;
-
-        const storySettings =
-            typeof req.body.storySettings === "string"
-                ? JSON.parse(req.body.storySettings)
-                : req.body.storySettings;
-
-        const characters =
-            typeof req.body.characters === "string"
-                ? JSON.parse(req.body.characters)
-                : req.body.characters || [];
-
         let storyData;
 
         if (mode === "manual") {
-            if (!storySettings || Object.keys(storySettings).length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Story settings are required for manual mode"
-                });
-            }
-
             storyData = buildStoryDataFromSelections(storySettings, characters);
         } else {
-            if (!message?.trim()) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Story idea is required"
-                });
-            }
-
             storyData = await analyzeStory(message);
+            storyData.storyIdea = message.trim();
         }
 
         // TEST MODE: run a short 2-page story instead of the full flow.
@@ -792,33 +776,32 @@ export const createBook = async (req, res) => {
             throw new Error("Generated story is invalid or contains no pages");
         }
 
-        const new_book = await book.create({
-            title: generatedStory.title,
-            mode: mode === "manual" ? "manual" : "ai",
-            status: "generating",
-            storyData,
-            coverImageUrl: null,
-            coverStorageKey: null,
-            pages: generatedStory.pages.map((page, index) => ({
-                position: index + 1,
-                pageNumber: page.pageNumber || index + 1,
-                content: page.content || "",
-                imageUrl: null,
-                storageProvider: null,
-                storageKey: null,
-                imagePrompt: "",
-                status: "pending"
-            }))
-        });
+        await book.updateOne(
+            { _id: bookId },
+            {
+                $set: {
+                    title: generatedStory.title,
+                    storyData,
+                    pages: generatedStory.pages.map((page, index) => ({
+                        position: index + 1,
+                        pageNumber: page.pageNumber || index + 1,
+                        content: page.content || "",
+                        imageUrl: null,
+                        storageProvider: null,
+                        storageKey: null,
+                        imagePrompt: "",
+                        status: "pending"
+                    }))
+                }
+            }
+        );
 
-        const bookId = new_book._id.toString();
-
-        console.log("Book created:", bookId);
+        console.log("Book story saved:", bookId);
 
         // Upload character photos to private AWS S3
         const uploadedCharacters = [...storyData.characters];
 
-        for (const file of req.files || []) {
+        for (const file of files || []) {
             const match = file.fieldname.match(/^characterPhoto-(.+)$/);
 
             if (!match) {
@@ -899,15 +882,10 @@ export const createBook = async (req, res) => {
                 width: 768,
                 height: 1024
             });
-            const finalCoverBuffer = await overlayTitleOnCover(
-                rawCoverBuffer,
-                generatedStory.title,
-                {
-                    fontFamily:
-                        storyData?.font?.fontFamily ||
-                        "Baloo 2, Comic Sans MS, cursive"
-                }
-            );
+            // The title is NOT baked into the image. The frontend (books.jsx card
+            // and BookReader cover) renders it as real text, so baking it in too
+            // produced a duplicate / clipped title on the cover.
+            const finalCoverBuffer = rawCoverBuffer;
 
             const coverKey = `books/${bookId}/cover.png`;
 
@@ -1014,52 +992,193 @@ export const createBook = async (req, res) => {
 
         console.log(`Book ${bookId} status: ${allPagesCompleted ? "completed" : "failed"}`);
 
-        const finalBook = await book.findById(bookId).lean();
+    } catch (error) {
+        console.error("Create book error:", error);
 
-        return res.json({
+        // Never leave the book stuck on "generating" (= endless skeleton).
+        await book
+            .updateOne({ _id: bookId }, { $set: { status: "failed" } })
+            .catch((updateError) =>
+                console.error("Could not mark book as failed:", updateError)
+            );
+    }
+};
+
+export const createBook = async (req, res) => {
+    let bookId;
+
+    try {
+        const mode = req.body.mode;
+        const message = req.body.message;
+
+        const storySettings =
+            typeof req.body.storySettings === "string"
+                ? JSON.parse(req.body.storySettings)
+                : req.body.storySettings;
+
+        const characters =
+            typeof req.body.characters === "string"
+                ? JSON.parse(req.body.characters)
+                : req.body.characters || [];
+
+        if (mode === "manual") {
+            if (!storySettings || Object.keys(storySettings).length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Story settings are required for manual mode"
+                });
+            }
+        } else if (!message?.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Story idea is required"
+            });
+        }
+
+        // Create the book right away as a placeholder so it shows up in
+        // "My Books" (as a loading skeleton) while the story + images are made.
+        const placeholder = await book.create({
+            user: req.userId,
+            title: "Untitled Story",
+            mode: mode === "manual" ? "manual" : "ai",
+            status: "generating",
+            pages: []
+        });
+
+        bookId = placeholder._id.toString();
+
+        // Respond immediately - the client navigates to /books and polls.
+        res.status(202).json({
             success: true,
             bookId,
-            status: allPagesCompleted ? "completed" : "failed",
-            book: {
-                title: finalBook.title,
-                coverImageUrl: finalBook.coverImageUrl,
-                pages: finalBook.pages.map((page) => ({
-                    pageNumber: page.pageNumber,
-                    content: page.content,
-                    imageUrl: page.imageUrl,
-                    status: page.status
-                }))
-            }
+            status: "generating"
+        });
+
+        // Fire and forget. Errors are handled inside the worker.
+        generateBookInBackground({
+            bookId,
+            mode,
+            message,
+            storySettings,
+            characters,
+            files: req.files || []
         });
     } catch (error) {
         console.error("Create book error:", error);
 
-        return res.status(500).json({
-            success: false,
-            message: error.message || "Something went wrong"
-        });
+        if (!res.headersSent) {
+            return res.status(500).json({
+                success: false,
+                message: error.message || "Something went wrong"
+            });
+        }
     }
 };
 
+
+export const getMyBooks = async (req, res) => {
+    try {
+        // If the server restarted mid-generation the book would stay on
+        // "generating" forever. Anything older than this is treated as failed.
+        const STALE_MS = 45 * 60 * 1000;
+        await book.updateMany(
+            {
+                user: req.userId,
+                status: "generating",
+                createdAt: { $lt: new Date(Date.now() - STALE_MS) }
+            },
+            { $set: { status: "failed" } }
+        );
+
+        const books = await book
+            .find({ user: req.userId })
+            .select("title mode status coverImageUrl storyData.theme storyData.characters.name pages.status createdAt updatedAt")
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.json({
+            success: true,
+            books: books.map((b) => {
+                const pages = b.pages || [];
+                return {
+                    _id: b._id,
+                    title: b.title,
+                    mode: b.mode,
+                    status: b.status,
+                    coverImageUrl: b.coverImageUrl || null,
+                    theme: b.storyData?.theme || null,
+                    createdFor: b.storyData?.characters?.[0]?.name || null,
+                    pageCount: pages.length,
+                    completedPages: pages.filter((p) => p.status === "completed").length,
+                    createdAt: b.createdAt,
+                    updatedAt: b.updatedAt
+                };
+            })
+        });
+    } catch (error) {
+        console.error("Get my books error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch books"
+        });
+    }
+};
 
 export const getBookById = async (req, res) => {
     try {
         const { bookId } = req.params;
 
-        const book = await Book.findById(bookId).lean();
-
-        if (!book) {
+        if (!mongoose.isValidObjectId(bookId)) {
             return res.status(404).json({
                 success: false,
                 message: "Book not found"
             });
         }
 
-        book.pages = (book.pages || []).sort((a, b) => a.position - b.position);
+        const found = await book.findOne({ _id: bookId, user: req.userId }).lean();
 
+        if (!found) {
+            return res.status(404).json({
+                success: false,
+                message: "Book not found"
+            });
+        }
+
+        // Only send what the reader UI needs (no prompts, storage keys or private photo URLs).
         return res.json({
             success: true,
-            book
+            book: {
+                _id: found._id,
+                title: found.title,
+                status: found.status,
+                coverImageUrl: found.coverImageUrl || null,
+                storyData: {
+                    theme: found.storyData?.theme || null,
+                    age: found.storyData?.age || null,
+                    subject: found.storyData?.subject || null,
+                    centralMessage: found.storyData?.centralMessage || null,
+                    storyIdea: found.storyData?.storyIdea || null,
+                    language: found.storyData?.language || "English",
+                    font: found.storyData?.font || null,
+                    characters: (found.storyData?.characters || []).map((c) => ({
+                        id: c.id,
+                        name: c.name,
+                        type: c.type
+                    }))
+                },
+                pages: (found.pages || [])
+                    .sort((a, b) => a.position - b.position)
+                    .map((p) => ({
+                        _id: p._id,
+                        pageNumber: p.pageNumber,
+                        content: p.content,
+                        imageUrl: p.imageUrl,
+                        status: p.status
+                    })),
+                createdAt: found.createdAt,
+                updatedAt: found.updatedAt
+            }
         });
     } catch (error) {
         console.error("Get book error:", error);
@@ -1096,5 +1215,52 @@ export const testImagePrompts = async (req, res) => {
             success: false,
             message: "Failed to generate image"
         });
+    }
+};
+
+// Streams one of the book's images through the API so the browser can read it
+// (used for the PDF download - the storage bucket itself needn't allow CORS).
+// :index is "cover" or the 0-based page position.
+export const getBookImage = async (req, res) => {
+    try {
+        const { bookId, index } = req.params;
+
+        if (!mongoose.isValidObjectId(bookId)) {
+            return res.status(404).json({ success: false, message: "Book not found" });
+        }
+
+        const found = await book
+            .findOne({ _id: bookId, user: req.userId })
+            .select("coverImageUrl pages.position pages.imageUrl")
+            .lean();
+
+        if (!found) {
+            return res.status(404).json({ success: false, message: "Book not found" });
+        }
+
+        let url = null;
+        if (index === "cover") {
+            url = found.coverImageUrl;
+        } else {
+            const sorted = [...(found.pages || [])].sort((a, b) => a.position - b.position);
+            url = sorted[Number(index)]?.imageUrl;
+        }
+
+        if (!url) {
+            return res.status(404).json({ success: false, message: "Image not found" });
+        }
+
+        const upstream = await fetch(url);
+        if (!upstream.ok) {
+            return res.status(502).json({ success: false, message: "Could not load image" });
+        }
+
+        res.set("Content-Type", upstream.headers.get("content-type") || "image/png");
+        res.set("Cache-Control", "private, max-age=3600");
+        return res.send(Buffer.from(await upstream.arrayBuffer()));
+    } catch (error) {
+        console.error("Get book image error:", error);
+
+        return res.status(500).json({ success: false, message: "Failed to load image" });
     }
 };
