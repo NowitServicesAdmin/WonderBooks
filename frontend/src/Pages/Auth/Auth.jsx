@@ -154,7 +154,7 @@ export const Auth = () => {
         try {
             const data = await verifyOtp({ email: email.trim(), otp, name: name.trim(), mode, });
             login({ token: data.token, user: data.user });
-            navigate("/home", { replace: true });
+            navigate(data.user?.role === "super admin" ? "/superadmin" : "/home", { replace: true });
         } catch (err) {
             setError(
                 err.response?.data?.message ||

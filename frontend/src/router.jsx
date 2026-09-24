@@ -1,7 +1,6 @@
-import {createBrowserRouter, Navigate} from 'react-router-dom'
+import {createBrowserRouter} from 'react-router-dom'
 import { Layout } from './Layouts/ClientLayout'
 import { Auth } from './Pages/Auth/Auth'
-import { ProtectedRoute } from './Components/ProtectedRoute'
 import {Dashboard} from './Pages/Client/Dashboard'
 import {Templates} from './Pages/Client/Templates'
 import { TemplateDetail } from './Components/TemplateDetailView'
@@ -18,11 +17,12 @@ import { SuperAdminUsers } from './Pages/SuperAdmin/Users'
 import { SuperAdminBooks } from './Pages/SuperAdmin/Books'
 import { SuperAdminOrders } from './Pages/SuperAdmin/Orders'
 import {SuperAdminSubscriptions} from './Pages/SuperAdmin/Subscription'
+import { ProtectedRoute, RoleHomeRedirect, RoleRoute } from './protectedRoute/ProtectedRoute'
 
 export const Router=createBrowserRouter([
     {
         path:'/',
-        element:<Navigate to="/home" replace />
+        element:<RoleHomeRedirect />
     },
     {
         path:'/auth',
@@ -32,77 +32,84 @@ export const Router=createBrowserRouter([
         element:<ProtectedRoute />,
         children:[
             {
-                path:'/',
-                element:<Layout />,
+                element:<RoleRoute role="user" />,
                 children:[
                     {
-                        path:"/home",
-                        element:<Dashboard />
+                        element:<Layout />,
+                        children:[
+                            {
+                                path:"/home",
+                                element:<Dashboard />
+                            },
+                            {
+                                path:"/templates",
+                                element:<Templates />
+                            },
+                            {
+                                path:"/templates/:id",
+                                element:<TemplateDetail />
+                            },
+                            {
+                                path:'/orders',
+                                element:<Orders />
+                            },
+                            {
+                                path:'/create',
+                                element:<CreateBook />
+                            },
+                            {
+                                path:'/books',
+                                element:<Books />
+                            },
+                            {
+                                path:'/settings',
+                                element:<Settings />
+                            },
+                            {
+                                path:"/help",
+                                element:<Help />
+                            },
+                        ]
                     },
                     {
-                        path:"/templates",
-                        element:<Templates />
-                    },
-                    {
-                        path:"/templates/:id",
-                        element:<TemplateDetail />
-                    },
-                    {
-                        path:'/orders',
-                        element:<Orders />
-                    },
-                    {
-                        path:'/create',
-                        element:<CreateBook />
-                    },
-                    {
-                        path:'/books',
-                        element:<Books />
-                    },
-                    {
-                        path:'/settings',
-                        element:<Settings />
-                    },
-                    {
-                        path:"/help",
-                        element:<Help />
+                        element:<Layout header={false} />,
+                        children:[
+                            {
+                                path:'/bookcreation',
+                                element:<BookCreation />
+                            }
+                        ]
                     },
                 ]
             },
             {
-                path:'/bookcreation',
-                element:<Layout header={false} />,
+                element:<RoleRoute role="super admin" />,
                 children:[
                     {
-                        path:'/bookcreation',
-                        element:<BookCreation />
+                        element:<Layout superadmin={true} />,
+                        children:[
+                            {
+                                path:'/superadmin',
+                                element:<SuperAdminDashboard />
+                            },
+                            {
+                                path:'/superadmin/users',
+                                element:<SuperAdminUsers />
+                            },
+                            {
+                                path:'/superadmin/books',
+                                element:<SuperAdminBooks />
+                            },
+                            {
+                                path:'/superadmin/orders',
+                                element:<SuperAdminOrders />
+                            },
+                            {
+                                path:'/superadmin/subscriptions',
+                                element:<SuperAdminSubscriptions />
+                            },
+                        ]
                     }
-                ]
-            },
-            {
-                path:'/superadmin',
-                element:<Layout superadmin={true} />,
-                children:[
-                    {
-                        path:'/superadmin',
-                        element:<SuperAdminDashboard />
-                    },
-                    {
-                        path:'/superadmin/users',
-                        element:<SuperAdminUsers />
-                    },
-                    {
-                        path:'/superadmin/books',
-                        element:<SuperAdminBooks />
-                    },
-                    {
-                        path:'/superadmin/orders',
-                        element:<SuperAdminOrders />
-                    },
-                    {
-                        path:'/superadmin/subscriptions',
-                        element:<SuperAdminSubscriptions />
-                    },
                 ]
             }
         ]

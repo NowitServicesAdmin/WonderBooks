@@ -1,16 +1,5 @@
 import mongoose from "mongoose";
 
-/*
-  |--------------------------------------------------------------------------
-  | PAYMENT HISTORY SUBDOCUMENT
-  |--------------------------------------------------------------------------
-  | One entry per payment attempt against a Subscription. A subscription can
-  | have multiple entries over its lifetime (renewals, plan switches).
-  |
-  | NOTE ON AMOUNTS: stored in rupees (matching Plan.monthlyPrice). Razorpay
-  | wants paise (amount * 100) when creating an order - that conversion
-  | happens at the point of razorpay.orders.create(), not here.
-*/
 const paymentHistorySchema = new mongoose.Schema(
     {
         orderId: { type: String, default: null }, // Razorpay order_id

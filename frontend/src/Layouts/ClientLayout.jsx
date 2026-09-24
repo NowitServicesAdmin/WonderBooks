@@ -4,6 +4,7 @@ import { Menu } from "lucide-react";
 import { Header } from "../Components/header";
 import { SideNav } from "../Components/SideNav";
 import { useAuth } from "../context/AuthContext";
+import { SubscriptionProvider } from "../context/SubscriptionContext";
 import WonderAlertModal from "../Components/WonderAlertModal";
 
 export function Layout({ header = true, superadmin = false }) {
@@ -24,7 +25,7 @@ export function Layout({ header = true, superadmin = false }) {
     };
 
     return (
-        <>
+        <SubscriptionProvider enabled={!superadmin}>
             <div className="flex h-screen overflow-hidden text-[#29204f]">
                 {/* ================= SIDEBAR ================= */}
                 <SideNav
@@ -76,6 +77,6 @@ export function Layout({ header = true, superadmin = false }) {
                 onPrimary={handleConfirmLogout}
                 onSecondary={() => setShowLogoutAlert(false)}
             />
-        </>
+        </SubscriptionProvider>
     );
 }

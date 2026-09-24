@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Bot, Pencil, Sparkles } from "lucide-react";
+import { Bot, Pencil, 
+  // Sparkles 
+} from "lucide-react";
 import { AiBookCreation } from "./AiBookCreation";
 import { ManualMode } from "./ManualMode";
 export const BookCreation = () => {

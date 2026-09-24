@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Star, Crown, Gem, Award, Zap, Check, Clock } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
-import { useSubscription } from "../../hooks/useSubscription";
+import { useSubscriptionContext } from "../../context/SubscriptionContext";
 import { usePlanCatalog } from "../../hooks/usePlanCatalog";
 import { getMyPaymentHistory } from "../../services/subscriptionService";
 
@@ -16,11 +15,11 @@ const tokens = {
 
 const iconByKey = { star: Star, crown: Crown, gem: Gem, award: Award, zap: Zap };
 
-const ribbonBg = {
-    blue: "linear-gradient(135deg,#31B5EE,#2589E5)",
-    purple: "linear-gradient(135deg,#B12CEB,#8234E7)",
-    orange: "linear-gradient(135deg,#FFBA1F,#FF7824)",
-};
+// const ribbonBg = {
+//     blue: "linear-gradient(135deg,#31B5EE,#2589E5)",
+//     purple: "linear-gradient(135deg,#B12CEB,#8234E7)",
+//     orange: "linear-gradient(135deg,#FFBA1F,#FF7824)",
+// };
 
 const buttonBg = {
     blue: "linear-gradient(90deg,#287FF0,#29CDE7)",
@@ -38,7 +37,6 @@ const formatDate = (date) => {
 };
 
 const SubscriptionPanel = () => {
-    const { user } = useAuth();
     const [billing, setBilling] = useState("monthly");
     const [payments, setPayments] = useState([]);
     const [paymentsLoading, setPaymentsLoading] = useState(true);
@@ -53,7 +51,7 @@ const SubscriptionPanel = () => {
         buyPlan,
         cancelPlan,
         restorePlan,
-    } = useSubscription(user);
+    } = useSubscriptionContext();
 
     const {
         plans: rawPlans,

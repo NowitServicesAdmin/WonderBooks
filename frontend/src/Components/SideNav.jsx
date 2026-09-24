@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
     Home,
     BookOpen,
@@ -14,8 +14,12 @@ import {
     X,
     PanelLeftOpen,
     ChevronLeft,
+    Crown,
+    ArrowRight,
+    Clock,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useSubscriptionContext } from "../context/SubscriptionContext";
 
 const menuItems = [
     { name: "Home", path: "/home", icon: Home },
@@ -36,6 +40,14 @@ const superadminMenu = [
 
 const DESKTOP_BREAKPOINT = 1024; // Tailwind's `lg`
 
+const formatDate = (date) => {
+    if (!date) return "";
+    return new Date(date).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+    });
+};
+
 export function SideNav({
     superadmin = false,
     onLogout,
@@ -52,8 +64,28 @@ export function SideNav({
     );
 
     const { user } = useAuth();
+    const navigate = useNavigate();
+
+    // Superadmins don't have a subscription (the provider is disabled for
+    // them), so these all stay at their empty defaults automatically.
+    const { subscription, loading: subLoading, restorePlan } = useSubscriptionContext();
+
+    const isActive = subscription?.status === "active";
+    const isEndingSoon = isActive && subscription?.cancelRequested;
+    const hadSubscription = Boolean(subscription);
+
+    // No active plan at all (never subscribed, or it already ran out).
+    const showPremiumTile = !superadmin && !subLoading && !isActive;
+    // Still active, but the user already asked to cancel - access holds
+    // until endDate. Mutually exclusive with showPremiumTile.
+    const showEndingTile = !superadmin && !subLoading && isEndingSoon;
 
     const activeMenu = superadmin ? superadminMenu : menuItems;
+
+    const goToUpgrade = () => {
+        if (window.innerWidth < 768) setMobileMenuOpen(false);
+        navigate("/settings");
+    };
 
     const expanded = mobileMenuOpen || (isDesktop ? isOpen : tabletHovered);
 
@@ -192,6 +224,94 @@ export function SideNav({
                         );
                     })}
                 </nav>
+
+                {/* Premium upsell - shown when there's no active plan (new user, or a past plan that ran out) */}
+                {showPremiumTile && (
+                    <div className="px-3 pt-1 sm:px-4">
+                        {expanded ? (
+                            <button
+                                type="button"
+                                onClick={goToUpgrade}
+                                className="w-full rounded-2xl p-3.5 text-left text-white shadow-[0_8px_20px_rgba(84,38,199,0.25)] transition-transform active:scale-[0.98]"
+                                style={{ background: "linear-gradient(135deg,#6D28D9,#8639ED)" }}
+                            >
+                                <div className="flex items-center gap-2.5">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20">
+                                        <Crown size={16} className="text-[#FFD766]" fill="currentColor" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-bold leading-tight">
+                                            {hadSubscription ? "Renew Premium" : "Go Premium"}
+                                        </p>
+                                        <p className="truncate text-[11px] leading-tight text-white/80">
+                                            {hadSubscription ? "Your plan has ended" : "Unlock all templates"}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-2.5 flex items-center justify-center gap-1.5 rounded-lg bg-white py-2 text-xs font-bold text-[#5426c7]">
+                                    {hadSubscription ? "Renew Now" : "Upgrade Now"}
+                                    <ArrowRight size={13} strokeWidth={2.5} />
+                                </div>
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                title={hadSubscription ? "Renew your plan" : "Upgrade to Premium"}
+                                onClick={goToUpgrade}
+                                className="mx-auto flex h-10 w-10 items-center justify-center rounded-[10px] text-white shadow-[0_5px_12px_rgba(84,38,199,0.25)] transition-transform active:scale-95"
+                                style={{ background: "linear-gradient(135deg,#6D28D9,#8639ED)" }}
+                            >
+                                <Crown size={17} className="text-[#FFD766]" fill="currentColor" />
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                {/* Plan ending - active, but a cancellation is already in - shows immediately after cancel/restore, no reload */}
+                {showEndingTile && (
+                    <div className="px-3 pt-1 sm:px-4">
+                        {expanded ? (
+                            <div
+                                className="w-full rounded-2xl border p-3.5 text-left"
+                                style={{ background: "#FFF7E8", borderColor: "#F6DFAF" }}
+                            >
+                                <div className="flex items-center gap-2.5">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white">
+                                        <Clock size={16} className="text-[#B4770A]" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-bold leading-tight text-[#7A4E08]">
+                                            Plan ending
+                                        </p>
+                                        <p className="truncate text-[11px] leading-tight text-[#8C6A2E]">
+                                            Access until {formatDate(subscription.endDate)}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={restorePlan}
+                                    disabled={subLoading}
+                                    className="mt-2.5 flex w-full items-center justify-center rounded-lg bg-[#B4770A] py-2 text-xs font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-60"
+                                >
+                                    {subLoading ? "Restoring…" : "Restore Plan"}
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                title={`Plan ending ${formatDate(subscription.endDate)} - click to manage`}
+                                onClick={goToUpgrade}
+                                className="mx-auto flex h-10 w-10 items-center justify-center rounded-[10px] border text-[#B4770A] transition-transform active:scale-95"
+                                style={{ background: "#FFF7E8", borderColor: "#F6DFAF" }}
+                            >
+                                <Clock size={17} />
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {/* User info */}
                 {expanded && (

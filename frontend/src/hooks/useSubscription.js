@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from "react";
 import {
     getMySubscription,
@@ -24,16 +25,21 @@ import { useRazorpayCheckout } from "./useRazorpayCheckout";
   |   <button onClick={() => buyPlan(plan, billing)} disabled={busyPlanId === plan.planId}>
   |     Buy now
   |   </button>
+  |
+  | Pass `enabled: false` (e.g. for superadmin views, where there's no plan
+  | to buy) to skip the fetch entirely - subscription stays null and
+  | loading stays false.
 */
-export const useSubscription = (user) => {
+export const useSubscription = (user, { enabled = true } = {}) => {
     const { openCheckout } = useRazorpayCheckout();
 
     const [subscription, setSubscription] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(enabled);
     const [busyPlanId, setBusyPlanId] = useState(null);
     const [error, setError] = useState("");
 
     const refresh = useCallback(async () => {
+        if (!enabled) return;
         try {
             const { data } = await getMySubscription();
             setSubscription(data.subscription);
@@ -42,11 +48,11 @@ export const useSubscription = (user) => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [enabled]);
 
     useEffect(() => {
-        refresh();
-    }, [refresh]);
+        if (enabled) refresh();
+    }, [refresh, enabled]);
 
     const isCurrentPlan = useCallback(
         (planId) => subscription?.status === "active" && subscription?.planName === planId,
