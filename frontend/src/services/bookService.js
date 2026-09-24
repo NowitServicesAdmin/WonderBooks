@@ -75,4 +75,21 @@ export const chatBook = async (payload) => {
         );
         throw error;
     }
+}
+export const getMyBooks = async () => {
+    const response = await api.get("/book");
+    return response.data.books;
+};
+
+export const getBookById = async (bookId) => {
+    const response = await api.get(`/book/${bookId}`);
+    return response.data.book;
+};
+
+// One image of a book (index: "cover" or the 0-based page number), as a Blob.
+export const getBookImageBlob = async (bookId, index) => {
+    const response = await api.get(`/book/${bookId}/image/${index}`, {
+        responseType: "blob"
+    });
+    return response.data;
 };

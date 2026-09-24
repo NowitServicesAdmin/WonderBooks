@@ -13,6 +13,7 @@ import {
 import { StepRail } from "./StepRail";
 import { CharacterWorkspace } from "./CharacterIllustration";
 import { createBook } from "../services/bookService";
+import { useNavigate } from "react-router-dom";
 
 /* -------------------------------------------------------------------------- */
 /*                                STORY OPTIONS                               */
@@ -505,7 +506,7 @@ const CompactOptionCard = ({ option, isSelected, onSelect, index = 0 }) => {
                     className={`
                         block w-full rounded-xl px-1.5 py-1
                         text-center text-[9.5px] font-bold leading-tight
-                        break-words whitespace-normal
+                        wrap-break-word whitespace-normal
                         backdrop-blur-md backdrop-saturate-150
                         shadow-[0_3px_10px_rgba(31,15,74,0.35)] ring-1
                         ${hasImage
@@ -784,6 +785,7 @@ const StepWorkspace = ({ step, selections, onSelect }) => {
 };
 
 export const ManualMode = () => {
+    const navigate = useNavigate();
     const [activeStepId, setActiveStepId] = useState(STEPS[0].id);
 
     const [selections, setSelections] = useState({
@@ -797,6 +799,11 @@ export const ManualMode = () => {
     });
 
     const [characters, setCharacters] = useState([]);
+
+    // Guards against multiple clicks on "Create My Story". The ref blocks a
+    // second click instantly (state updates are async); the state drives the UI.
+    const submittingRef = useRef(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const activeStepIndex = useMemo(
         () => ALL_STEPS.findIndex((step) => step.id === activeStepId),
@@ -857,6 +864,8 @@ export const ManualMode = () => {
     };
 
     const handleCreateStory = async () => {
+        if (submittingRef.current) return;
+
         const missingSteps = STEPS.filter(
             (step) => !isStepComplete(step, selections, characters)
         );
@@ -871,6 +880,9 @@ export const ManualMode = () => {
             setActiveStepId(missingSteps[0].id);
             return;
         }
+
+        submittingRef.current = true;
+        setIsSubmitting(true);
 
         const formData = new FormData();
 
@@ -916,8 +928,21 @@ export const ManualMode = () => {
             const response = await createBook(formData);
 
             console.log(response, "Response @j");
+
+            // The server answers as soon as the book is registered; the story
+            // and images keep generating in the background. Go to My Books,
+            // where the new book shows as a loading skeleton until it's done.
+            if (response?.bookId) {
+                navigate("/books");
+                return; // stay locked - this page is unmounting
+            }
+
+            throw new Error("No bookId returned");
         } catch (error) {
             console.error("Failed to create story:", error);
+
+            submittingRef.current = false;
+            setIsSubmitting(false);
 
             alert(
                 "Something went wrong while creating your story. Please try again."
@@ -926,7 +951,11 @@ export const ManualMode = () => {
     };
 
     const handlePrimary = () => {
-        handleCreateStory();
+        if (isLastStep) {
+            handleCreateStory();
+            return;
+        }
+
         setActiveStepId(ALL_STEPS[activeStepIndex + 1].id);
     };
 
@@ -983,10 +1012,17 @@ export const ManualMode = () => {
                     <button
                         type="button"
                         onClick={handlePrimary}
-                        disabled={!isLastStep && !isStepComplete(activeStep, selections, characters)}
+                        disabled={
+                            isSubmitting ||
+                            (!isLastStep && !isStepComplete(activeStep, selections, characters))
+                        }
                         className="rounded-full bg-linear-to-r from-[#8f6ff0] to-[#5f38d6] px-7 py-2.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(105,71,215,0.25)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                        {isLastStep ? "Create My Story ✨" : "Next"}
+                        {isSubmitting
+                            ? "Creating your story..."
+                            : isLastStep
+                              ? "Create My Story ✨"
+                              : "Next"}
                     </button>
                 </div>
             </div>

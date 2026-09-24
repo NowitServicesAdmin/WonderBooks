@@ -7,6 +7,7 @@ import { TemplateDetail } from './Components/TemplateDetailView'
 import {Orders} from './Pages/Client/Orders'
 import {CreateBook} from './Pages/Client/CreateBook'
 import { Books } from './Pages/Client/books'
+import { BookReader } from './Pages/Client/BookReader'
 import {Settings} from './Pages/Client/Settings'
 import {Help} from './Pages/Client/Help'
 import { BookCreation } from './Components/BookCreation'
@@ -60,6 +61,10 @@ export const Router=createBrowserRouter([
                             {
                                 path:'/books',
                                 element:<Books />
+                            },
+                            {
+                                path:'/books/:id',
+                                element:<BookReader />
                             },
                             {
                                 path:'/settings',

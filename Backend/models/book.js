@@ -140,7 +140,29 @@ const BookSchema = new mongoose.Schema(
             default: "generating"
         },
 
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            index: true,
+            default: null
+        },
+
+        coverImageUrl: {
+            type: String,
+            default: null
+        },
+
+        coverStorageKey: {
+            type: String,
+            default: null
+        },
+
         storyData: {
+            storyIdea: {
+                type: String,
+                default: null
+            },
+
             age: {
                 type: String,
                 default: null

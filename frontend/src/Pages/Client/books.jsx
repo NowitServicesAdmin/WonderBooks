@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Clock, Search } from "lucide-react";
-import { myBooks } from "./../../Data/Templatesdata";
+import { BookOpen, Clock, Search, Sparkles } from "lucide-react";
+import { getMyBooks } from "../../services/bookService";
 
 const AnimatedSearch = ({ search, setSearch, placeholder }) => (
   <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-[#e4e1ed] bg-[#faf9fc] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
@@ -16,6 +16,81 @@ const AnimatedSearch = ({ search, setSearch, placeholder }) => (
   </div>
 );
 
+// How often the list refreshes while at least one book is still being created.
+const POLL_INTERVAL_MS = 4000;
+
+// Same footprint as a real book card (cover + page block + meta line) so the
+// grid doesn't jump when the finished book replaces it.
+const BookSkeleton = () => (
+  <div className="min-w-0" aria-busy="true" aria-label="Creating your story">
+    <div className="relative flex justify-center py-2">
+      <div className="relative w-[88%] sm:w-[90%]">
+        <div
+          className="relative aspect-3/4 overflow-hidden rounded-t-[14px] bg-[#e4dff3]"
+          style={{
+            boxShadow: "2px 1px 0 #c9c1e4, 4px 8px 16px rgba(35,25,55,0.10)",
+          }}
+        >
+          <div className="absolute inset-0 animate-pulse bg-linear-to-br from-[#ece8f8] via-[#e2dcf3] to-[#d6cfee]" />
+          <div className="absolute inset-y-0 left-0 z-10 w-3.5 bg-[#c6bde6]" />
+
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 px-6 text-center">
+            <Sparkles size={26} className="animate-pulse text-[#7f6ad0]" />
+            <p className="text-[13px] font-bold text-[#5f4da6]">
+              Creating your story…
+            </p>
+            <p className="text-[11px] font-medium text-[#8f84bd]">
+              This can take a few minutes
+            </p>
+          </div>
+
+          <div className="absolute inset-x-8 bottom-9 z-10 space-y-2.5">
+            <div className="mx-auto h-3 w-4/5 animate-pulse rounded-full bg-white/60" />
+            <div className="mx-auto h-2 w-2/5 animate-pulse rounded-full bg-white/45" />
+          </div>
+        </div>
+
+        <div
+          className="h-5 w-full animate-pulse rounded-b-[10px]"
+          style={{
+            borderTop: "2px solid #c6bde6",
+            background:
+              "repeating-linear-gradient(to bottom, #f6f3ec 0px, #f6f3ec 3px, #e3dccf 3px, #e3dccf 4px)",
+          }}
+        />
+      </div>
+    </div>
+
+    <div className="mt-3 flex items-center justify-center gap-2">
+      <span className="h-3.5 w-16 animate-pulse rounded bg-[#e6e2f0]" />
+      <span className="h-3.5 w-20 animate-pulse rounded bg-[#e6e2f0]" />
+    </div>
+  </div>
+);
+
+// "2 hours ago", "3 days ago", or a short date for anything older than a month.
+const formatUpdated = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr${hours > 1 ? "s" : ""} ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days > 1 ? "s" : ""} ago`;
+
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
 export const Books = () => {
   const navigate = useNavigate();
 
@@ -24,16 +99,74 @@ export const Books = () => {
   const [placeholder, setPlaceholder] = useState("");
 
   // myBooks has no `category` field, so filtering is by title / createdFor only.
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeoutId;
+
+    const toBook = (b) => ({
+      id: b._id,
+      title: b.title,
+      cover: b.coverImageUrl,
+      createdFor: b.createdFor ?? "",
+      genre: b.theme ?? undefined,
+      pages: b.pageCount ?? 0,
+      updatedAt: formatUpdated(b.updatedAt ?? b.createdAt),
+      status:
+        b.status === "completed"
+          ? "Completed"
+          : b.status === "failed"
+            ? "Failed"
+            : "Generating",
+    });
+
+    const load = async (isFirstLoad = false) => {
+      try {
+        const data = await getMyBooks();
+        if (cancelled) return;
+
+        const mapped = data.map(toBook);
+        setBooks(mapped);
+        setError("");
+
+        // Keep refreshing until every book has finished generating.
+        if (mapped.some((book) => book.status === "Generating")) {
+          timeoutId = setTimeout(load, POLL_INTERVAL_MS);
+        }
+      } catch {
+        if (cancelled) return;
+        if (isFirstLoad) {
+          setError("We couldn't load your books. Please try again.");
+        } else {
+          // A failed background refresh shouldn't wipe the list - just retry.
+          timeoutId = setTimeout(load, POLL_INTERVAL_MS);
+        }
+      } finally {
+        if (!cancelled && isFirstLoad) setLoading(false);
+      }
+    };
+
+    load(true);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
   const filteredBooks = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return myBooks;
+    if (!query) return books;
 
-    return myBooks.filter(
+    return books.filter(
       (book) =>
         book.title.toLowerCase().includes(query) ||
         (book.createdFor ?? "").toLowerCase().includes(query)
     );
-  }, [search]);
+  }, [search, books]);
 
   useEffect(() => {
     let index = 0;
@@ -64,7 +197,7 @@ export const Books = () => {
     return () => clearTimeout(timeoutId);
   }, [search]);
 
-  const handleBookClick = (id) => navigate(`/templates/${id}`);
+  const handleBookClick = (id) => navigate(`/books/${id}`);
 
   return (
     <section className="w-full overflow-hidden rounded-2xl bg-transparent">
@@ -89,8 +222,33 @@ export const Books = () => {
 
         {/* Grid */}
 
+        {loading && (
+          <p className="py-16 text-center text-sm font-medium text-[#8f8ba3]">
+            Loading your books...
+          </p>
+        )}
+
+        {!loading && error && (
+          <p className="py-16 text-center text-sm font-medium text-[#d64545]">
+            {error}
+          </p>
+        )}
+
+        {!loading && !error && filteredBooks.length === 0 && (
+          <p className="py-16 text-center text-sm font-medium text-[#8f8ba3]">
+            {books.length === 0
+              ? "No books yet. Create your first story!"
+              : "No books match your search."}
+          </p>
+        )}
+
         <div className="grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
   {filteredBooks.map((book) => {
+    // Still being created -> loading skeleton (not clickable) until completed.
+    if (book.status === "Generating") {
+      return <BookSkeleton key={book.id} />;
+    }
+
     const primary = book.themeColor ?? "#7563C9";
     const dark = book.spineDark ?? "#302454";
     const isEmpty = !book.cover;
@@ -106,7 +264,9 @@ export const Books = () => {
     const statusColor =
       status === "Completed"
         ? "#2f9e5c"
-        : status === "Draft"
+        : status === "Failed"
+          ? "#d64545"
+          : status === "Draft"
           ? "#7563C9"
           : "#e0862e";
 
@@ -476,7 +636,8 @@ export const Books = () => {
           />
 
           <span className="font-medium">
-            {book.pages ?? book.pageCount ?? 0} Pages
+            {book.pages ?? book.pageCount ?? 0}{" "}
+            {(book.pages ?? book.pageCount ?? 0) === 1 ? "Page" : "Pages"}
           </span>
 
           <span className="text-[#c7c3d4]">·</span>
