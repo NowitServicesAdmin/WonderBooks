@@ -1,8 +1,40 @@
 import api from "../api/axios";
 
-export const createBook = async (payload) => {
+// export const createBook = async (payload) => {
+//     try {
+//         const response = await api.post("/book/create-book", payload);
+//         return response.data;
+//     } catch (error) {
+//         console.error(
+//             "Create book API error:",
+//             error.response?.data || error.message
+//         );
+//         throw error;
+//     }
+// };
+
+
+const buildBookFormData = ({ storySettings, characters, files = {} }) => {
+    const fd = new FormData();
+    fd.append("mode", "manual");
+    fd.append("storySettings", JSON.stringify(storySettings));
+    fd.append("characters", JSON.stringify(characters));
+    Object.entries(files).forEach(([id, file]) => fd.append(`characterPhoto-${id}`, file));
+    return fd;
+};
+
+/**
+ * Accepts either:
+ *  - a ready-made FormData (manual mode builds its own), or
+ *  - { storySettings, characters, files } (chat mode — we build the FormData)
+ */
+export const createBook = async (input) => {
+    const fd = input instanceof FormData ? input : buildBookFormData(input);
+
     try {
-        const response = await api.post("/book/create-book", payload);
+        const response = await api.post("/book/create-book", fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+        });
         return response.data;
     } catch (error) {
         console.error(
@@ -28,6 +60,19 @@ export const TestImage = async () => {
         return imageUrl;
     } catch (error) {
         console.error("Image request error:", error);
+        throw error;
+    }
+};
+
+export const chatBook = async (payload) => {
+    try {
+        const response = await api.post("/book/chat", payload);
+        return response.data;
+    } catch (error) {
+        console.error(
+            "Chat book API error:",
+            error.response?.data || error.message
+        );
         throw error;
     }
 };
