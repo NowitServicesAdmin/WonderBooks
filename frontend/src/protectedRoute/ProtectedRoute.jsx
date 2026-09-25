@@ -6,8 +6,8 @@ const isSuperAdmin = (user) => user?.role === "super admin";
 const homeFor = (user) => (isSuperAdmin(user) ? "/superadmin" : "/home");
 
 const Spinner = () => (
-    <div className="flex h-screen w-full items-center justify-center bg-[#faf9ff]">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#ece5ff] border-t-[#5426c7]" />
+    <div className="flex h-screen w-full items-center justify-center bg-[var(--tint)]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--tint)] border-t-[var(--accent)]" />
     </div>
 );
 

@@ -83,23 +83,23 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
             <div className="absolute inset-0 bg-black/30" onClick={onClose} />
 
             <div className="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col bg-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-[#eeeafa] px-6 py-5">
+                <div className="flex items-center justify-between border-b border-[var(--tint)] px-6 py-5">
                     <h2 className="text-lg font-bold">{mode === "edit" ? "Edit Plan" : "Add Plan"}</h2>
-                    <button onClick={onClose} className="text-[#70698a] hover:text-[#1c1730]">
+                    <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--ink)]">
                         <X size={20} />
                     </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-6 py-5">
-                    <label className="mb-1 block text-sm font-semibold text-[#38314f]">Plan name</label>
+                    <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">Plan name</label>
                     <input
                         value={draft.name}
                         onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
                         placeholder="e.g. Family Plan"
-                        className="mb-4 w-full rounded-lg border border-[#eeeafa] px-3 py-2 text-sm focus:border-[#5426c7] focus:outline-none"
+                        className="mb-4 w-full rounded-lg border border-[var(--tint)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
                     />
 
-                    <label className="mb-1 block text-sm font-semibold text-[#38314f]">Icon</label>
+                    <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">Icon</label>
                     <div className="mb-4 flex gap-2">
                         {iconOptions.map(({ key, icon: OptionIcon }) => (
                             <button
@@ -108,8 +108,8 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
                                 onClick={() => setDraft((d) => ({ ...d, iconKey: key }))}
                                 className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
                                     draft.iconKey === key
-                                        ? "border-[#5426c7] bg-[#f0eaff] text-[#5426c7]"
-                                        : "border-[#eeeafa] text-[#70698a] hover:bg-[#f5f1ff]"
+                                        ? "border-[var(--accent)] bg-[var(--tint)] text-[var(--accent)]"
+                                        : "border-[var(--tint)] text-[var(--text-muted)] hover:bg-[var(--tint)]"
                                 }`}
                             >
                                 <OptionIcon size={18} />
@@ -119,25 +119,25 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
 
                     <div className="mb-4 flex gap-3">
                         <div className="flex-1">
-                            <label className="mb-1 block text-sm font-semibold text-[#38314f]">Monthly price (₹)</label>
+                            <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">Monthly price (₹)</label>
                             <input
                                 type="number"
                                 min="0"
                                 value={draft.monthlyPrice}
                                 onChange={(e) => setDraft((d) => ({ ...d, monthlyPrice: e.target.value }))}
                                 placeholder="9.99"
-                                className="w-full rounded-lg border border-[#eeeafa] px-3 py-2 text-sm focus:border-[#5426c7] focus:outline-none"
+                                className="w-full rounded-lg border border-[var(--tint)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
                             />
                             <p className="mt-1 text-xs text-[#a39cc0]">
                                 Yearly price is auto-calculated from the yearly saving % below.
                             </p>
                         </div>
                         <div className="flex-1">
-                            <label className="mb-1 block text-sm font-semibold text-[#38314f]">Card color</label>
+                            <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">Card color</label>
                             <select
                                 value={draft.ribbon}
                                 onChange={(e) => setDraft((d) => ({ ...d, ribbon: e.target.value, button: e.target.value }))}
-                                className="w-full rounded-lg border border-[#eeeafa] px-3 py-2 text-sm focus:border-[#5426c7] focus:outline-none"
+                                className="w-full rounded-lg border border-[var(--tint)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
                             >
                                 <option value="blue">Blue</option>
                                 <option value="purple">Purple</option>
@@ -146,33 +146,33 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
                         </div>
                     </div>
 
-                    <label className="mb-1 block text-sm font-semibold text-[#38314f]">
-                        Features <span className="font-normal text-[#70698a]">(one per line)</span>
+                    <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">
+                        Features <span className="font-normal text-[var(--text-muted)]">(one per line)</span>
                     </label>
                     <textarea
                         value={draft.features}
                         onChange={(e) => setDraft((d) => ({ ...d, features: e.target.value }))}
                         rows={5}
                         placeholder={"10 books download\n5 prints per month"}
-                        className="mb-4 w-full resize-none rounded-lg border border-[#eeeafa] px-3 py-2 text-sm focus:border-[#5426c7] focus:outline-none"
+                        className="mb-4 w-full resize-none rounded-lg border border-[var(--tint)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
                     />
 
-                    <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#38314f]">
+                    <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-heading)]">
                         <input
                             type="checkbox"
                             checked={draft.popular}
                             onChange={(e) => setDraft((d) => ({ ...d, popular: e.target.checked }))}
-                            className="h-4 w-4 rounded border-[#eeeafa] accent-[#5426c7]"
+                            className="h-4 w-4 rounded border-[var(--tint)] accent-[var(--accent)]"
                         />
                         Mark as popular
                     </label>
 
-                    <label className="flex items-center gap-2 text-sm font-semibold text-[#38314f]">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-[var(--text-heading)]">
                         <input
                             type="checkbox"
                             checked={draft.active}
                             onChange={(e) => setDraft((d) => ({ ...d, active: e.target.checked }))}
-                            className="h-4 w-4 rounded border-[#eeeafa] accent-[#5426c7]"
+                            className="h-4 w-4 rounded border-[var(--tint)] accent-[var(--accent)]"
                         />
                         Visible to users
                     </label>
@@ -180,17 +180,17 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
                     {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 border-t border-[#eeeafa] px-6 py-4">
+                <div className="flex items-center justify-end gap-2 border-t border-[var(--tint)] px-6 py-4">
                     <button
                         onClick={onClose}
-                        className="rounded-lg border border-[#eeeafa] px-4 py-2 text-sm font-semibold hover:bg-[#f5f1ff]"
+                        className="rounded-lg border border-[var(--tint)] px-4 py-2 text-sm font-semibold hover:bg-[var(--tint)]"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="rounded-lg bg-[#5426c7] px-4 py-2 text-sm font-semibold text-white hover:bg-[#4720a8] disabled:opacity-60"
+                        className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
                     >
                         {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Create plan"}
                     </button>
@@ -282,21 +282,21 @@ const PlansTab = () => {
     return (
         <div>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-2 rounded-xl border border-[#eeeafa] bg-white px-3 py-2">
-                    <label className="text-sm font-semibold text-[#38314f]">Yearly saving</label>
+                <div className="flex items-center gap-2 rounded-xl border border-[var(--tint)] bg-white px-3 py-2">
+                    <label className="text-sm font-semibold text-[var(--text-heading)]">Yearly saving</label>
                     <input
                         type="number"
                         min="0"
                         max="90"
                         value={savingInput}
                         onChange={(e) => setSavingInput(e.target.value)}
-                        className="w-16 rounded-lg border border-[#eeeafa] px-2 py-1 text-sm focus:border-[#5426c7] focus:outline-none"
+                        className="w-16 rounded-lg border border-[var(--tint)] px-2 py-1 text-sm focus:border-[var(--accent)] focus:outline-none"
                     />
-                    <span className="text-sm text-[#70698a]">%</span>
+                    <span className="text-sm text-[var(--text-muted)]">%</span>
                     {Number(savingInput) !== yearlySaving && (
                         <button
                             onClick={handleSaveYearlySaving}
-                            className="rounded-lg bg-[#5426c7] px-3 py-1 text-xs font-semibold text-white hover:bg-[#4720a8]"
+                            className="rounded-lg bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-white hover:bg-[var(--accent-hover)]"
                         >
                             Save
                         </button>
@@ -305,7 +305,7 @@ const PlansTab = () => {
 
                 <button
                     onClick={() => setIsAddOpen(true)}
-                    className="flex items-center gap-2 rounded-lg bg-[#5426c7] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#4720a8]"
+                    className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
                 >
                     <Plus size={16} /> Add Plan
                 </button>
@@ -320,11 +320,11 @@ const PlansTab = () => {
             {loading ? (
                 <div className="grid grid-cols-3 gap-5">
                     {[0, 1, 2].map((i) => (
-                        <div key={i} className="h-65 animate-pulse rounded-2xl bg-[#f5f1ff]" />
+                        <div key={i} className="h-65 animate-pulse rounded-2xl bg-[var(--tint)]" />
                     ))}
                 </div>
             ) : plans.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[#eeeafa] p-10 text-center text-sm text-[#70698a]">
+                <div className="rounded-2xl border border-dashed border-[var(--tint)] p-10 text-center text-sm text-[var(--text-muted)]">
                     No plans yet. Click "Add Plan" to create the first one.
                 </div>
             ) : (
@@ -338,27 +338,27 @@ const PlansTab = () => {
                                 className={`relative cursor-pointer rounded-2xl border bg-white p-5 transition-shadow hover:shadow-md ${
                                     plan.active === false ? "opacity-50" : ""
                                 }`}
-                                style={{ borderColor: "#eeeafa" }}
+                                style={{ borderColor: "var(--tint)" }}
                             >
                                 {plan.popular && (
-                                    <span className="absolute right-4 top-4 rounded-full bg-[#f0eaff] px-2.5 py-1 text-xs font-bold text-[#5426c7]">
+                                    <span className="absolute right-4 top-4 rounded-full bg-[var(--tint)] px-2.5 py-1 text-xs font-bold text-[var(--accent)]">
                                         Popular
                                     </span>
                                 )}
-                                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[#f0eaff] text-[#5426c7]">
+                                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--tint)] text-[var(--accent)]">
                                     <Icon size={18} />
                                 </div>
                                 <div className="font-bold">{plan.name}</div>
                                 <div className="mb-3 text-xl font-extrabold">
-                                    ₹{plan.monthlyPrice} <span className="text-sm font-medium text-[#70698a]">/ month</span>
+                                    ₹{plan.monthlyPrice} <span className="text-sm font-medium text-[var(--text-muted)]">/ month</span>
                                 </div>
-                                <ul className="mb-4 flex flex-col gap-1 text-sm text-[#70698a]">
+                                <ul className="mb-4 flex flex-col gap-1 text-sm text-[var(--text-muted)]">
                                     {plan.features.map((f) => (
                                         <li key={f}>• {f}</li>
                                     ))}
                                 </ul>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-[#70698a]">
+                                    <span className="text-xs font-semibold text-[var(--text-muted)]">
                                         {plan.active === false ? "Hidden" : "Visible"}
                                     </span>
                                     <div className="flex items-center gap-2">
@@ -367,7 +367,7 @@ const PlansTab = () => {
                                                 e.stopPropagation();
                                                 setEditingPlan(plan);
                                             }}
-                                            className="rounded-lg border border-[#eeeafa] px-3 py-1.5 text-xs font-semibold hover:bg-[#f5f1ff]"
+                                            className="rounded-lg border border-[var(--tint)] px-3 py-1.5 text-xs font-semibold hover:bg-[var(--tint)]"
                                         >
                                             Edit
                                         </button>
@@ -377,14 +377,14 @@ const PlansTab = () => {
                                                     e.stopPropagation();
                                                     setOpenMenuId(openMenuId === plan._id ? null : plan._id);
                                                 }}
-                                                className="text-[#70698a] hover:text-[#5426c7]"
+                                                className="text-[var(--text-muted)] hover:text-[var(--accent)]"
                                             >
                                                 <MoreVertical size={16} />
                                             </button>
                                             {openMenuId === plan._id && (
                                                 <div
                                                     onClick={(e) => e.stopPropagation()}
-                                                    className="absolute right-0 top-6 z-10 w-32 rounded-lg border border-[#eeeafa] bg-white py-1 shadow-lg"
+                                                    className="absolute right-0 top-6 z-10 w-32 rounded-lg border border-[var(--tint)] bg-white py-1 shadow-lg"
                                                 >
                                                     <button
                                                         onClick={() => {
@@ -472,8 +472,8 @@ const SubscribersTab = () => {
         <div>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <form onSubmit={handleSearch} className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 rounded-lg border border-[#eeeafa] bg-white px-3 py-2">
-                        <Search size={15} className="text-[#70698a]" />
+                    <div className="flex items-center gap-2 rounded-lg border border-[var(--tint)] bg-white px-3 py-2">
+                        <Search size={15} className="text-[var(--text-muted)]" />
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -481,7 +481,7 @@ const SubscribersTab = () => {
                             className="w-56 text-sm outline-none"
                         />
                     </div>
-                    <button type="submit" className="rounded-lg bg-[#5426c7] px-3 py-2 text-sm font-semibold text-white hover:bg-[#4720a8]">
+                    <button type="submit" className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]">
                         Search
                     </button>
                 </form>
@@ -492,7 +492,7 @@ const SubscribersTab = () => {
                         setStatus(e.target.value);
                         setPage(1);
                     }}
-                    className="rounded-lg border border-[#eeeafa] px-3 py-2 text-sm"
+                    className="rounded-lg border border-[var(--tint)] px-3 py-2 text-sm"
                 >
                     <option value="">All statuses</option>
                     <option value="active">Active</option>
@@ -503,10 +503,10 @@ const SubscribersTab = () => {
                 </select>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-[#eeeafa] bg-white">
+            <div className="overflow-x-auto rounded-2xl border border-[var(--tint)] bg-white">
                 <table className="w-full text-left text-sm">
                     <thead>
-                        <tr className="bg-[#f7f4ff] text-[#5426c7]">
+                        <tr className="bg-[var(--tint)] text-[var(--accent)]">
                             <th className="px-4 py-3 font-semibold">User</th>
                             <th className="px-4 py-3 font-semibold">Plan</th>
                             <th className="px-4 py-3 font-semibold">Billing</th>
@@ -520,22 +520,22 @@ const SubscribersTab = () => {
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={8} className="px-4 py-8 text-center text-[#70698a]">
+                                <td colSpan={8} className="px-4 py-8 text-center text-[var(--text-muted)]">
                                     Loading…
                                 </td>
                             </tr>
                         ) : subscriptions.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="px-4 py-8 text-center text-[#70698a]">
+                                <td colSpan={8} className="px-4 py-8 text-center text-[var(--text-muted)]">
                                     No subscriptions found.
                                 </td>
                             </tr>
                         ) : (
                             subscriptions.map((sub) => (
-                                <tr key={sub._id} className="border-t border-[#eeeafa]">
+                                <tr key={sub._id} className="border-t border-[var(--tint)]">
                                     <td className="px-4 py-3">
-                                        <div className="font-semibold text-[#1c1730]">{sub.userId?.name || "—"}</div>
-                                        <div className="text-xs text-[#70698a]">{sub.userId?.email}</div>
+                                        <div className="font-semibold text-[var(--ink)]">{sub.userId?.name || "—"}</div>
+                                        <div className="text-xs text-[var(--text-muted)]">{sub.userId?.email}</div>
                                     </td>
                                     <td className="px-4 py-3 capitalize">{sub.planDisplayName || sub.planName}</td>
                                     <td className="px-4 py-3 capitalize">{sub.billingCycle}</td>
@@ -546,9 +546,9 @@ const SubscribersTab = () => {
                                             {sub.cancelRequested ? " · cancelling" : ""}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 text-xs text-[#70698a]">{formatDate(sub.startDate)}</td>
-                                    <td className="px-4 py-3 text-xs text-[#70698a]">{formatDate(sub.endDate)}</td>
-                                    <td className="px-4 py-3 text-xs text-[#70698a]">{sub.paymentHistory?.length || 0}</td>
+                                    <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{formatDate(sub.startDate)}</td>
+                                    <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{formatDate(sub.endDate)}</td>
+                                    <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{sub.paymentHistory?.length || 0}</td>
                                 </tr>
                             ))
                         )}
@@ -556,13 +556,13 @@ const SubscribersTab = () => {
                 </table>
             </div>
 
-            <div className="mt-4 flex items-center justify-between text-sm text-[#70698a]">
+            <div className="mt-4 flex items-center justify-between text-sm text-[var(--text-muted)]">
                 <span>{total} subscriptions</span>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         disabled={page <= 1}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#eeeafa] disabled:opacity-40"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--tint)] disabled:opacity-40"
                     >
                         <ChevronLeft size={16} />
                     </button>
@@ -572,7 +572,7 @@ const SubscribersTab = () => {
                     <button
                         onClick={() => setPage((p) => Math.min(pages, p + 1))}
                         disabled={page >= pages}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#eeeafa] disabled:opacity-40"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--tint)] disabled:opacity-40"
                     >
                         <ChevronRight size={16} />
                     </button>
@@ -592,14 +592,14 @@ export const SuperAdminSubscriptions = () => {
         <div className="p-8">
             <div className="mb-6">
                 <h1 className="text-2xl font-extrabold">Subscriptions</h1>
-                <p className="text-sm text-[#70698a]">Manage subscription plans and see who's subscribed</p>
+                <p className="text-sm text-[var(--text-muted)]">Manage subscription plans and see who's subscribed</p>
             </div>
 
-            <div className="mb-6 flex gap-2 border-b border-[#eeeafa]">
+            <div className="mb-6 flex gap-2 border-b border-[var(--tint)]">
                 <button
                     onClick={() => setTab("plans")}
                     className={`px-4 py-2 text-sm font-semibold ${
-                        tab === "plans" ? "border-b-2 border-[#5426c7] text-[#5426c7]" : "text-[#70698a]"
+                        tab === "plans" ? "border-b-2 border-[var(--accent)] text-[var(--accent)]" : "text-[var(--text-muted)]"
                     }`}
                 >
                     Plans
@@ -607,7 +607,7 @@ export const SuperAdminSubscriptions = () => {
                 <button
                     onClick={() => setTab("subscribers")}
                     className={`px-4 py-2 text-sm font-semibold ${
-                        tab === "subscribers" ? "border-b-2 border-[#5426c7] text-[#5426c7]" : "text-[#70698a]"
+                        tab === "subscribers" ? "border-b-2 border-[var(--accent)] text-[var(--accent)]" : "text-[var(--text-muted)]"
                     }`}
                 >
                     Subscribers

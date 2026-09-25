@@ -335,7 +335,7 @@ const WonderAlertModal = ({
         fontSize: cq(btnFont, 13),
         borderRadius: cq(2.0, 10),
         color: "#1b1372",
-        background: "linear-gradient(180deg, #f8f5ff 0%, #efeafd 100%)",
+        background: "linear-gradient(180deg, var(--tint) 0%, var(--tint) 100%)",
         border: "1.5px solid #c8c0f3",
         boxShadow: "0 2px 6px rgba(120,100,220,0.10), inset 0 1px 0 rgba(255,255,255,0.9)",
     };

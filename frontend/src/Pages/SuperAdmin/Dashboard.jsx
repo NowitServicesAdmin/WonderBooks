@@ -19,7 +19,7 @@ const statCards = [
         value: "1,248",
         change: "12%",
         icon: Users,
-        iconBg: "bg-[#efeafd]",
+        iconBg: "bg-[var(--tint)]",
         iconColor: "text-[#7c3aed]",
     },
     {
@@ -27,7 +27,7 @@ const statCards = [
         value: "5,892",
         change: "18%",
         icon: BookOpen,
-        iconBg: "bg-[#efeafd]",
+        iconBg: "bg-[var(--tint)]",
         iconColor: "text-[#7c3aed]",
     },
     {
@@ -119,7 +119,7 @@ const MonthDropdown = ({ value, onChange }) => {
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
-                className="flex items-center gap-1.5 rounded-lg border border-[#eeeafa] px-3 py-1.5 text-sm font-semibold text-[#38314f] hover:bg-[#f5f1ff]"
+                className="flex items-center gap-1.5 rounded-lg border border-[var(--tint)] px-3 py-1.5 text-sm font-semibold text-[var(--text-heading)] hover:bg-[var(--tint)]"
             >
                 {value}
                 <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
@@ -128,7 +128,7 @@ const MonthDropdown = ({ value, onChange }) => {
                 <>
                     {/* click-away layer */}
                     <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-                    <div className="absolute right-0 z-20 mt-1 w-32 overflow-hidden rounded-lg border border-[#eeeafa] bg-white shadow-lg">
+                    <div className="absolute right-0 z-20 mt-1 w-32 overflow-hidden rounded-lg border border-[var(--tint)] bg-white shadow-lg">
                         {MONTHS.map((m) => (
                             <button
                                 key={m}
@@ -137,7 +137,7 @@ const MonthDropdown = ({ value, onChange }) => {
                                     onChange(m);
                                     setOpen(false);
                                 }}
-                                className={`block w-full px-3 py-2 text-left text-sm font-medium hover:bg-[#f5f1ff] ${m === value ? "bg-[#f0eaff] text-[#5426c7]" : "text-[#38314f]"
+                                className={`block w-full px-3 py-2 text-left text-sm font-medium hover:bg-[var(--tint)] ${m === value ? "bg-[var(--tint)] text-[var(--accent)]" : "text-[var(--text-heading)]"
                                     }`}
                             >
                                 {m}
@@ -176,7 +176,7 @@ export const SuperAdminDashboard = ({ onNavigate }) => {
                     return (
                         <div
                             key={card.label}
-                            className="relative overflow-hidden rounded-2xl border border-[#eeeafa] bg-white p-2"
+                            className="relative overflow-hidden rounded-2xl border border-[var(--tint)] bg-white p-2"
                         >
                             {/* faded watermark icon in the background */}
                             <Icon
@@ -192,7 +192,7 @@ export const SuperAdminDashboard = ({ onNavigate }) => {
                                 <div className="text-sm font-medium text-[#8b84a3]">{card.label}</div>
                             </div>
 
-                            <div className="relative mt-3 text-3xl font-extrabold text-[#1c1730]">{card.value}</div>
+                            <div className="relative mt-3 text-3xl font-extrabold text-[var(--ink)]">{card.value}</div>
 
                             <div className="relative mt-1 text-sm font-semibold text-green-600">
                                 ↑ {card.change} this month
@@ -204,27 +204,27 @@ export const SuperAdminDashboard = ({ onNavigate }) => {
 
             {/* Charts */}
             <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
-                <div className="rounded-2xl border border-[#eeeafa] bg-white p-5">
+                <div className="rounded-2xl border border-[var(--tint)] bg-white p-5">
                     <div className="mb-4 flex items-center justify-between">
                         <h3 className="text-lg font-bold">User Growth</h3>
                         <MonthDropdown value={userGrowthMonth} onChange={setUserGrowthMonth} />
                     </div>
                     <ResponsiveContainer width="100%" height={220}>
                         <LineChart data={userGrowthData}>
-                            <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#70698a" }} axisLine={false} tickLine={false} />
-                            <Line type="monotone" dataKey="value" stroke="#5426c7" strokeWidth={2.5} dot={false} />
+                            <XAxis dataKey="date" tick={{ fontSize: 12, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+                            <Line type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2.5} dot={false} />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
 
-                <div className="rounded-2xl border border-[#eeeafa] bg-white p-5">
+                <div className="rounded-2xl border border-[var(--tint)] bg-white p-5">
                     <div className="mb-4 flex items-center justify-between">
                         <h3 className="text-lg font-bold">Book Orders</h3>
                         <MonthDropdown value={bookOrdersMonth} onChange={setBookOrdersMonth} />
                     </div>
                     <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={bookOrdersData}>
-                            <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#70698a" }} axisLine={false} tickLine={false} />
+                            <XAxis dataKey="date" tick={{ fontSize: 12, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
                             <Bar dataKey="value" fill="#a78bfa" radius={[6, 6, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
@@ -233,7 +233,7 @@ export const SuperAdminDashboard = ({ onNavigate }) => {
 
             {/* Activity + Quick Actions */}
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                <div className="rounded-2xl border border-[#eeeafa] bg-white p-5">
+                <div className="rounded-2xl border border-[var(--tint)] bg-white p-5">
                     <h3 className="mb-4 text-lg font-bold">Recent Activity</h3>
                     <div className="flex flex-col gap-4">
                         {recentActivity.map((item, i) => {
@@ -241,22 +241,22 @@ export const SuperAdminDashboard = ({ onNavigate }) => {
                             return (
                                 <div key={i} className="flex items-start justify-between">
                                     <div className="flex items-start gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f0eaff] text-[#5426c7]">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--accent)]">
                                             <Icon size={18} />
                                         </div>
                                         <div>
                                             <div className="text-base font-semibold">{item.title}</div>
-                                            <div className="text-sm text-[#70698a]">{item.detail}</div>
+                                            <div className="text-sm text-[var(--text-muted)]">{item.detail}</div>
                                         </div>
                                     </div>
-                                    <span className="text-sm text-[#70698a]">{item.time}</span>
+                                    <span className="text-sm text-[var(--text-muted)]">{item.time}</span>
                                 </div>
                             );
                         })}
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-[#eeeafa] bg-white p-5">
+                <div className="rounded-2xl border border-[var(--tint)] bg-white p-5">
                     <h3 className="mb-4 text-lg font-bold">Quick Actions</h3>
                     <div className="flex flex-col gap-2">
                         {quickActions.map((action) => {
@@ -265,13 +265,13 @@ export const SuperAdminDashboard = ({ onNavigate }) => {
                                 <button
                                     key={action.label}
                                     onClick={() => handleQuickAction(action.route)}
-                                    className="flex items-center justify-between rounded-xl border border-[#eeeafa] px-4 py-3 text-base font-semibold hover:bg-[#f5f1ff]"
+                                    className="flex items-center justify-between rounded-xl border border-[var(--tint)] px-4 py-3 text-base font-semibold hover:bg-[var(--tint)]"
                                 >
                                     <span className="flex items-center gap-3">
-                                        <Icon size={18} className="text-[#5426c7]" />
+                                        <Icon size={18} className="text-[var(--accent)]" />
                                         {action.label}
                                     </span>
-                                    <ChevronRight size={18} className="text-[#70698a]" />
+                                    <ChevronRight size={18} className="text-[var(--text-muted)]" />
                                 </button>
                             );
                         })}

@@ -136,16 +136,19 @@ export const BookReader = () => {
 
   return (
     <div className="flex h-full w-full flex-col gap-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <button
           type="button"
           onClick={goBack}
-          aria-label="Back to Books"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#e4e0ef] bg-white text-[#5d2bc5] transition hover:bg-[#f7f3ff]"
+          aria-label="Back to My Books"
+          title="Back to My Books"
+          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#e4e0ef] bg-white text-[#5d2bc5] outline-none transition hover:bg-[#f7f3ff] focus-visible:ring-2 focus-visible:ring-[#a98aff]/50"
         >
           <ArrowLeft size={18} />
         </button>
-        <BookActions book={book} pages={pages} />
+        <div className="min-w-0 flex-1">
+          <BookActions book={book} pages={pages} />
+        </div>
       </div>
       <div className="min-h-0 flex-1">
         <BookViewer

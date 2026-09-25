@@ -10,7 +10,7 @@
 //             className="
 //                 mt-2.5 flex h-[46px] w-full
 //                 items-center gap-2.5
-//                 rounded-full border border-[#ece5ff]
+//                 rounded-full border border-[var(--tint)]
 //                 bg-white pl-4 pr-1.5
 //                 animate-input-glow
 //             "
@@ -20,7 +20,7 @@
 //                 size={18}
 //                 className="
 //                     shrink-0
-//                     text-[#5426c7]
+//                     text-[var(--accent)]
 //                     animate-sparkle
 //                 "
 //             />
@@ -50,7 +50,7 @@
 //                         w-full
 //                         bg-transparent
 //                         text-[14px]
-//                         text-[#30215c]
+//                         text-[var(--ink)]
 //                         outline-none
 //                     "
 //                 />
@@ -65,7 +65,7 @@
 //                     rounded-full
 //                     text-[#6b52c8]
 //                     transition-all duration-200
-//                     hover:bg-[#f2edff]
+//                     hover:bg-[var(--tint)]
 //                     hover:scale-105
 //                 "
 //             >
@@ -80,11 +80,11 @@
 //                     flex h-8 w-8 shrink-0
 //                     items-center justify-center
 //                     rounded-full
-//                     bg-[#5426c7]
+//                     bg-[var(--accent)]
 //                     text-white
 //                     shadow-md
 //                     transition-all duration-300
-//                     hover:bg-[#4520a7]
+//                     hover:bg-[var(--accent-hover)]
 //                     hover:shadow-[0_8px_25px_rgba(84,38,199,0.35)]
 //                 "
 //             >
@@ -231,7 +231,7 @@ export const HeaderAnimationSearch = ({
                     <Sparkles
                         size={20}
                         strokeWidth={1.8}
-                        className="text-[#5426c7] animate-sparkle"
+                        className="text-[var(--accent)] animate-sparkle"
                     />
 
                     <span className="pointer-events-none absolute right-0 top-0 text-[8px] text-[#b894ff]">
@@ -247,7 +247,7 @@ export const HeaderAnimationSearch = ({
 
                     {!story && (
                         <div className={`pointer-events-none absolute left-0 right-0 overflow-hidden text-ellipsis whitespace-nowrap text-[13px] font-medium text-[#8f86a6] sm:text-[15px] transition-all duration-300 ${isChanging ? "translate-y-1 opacity-0" : "translate-y-0 opacity-100"}`}>
-                            <span className="font-bold text-[#5426c7]">
+                            <span className="font-bold text-[var(--accent)]">
                                 {visiblePrompt.split("!")[0]}!
                             </span>
 
@@ -270,7 +270,7 @@ export const HeaderAnimationSearch = ({
                                 handleCreate();
                             }
                         }}
-                        className="relative z-10 h-full w-full bg-transparent text-[14px] font-medium text-[#30215c] sm:text-[15px] outline-none placeholder:text-[#aaa3bb]"
+                        className="relative z-10 h-full w-full bg-transparent text-[14px] font-medium text-[var(--ink)] sm:text-[15px] outline-none placeholder:text-[#aaa3bb]"
                         aria-label="Create a WonderBook story"
                     />
                 </div>
@@ -279,7 +279,7 @@ export const HeaderAnimationSearch = ({
                 <button
                     type="button"
                     aria-label="Voice input"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#6b52c8] sm:h-9 sm:w-9 transition-all duration-200 hover:bg-[#f2edff] hover:scale-105 active:scale-95"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#6b52c8] sm:h-9 sm:w-9 transition-all duration-200 hover:bg-[var(--tint)] hover:scale-105 active:scale-95"
                 >
                     <Mic
                         size={19}
@@ -292,7 +292,7 @@ export const HeaderAnimationSearch = ({
                     type="button"
                     onClick={handleCreate}
                     aria-label="Create story"
-                    className="group/send flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#5426c7] sm:h-10 sm:w-10 text-white shadow-[0_5px_14px_rgba(84,38,199,0.28)] transition-all duration-300 hover:bg-[#4520a7] hover:scale-105 hover:shadow-[0_8px_22px_rgba(84,38,199,0.35)] active:scale-95"
+                    className="group/send flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] sm:h-10 sm:w-10 text-white shadow-[0_5px_14px_rgba(84,38,199,0.28)] transition-all duration-300 hover:bg-[var(--accent-hover)] hover:scale-105 hover:shadow-[0_8px_22px_rgba(84,38,199,0.35)] active:scale-95"
                 >
                     <ArrowRight
                         size={19}
@@ -328,7 +328,7 @@ export const HeaderAnimationSearch = ({
                             key={idea}
                             type="button"
                             onClick={() => handleSuggestion(idea)}
-                            className="group/chip shrink-0 max-w-45 truncate sm:max-w-55 rounded-full border border-[#e8defd] bg-white/70 px-3 py-1 text-[11px] font-medium text-[#66568b] transition-all duration-200 hover:border-[#cbb7ff] hover:bg-[#f5f0ff] hover:text-[#5426c7] hover:-translate-y-px"
+                            className="group/chip shrink-0 max-w-45 truncate sm:max-w-55 rounded-full border border-[#e8defd] bg-white/70 px-3 py-1 text-[11px] font-medium text-[#66568b] transition-all duration-200 hover:border-[#cbb7ff] hover:bg-[#f5f0ff] hover:text-[var(--accent)] hover:-translate-y-px"
                         >
                             {idea}
                         </button>
@@ -348,7 +348,7 @@ export const HeaderAnimationSearch = ({
                                 suggestionIdeas.length
                         )
                     }
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#a68ad9] transition-all duration-200 hover:bg-white hover:text-[#5426c7] hover:rotate-180"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[#a68ad9] transition-all duration-200 hover:bg-white hover:text-[var(--accent)] hover:rotate-180"
                 >
                     <RefreshCw size={14} />
                 </button>

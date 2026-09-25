@@ -25,7 +25,7 @@ export const ContinueCreating = ({ book, onGetIdeas }) => {
           relative w-full overflow-hidden
           rounded-[24px]
           border border-[#dfd9ef]
-          bg-gradient-to-br from-white via-[#fdfcff] to-[#faf8ff]
+          bg-gradient-to-br from-white via-[#fdfcff] to-[var(--tint)]
           shadow-[0_12px_35px_rgba(65,48,120,0.07)]
         "
       >
@@ -272,7 +272,7 @@ export const ContinueCreating = ({ book, onGetIdeas }) => {
                   flex h-10 w-10 shrink-0
                   items-center justify-center
                   rounded-xl
-                  bg-[#f3efff]
+                  bg-[var(--tint)]
                 "
               >
                 <Sparkles

@@ -50,7 +50,7 @@ const quickHelpCards = [
         icon: Wand2,
         title: "Creating Books",
         description: "Learn how to create magical stories with AI or manually.",
-        bg: "bg-[#f3efff]",
+        bg: "bg-[var(--tint)]",
         iconBg: "bg-[#e6dcff]",
         iconColor: "text-[#7c3aed]",
         arrowColor: "text-[#e94b4b]",
@@ -173,7 +173,7 @@ const gettingStartedSteps = [
 /* =====================================================
    SMALL HELPERS
 ====================================================== */
-const CardImageOrIcon = ({ src, Icon, iconColor = "text-[#5426c7]", boxClassName = "" }) => (
+const CardImageOrIcon = ({ src, Icon, iconColor = "text-[var(--accent)]", boxClassName = "" }) => (
     <div
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-[0_2px_8px_rgba(84,38,199,0.08)] ${boxClassName}`}
     >
@@ -202,7 +202,7 @@ export const Help = () => {
                 QUICK HELP
             ====================================================== */}
             <section>
-                <h3 className="mb-3 text-[17px] font-extrabold text-[#241748]">
+                <h3 className="mb-3 text-[17px] font-extrabold text-[var(--ink)]">
                     Quick Help
                 </h3>
 
@@ -224,10 +224,10 @@ export const Help = () => {
                                 />
 
                                 <div>
-                                    <h4 className="text-[15px] font-bold text-[#241748]">
+                                    <h4 className="text-[15px] font-bold text-[var(--ink)]">
                                         {card.title}
                                     </h4>
-                                    <p className="mt-1 text-[13px] leading-snug text-[#71698c]">
+                                    <p className="mt-1 text-[13px] leading-snug text-[var(--text-muted)]">
                                         {card.description}
                                     </p>
                                 </div>
@@ -251,10 +251,10 @@ export const Help = () => {
                 {/* ---------------- FAQ ---------------- */}
                 <section className="rounded-2xl bg-white p-6 shadow-[0_2px_12px_rgba(84,38,199,0.05)]">
                     <div className="mb-4 flex items-center gap-2.5">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#f0eaff]">
-                            <MessageCircle size={18} className="text-[#5426c7]" />
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--tint)]">
+                            <MessageCircle size={18} className="text-[var(--accent)]" />
                         </div>
-                        <h3 className="text-[17px] font-extrabold text-[#241748]">
+                        <h3 className="text-[17px] font-extrabold text-[var(--ink)]">
                             Frequently Asked Questions
                         </h3>
                     </div>
@@ -269,26 +269,26 @@ export const Help = () => {
                                     <button
                                         type="button"
                                         onClick={() => toggleFaq(index)}
-                                        className="flex w-full items-center gap-3 rounded-xl px-2 py-3.5 text-left transition hover:bg-[#faf8ff]"
+                                        className="flex w-full items-center gap-3 rounded-xl px-2 py-3.5 text-left transition hover:bg-[var(--tint)]"
                                     >
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#f3efff]">
-                                            <FaqIcon size={15} className="text-[#5426c7]" />
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--tint)]">
+                                            <FaqIcon size={15} className="text-[var(--accent)]" />
                                         </div>
 
-                                        <span className="flex-1 text-[14.5px] font-semibold text-[#30215c]">
+                                        <span className="flex-1 text-[14.5px] font-semibold text-[var(--ink)]">
                                             {faq.question}
                                         </span>
 
                                         <ChevronDown
                                             size={18}
-                                            className={`shrink-0 text-[#918aa5] transition-transform duration-200 ${
+                                            className={`shrink-0 text-[var(--text-muted)] transition-transform duration-200 ${
                                                 isOpen ? "rotate-180" : ""
                                             }`}
                                         />
                                     </button>
 
                                     {isOpen && (
-                                        <p className="px-2 pb-4 pl-13 pr-4 text-[13.5px] leading-relaxed text-[#71698c]">
+                                        <p className="px-2 pb-4 pl-13 pr-4 text-[13.5px] leading-relaxed text-[var(--text-muted)]">
                                             {faq.answer}
                                         </p>
                                     )}
@@ -297,9 +297,9 @@ export const Help = () => {
                         })}
                     </div>
 
-                    <div className="mt-2 pt-2 text-center text-[13.5px] text-[#71698c]">
+                    <div className="mt-2 pt-2 text-center text-[13.5px] text-[var(--text-muted)]">
                         Can't find the answer you're looking for?{" "}
-                        <a href="#contact-support" className="font-bold text-[#5426c7] hover:underline">
+                        <a href="#contact-support" className="font-bold text-[var(--accent)] hover:underline">
                             Contact Support →
                         </a>
                     </div>
@@ -308,7 +308,7 @@ export const Help = () => {
                 {/* ---------------- GETTING STARTED ---------------- */}
                 <section className="rounded-2xl bg-white p-6 shadow-[0_2px_12px_rgba(84,38,199,0.05)]">
                     <div className="mb-5 flex items-center gap-1.5">
-                        <h3 className="text-[17px] font-extrabold text-[#241748]">
+                        <h3 className="text-[17px] font-extrabold text-[var(--ink)]">
                             Getting Started
                         </h3>
                         <Sparkles size={16} className="text-[#f5b442]" />
@@ -322,7 +322,7 @@ export const Help = () => {
                                 <div key={step.number} className="flex gap-4">
                                     {/* Number + connecting line */}
                                     <div className="flex flex-col items-center">
-                                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5426c7] text-[13px] font-bold text-white">
+                                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[13px] font-bold text-white">
                                             {step.number}
                                         </div>
                                         {!isLast && (
@@ -331,7 +331,7 @@ export const Help = () => {
                                     </div>
 
                                     {/* Card */}
-                                    <div className={`flex flex-1 gap-3 rounded-xl bg-[#faf8ff] p-3.5 ${isLast ? "mb-0" : "mb-3"}`}>
+                                    <div className={`flex flex-1 gap-3 rounded-xl bg-[var(--tint)] p-3.5 ${isLast ? "mb-0" : "mb-3"}`}>
                                         <CardImageOrIcon
                                             src={gettingStartedImages[step.key]}
                                             Icon={step.icon}
@@ -339,10 +339,10 @@ export const Help = () => {
                                         />
 
                                         <div>
-                                            <h4 className="text-[14px] font-bold text-[#5426c7]">
+                                            <h4 className="text-[14px] font-bold text-[var(--accent)]">
                                                 {step.title}
                                             </h4>
-                                            <p className="mt-0.5 text-[13px] leading-snug text-[#71698c]">
+                                            <p className="mt-0.5 text-[13px] leading-snug text-[var(--text-muted)]">
                                                 {step.description}
                                             </p>
                                         </div>
@@ -366,15 +366,15 @@ export const Help = () => {
                         {envelopeImageUrl ? (
                             <img src={envelopeImageUrl} alt="" className="h-full w-full rounded-2xl object-cover" />
                         ) : (
-                            <Mail size={24} className="text-[#5426c7]" />
+                            <Mail size={24} className="text-[var(--accent)]" />
                         )}
                     </div>
 
                     <div>
-                        <h4 className="text-[16px] font-extrabold text-[#241748]">
+                        <h4 className="text-[16px] font-extrabold text-[var(--ink)]">
                             Still need help?
                         </h4>
-                        <p className="mt-0.5 text-[13.5px] text-[#71698c]">
+                        <p className="mt-0.5 text-[13.5px] text-[var(--text-muted)]">
                             Our support team is ready to assist you with anything you need.
                         </p>
                     </div>
@@ -383,12 +383,12 @@ export const Help = () => {
                 <div className="flex flex-col items-center gap-2 sm:items-end">
                     <button
                         type="button"
-                        className="flex items-center gap-2 rounded-full bg-white px-5 py-3 text-[14px] font-bold text-[#5426c7] shadow-[0_2px_8px_rgba(84,38,199,0.10)] transition hover:bg-[#faf8ff]"
+                        className="flex items-center gap-2 rounded-full bg-white px-5 py-3 text-[14px] font-bold text-[var(--accent)] shadow-[0_2px_8px_rgba(84,38,199,0.10)] transition hover:bg-[var(--tint)]"
                     >
                         <Headphones size={17} />
                         Contact Support
                     </button>
-                    <span className="text-[12px] text-[#918aa5]">
+                    <span className="text-[12px] text-[var(--text-muted)]">
                         We usually reply within 24 hours
                     </span>
                 </div>

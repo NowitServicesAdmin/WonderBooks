@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "theme": "node scripts/generate-dark-theme.mjs",
+    "predev": "npm run theme",
     "dev": "vite",
+    "prebuild": "npm run theme",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

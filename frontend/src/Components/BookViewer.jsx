@@ -140,7 +140,8 @@ export const BookViewer = ({ pages, badge = "", onExit, renderInfoPage }) => {
             <div className="relative flex h-full w-full items-center justify-center overflow-hidden px-2 pt-2 pb-8 sm:px-4 sm:pb-9">
                 <div className="relative flex h-full w-full max-w-400 items-center justify-center gap-4">
                     <div ref={stageRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center">
-                    <div className="relative flex shrink-0 items-center justify-center" style={{ width: frameW, height: frameH }}>
+                    {/* wb-keep-light: the book is a paper object, it stays light in dark mode */}
+                    <div className="wb-keep-light relative flex shrink-0 items-center justify-center" style={{ width: frameW, height: frameH }}>
                         <div className="pointer-events-none absolute bottom-2 left-[1.4%] right-[1.4%] top-2.5 z-0 rounded-[29px] bg-[#163971] shadow-[0_24px_38px_rgba(22,57,113,0.28)]" />
                         <div className="pointer-events-none absolute bottom-3.75 left-[1.8%] right-[1.8%] top-3.75 z-1 rounded-[27px] bg-[#163971]" />
 

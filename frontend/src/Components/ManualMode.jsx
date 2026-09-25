@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Cake,
@@ -15,9 +16,6 @@ import { CharacterWorkspace } from "./CharacterIllustration";
 import { createBook } from "../services/bookService";
 import { useNavigate } from "react-router-dom";
 
-/* -------------------------------------------------------------------------- */
-/*                                STORY OPTIONS                               */
-/* -------------------------------------------------------------------------- */
 
 const STORY_OPTIONS = {
     age: [
@@ -448,7 +446,7 @@ const FlyingGhost = ({ ghost, onLanded }) => {
                     Aa
                 </span>
             ) : (
-                <span className="text-[11px] font-bold text-[#6947d7]">{ghost.option.label}</span>
+                <span className="text-[11px] font-bold text-(--accent-hover)">{ghost.option.label}</span>
             )}
         </div>
     );
@@ -467,11 +465,11 @@ const CompactOptionCard = ({ option, isSelected, onSelect, index = 0 }) => {
             className={`
         group relative aspect-square w-full max-w-30
         animate-card-fade-in
-        overflow-hidden rounded-[20px] border
+         rounded-[20px] border
         transition-all duration-200
         ${isSelected
-                    ? "border-[#7252dc] shadow-[0_10px_24px_rgba(105,71,215,0.16)] animate-select-pulse"
-                    : "border-[#e5e1eb] hover:-translate-y-0.5 hover:border-[#c9bce9] hover:shadow-[0_8px_20px_rgba(87,67,150,0.08)]"
+                    ? "border-[#7252dc] shadow-[0_10px_24px_rgba(105,71,215,0.16)] rounded-2xl animate-select-pulse"
+                    : "border-(--border) hover:-translate-y-0.5 hover:border-[#c9bce9] hover:shadow-[0_8px_20px_rgba(87,67,150,0.08)]"
                 }
       `}
         >
@@ -480,11 +478,11 @@ const CompactOptionCard = ({ option, isSelected, onSelect, index = 0 }) => {
                 <img
                     src={option.image}
                     alt={option.label}
-                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                    className="absolute inset-0 h-full w-full object-cover rounded-2xl transition-transform duration-200 group-hover:scale-105"
                 />
             ) : (
                 <div
-                    className={`absolute inset-0 flex items-center justify-center ${isSelected ? "bg-[#f6f2ff]" : "bg-[#faf8fd]"
+                    className={`absolute inset-0 flex items-center justify-center ${isSelected ? "bg-(--tint)" : "bg-(--tint)"
                         }`}
                 >
                     {option.fontFamily ? (
@@ -511,10 +509,10 @@ const CompactOptionCard = ({ option, isSelected, onSelect, index = 0 }) => {
                         shadow-[0_3px_10px_rgba(31,15,74,0.35)] ring-1
                         ${hasImage
                             ? isSelected
-                                ? "bg-[#6947d7]/75 text-white ring-white/40"
+                                ? "bg-(--accent-hover)/75 text-white ring-white/40"
                                 : "bg-[#2b1f52]/55 text-white ring-white/25"
                             : isSelected
-                                ? "bg-[#6947d7]/75 text-white ring-white/40"
+                                ? "bg-(--accent-hover)/75 text-white ring-white/40"
                                 : "bg-white/70 text-[#3f4254] ring-black/10"
                         }
                     `}
@@ -525,13 +523,13 @@ const CompactOptionCard = ({ option, isSelected, onSelect, index = 0 }) => {
 
             {/* Selected badge floats over the top-right corner of the tile */}
             {isSelected && (
-                <div className="absolute -right-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-[#6947d7] text-white shadow-[0_2px_6px_rgba(31,23,63,0.28)] ring-2 ring-white">
+                <div className="absolute -right-1 -top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-(--accent-hover) text-white shadow-[0_2px_6px_rgba(31,23,63,0.28)] ring-2 ring-white">
                     <Check size={11} strokeWidth={3} />
                 </div>
             )}
 
             {isSelected && (
-                <div className="pointer-events-none absolute inset-0 ring-2 ring-inset ring-[#7252dc]" />
+                <div className="pointer-events-none absolute inset-0 ring-2 rounded-2xl ring-inset ring-[#7252dc]" />
             )}
         </button>
     );
@@ -574,7 +572,7 @@ const ImageStyleCard = ({ option, isSelected, onSelect, index = 0 }) => {
                 )}
                 {isSelected && (
                     <div className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#e6791b] text-white shadow-sm">
-                        <Check size={12} strokeWidth={3} />
+                        <Check size={12} strokeWidth={5} />
                     </div>
                 )}
             </div>
@@ -591,7 +589,7 @@ const ImageStyleCard = ({ option, isSelected, onSelect, index = 0 }) => {
                     {option.label}
                 </h4>
                 {option.description && (
-                    <p className="mt-1 text-[10.5px] leading-snug text-[#928c9c]">
+                    <p className="mt-1 text-[10.5px] leading-snug text-(--text-muted)">
                         {option.description}
                     </p>
                 )}
@@ -613,24 +611,24 @@ const CategoryPanel = ({ categoryId, selections, onSelect, showHeader }) => {
         <div
             className={
                 showHeader
-                    ? "rounded-[20px] border border-[#eeeaf2] bg-white p-5"
+                    ? "rounded-[20px] border border-(--tint) bg-white p-5"
                     : ""
             }
         >
             {showHeader && (
                 <div className="mb-4 flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#eee9ff] text-[#6241cc]">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-(--tint) text-[#6241cc]">
                         {Icon && <Icon size={15} />}
                     </div>
                     <div>
                         <h3 className="text-[14px] font-bold text-[#3f3b53]">{meta?.heading}</h3>
-                        <p className="text-[11px] text-[#928c9c]">{meta?.description}</p>
+                        <p className="text-[11px] text-(--text-muted)">{meta?.description}</p>
                     </div>
                 </div>
             )}
 
             {themeMissing ? (
-                <div className="rounded-2xl border border-dashed border-[#e5e1eb] bg-[#faf8fd] p-6 text-center text-[13px] text-[#928c9c]">
+                <div className="rounded-2xl border border-dashed border-(--border) bg-(--tint) p-6 text-center text-[13px] text-(--text-muted)">
                     Pick a theme first to see matching options here.
                 </div>
             ) : isImageStyle ? (
@@ -752,9 +750,9 @@ const StepWorkspace = ({ step, selections, onSelect }) => {
         >
             <AnimationStyles />
 
-            <div className="shrink-0 border-[#eeeaf2]">
+            <div className="shrink-0 border-(--tint)">
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[#eee9ff] text-[#6241cc]">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-(--tint) text-[#6241cc]">
                         <Sparkles size={19} />
                     </div>
                     <div>
@@ -999,12 +997,12 @@ export const ManualMode = () => {
                 </div>
 
                 {/* Footer action bar */}
-                <div className="flex shrink-0 items-center justify-between border-t border-[#eeeaf2] pt-4">
+                <div className="flex shrink-0 items-center justify-between border-t border-(--tint) pt-4">
                     <button
                         type="button"
                         disabled={isFirstStep}
                         onClick={() => setActiveStepId(ALL_STEPS[activeStepIndex - 1].id)}
-                        className="rounded-full px-5 py-2.5 text-[14px] font-semibold text-[#6947d7] transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+                        className="rounded-full px-5 py-2.5 text-[14px] font-semibold text-(--accent-hover) transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
                     >
                         Back
                     </button>

@@ -4,8 +4,8 @@ import { BookOpen, Clock, Search, Sparkles } from "lucide-react";
 import { getMyBooks } from "../../services/bookService";
 
 const AnimatedSearch = ({ search, setSearch, placeholder }) => (
-  <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-[#e4e1ed] bg-[#faf9fc] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
-    <Search size={18} strokeWidth={2} className="shrink-0 text-[#8c87a3]" />
+  <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--tint)] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-[var(--surface)] focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
+    <Search size={18} strokeWidth={2} className="shrink-0 text-[var(--text-muted)]" />
     <input
       type="text"
       value={search}
@@ -205,10 +205,10 @@ export const Books = () => {
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-[#29264d] sm:text-3xl">
+            <h2 className="text-2xl font-extrabold tracking-tight text-[var(--text-heading)] sm:text-3xl">
               Your Books
             </h2>
-            <p className="mt-1.5 text-sm text-[#8f8ba3]">
+            <p className="mt-1.5 text-sm text-[var(--text-muted)]">
               All the stories you've created.
             </p>
           </div>
@@ -223,7 +223,7 @@ export const Books = () => {
         {/* Grid */}
 
         {loading && (
-          <p className="py-16 text-center text-sm font-medium text-[#8f8ba3]">
+          <p className="py-16 text-center text-sm font-medium text-[var(--text-muted)]">
             Loading your books...
           </p>
         )}
@@ -235,7 +235,7 @@ export const Books = () => {
         )}
 
         {!loading && !error && filteredBooks.length === 0 && (
-          <p className="py-16 text-center text-sm font-medium text-[#8f8ba3]">
+          <p className="py-16 text-center text-sm font-medium text-[var(--text-muted)]">
             {books.length === 0
               ? "No books yet. Create your first story!"
               : "No books match your search."}
@@ -659,7 +659,7 @@ export const Books = () => {
           <div className="flex min-h-75 items-center justify-center">
             <div className="text-center">
               <p className="text-base font-semibold text-[#4a4665]">No books found</p>
-              <p className="mt-1.5 text-sm text-[#9995aa]">Try another search.</p>
+              <p className="mt-1.5 text-sm text-[var(--text-muted)]">Try another search.</p>
             </div>
           </div>
         )}

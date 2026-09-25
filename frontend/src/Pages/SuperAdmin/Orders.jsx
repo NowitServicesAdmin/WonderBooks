@@ -29,26 +29,26 @@ export function SuperAdminOrders() {
         <div className="px-4 py-2">
             <div className="mb-6">
                 <h1 className="text-2xl font-extrabold">Orders</h1>
-                <p className="text-sm text-[#70698a]">View and track all book orders</p>
+                <p className="text-sm text-[var(--text-muted)]">View and track all book orders</p>
             </div>
 
             <div className="mb-4 flex items-center gap-3">
-                <div className="flex flex-1 items-center gap-2 rounded-lg border border-[#eeeafa] bg-white px-3 py-2.5">
-                    <Search size={16} className="text-[#70698a]" />
+                <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--tint)] bg-white px-3 py-2.5">
+                    <Search size={16} className="text-[var(--text-muted)]" />
                     <input placeholder="Search by order ID or user..." className="w-full text-sm outline-none" />
                 </div>
-                {/* <select className="rounded-lg border border-[#eeeafa] bg-white px-3 py-2.5 text-sm font-semibold">
+                {/* <select className="rounded-lg border border-[var(--tint)] bg-white px-3 py-2.5 text-sm font-semibold">
                     <option>All Status</option>
                 </select> */}
-                <button className="flex items-center gap-2 rounded-lg border border-[#eeeafa] bg-white px-4 py-2.5 text-sm font-semibold">
+                <button className="flex items-center gap-2 rounded-lg border border-[var(--tint)] bg-white px-4 py-2.5 text-sm font-semibold">
                     <Filter size={16} /> Filter
                 </button>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-[#eeeafa] bg-white">
+            <div className="overflow-x-auto rounded-2xl border border-[var(--tint)] bg-white">
                 <table className="w-full min-w-150 text-sm">
                     <thead>
-                        <tr className="border-b border-[#eeeafa] text-left text-[#70698a]">
+                        <tr className="border-b border-[var(--tint)] text-left text-[var(--text-muted)]">
                             <th className="px-4 py-3 font-semibold">Order ID</th>
                             <th className="px-4 py-3 font-semibold">User</th>
                             <th className="px-4 py-3 font-semibold">No. of Books</th>
@@ -58,14 +58,14 @@ export function SuperAdminOrders() {
                     </thead>
                     <tbody>
                         {orders.map((order) => (
-                            <tr key={order.id} className="border-b border-[#eeeafa] last:border-0">
+                            <tr key={order.id} className="border-b border-[var(--tint)] last:border-0">
                                 <td className="px-4 py-3 font-semibold">{order.id}</td>
                                 <td className="px-4 py-3">{order.user}</td>
-                                <td className="px-4 py-3 text-[#70698a]">{order.books}</td>
-                                <td className="px-4 py-3 text-[#70698a]">{order.amount}</td>
+                                <td className="px-4 py-3 text-[var(--text-muted)]">{order.books}</td>
+                                <td className="px-4 py-3 text-[var(--text-muted)]">{order.amount}</td>
                                 <td className="px-4 py-3"><StatusBadge status={order.status} /></td>
                                 {/* <td className="px-4 py-3">
-                                    <button className="text-[#70698a] hover:text-[#5426c7]"><MoreVertical size={16} /></button>
+                                    <button className="text-[var(--text-muted)] hover:text-[var(--accent)]"><MoreVertical size={16} /></button>
                                 </td> */}
                             </tr>
                         ))}
@@ -73,16 +73,16 @@ export function SuperAdminOrders() {
                 </table>
             </div>
 
-            <div className="mt-4 flex items-center justify-between text-sm text-[#70698a]">
+            <div className="mt-4 flex items-center justify-between text-sm text-[var(--text-muted)]">
                 <span>Showing 1–10 of 1,432 orders</span>
                 <div className="flex items-center gap-1">
                     {[1, 2, 3, 4, 5].map((p) => (
-                        <button key={p} className={`h-8 w-8 rounded-lg text-sm font-semibold ${p === 1 ? "bg-[#5426c7] text-white" : "hover:bg-[#f5f1ff]"}`}>
+                        <button key={p} className={`h-8 w-8 rounded-lg text-sm font-semibold ${p === 1 ? "bg-[var(--accent)] text-white" : "hover:bg-[var(--tint)]"}`}>
                             {p}
                         </button>
                     ))}
                     <span className="px-1">...</span>
-                    <button className="h-8 w-8 rounded-lg text-sm font-semibold hover:bg-[#f5f1ff]">144</button>
+                    <button className="h-8 w-8 rounded-lg text-sm font-semibold hover:bg-[var(--tint)]">144</button>
                 </div>
             </div>
         </div>

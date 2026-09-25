@@ -1,5 +1,28 @@
 @import "tailwindcss";
 
+/* Dark theme (switched by the `dark` class on <html>) */
+@import "./theme/dark.generated.css";
+@import "./theme/dark.css";
+
+/* Theme tokens (light values). Every var(--x) used across the app
+   for colour (--ink, --accent, --tint, --surface, --border, etc.)
+   reads from here — without this block those properties had no
+   value at all, which is why cards lost their tint, icons lost
+   their accent colour, and unrelated borders rendered black
+   (an unresolved border-color falls back to currentColor). */
+:root {
+  --ink: #2B2547;
+  --text-heading: #241f3d;
+  --text-muted: #5B5372;
+  --accent: #5426C7;
+  --accent-hover: #431f9c;
+  --accent-bg: #F1ECFF;
+  --accent-border: #cbb7ff;
+  --tint: #F1ECFF;
+  --surface: #ffffff;
+  --border: #E8E1F7;
+}
+
 html,
 body,
 #root {

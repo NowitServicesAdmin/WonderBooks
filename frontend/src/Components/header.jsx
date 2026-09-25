@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // import { useState } from "react";
 // import {
 //     Bell,
@@ -149,6 +150,7 @@
 import { useState } from "react";
 import { Bell } from "lucide-react";
 import { HeaderAnimationSearch } from "./HeaderAnimationSearch";
+import { ThemeToggle } from "./ThemeToggle";
 
 
 
@@ -193,7 +195,7 @@ export const Header = ({
                     src={imageUrls.background}
                     alt=""
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
+                    className="wb-header-art pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
                 />
             )}
 
@@ -217,6 +219,9 @@ export const Header = ({
             ===================================================== */}
 
             <div className="absolute right-3 top-3 z-30 flex items-center gap-2 md:right-5 md:top-4 md:gap-3">
+
+                {/* Light / dark theme */}
+                <ThemeToggle />
 
                 {/* Notification */}
                 <button
@@ -259,7 +264,7 @@ export const Header = ({
                 MAIN HEADER CONTENT
             ===================================================== */}
 
-            <div className="relative z-10 flex w-full flex-col justify-center gap-2 px-3 py-3 sm:px-5 md:min-h-29.5 md:flex-row md:items-center md:gap-0 md:pr-37.5 xl:pr-82.5">
+            <div className="relative z-10 flex w-full flex-col justify-center gap-2 px-3 py-3 sm:px-5 md:min-h-29.5 md:flex-row md:items-center md:gap-0 md:pr-50 xl:pr-82.5">
 
                 {/* =================================================
                     LEFT ROBOT + MESSAGE

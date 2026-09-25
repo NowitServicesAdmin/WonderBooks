@@ -29,29 +29,29 @@ export function SuperAdminBooks() {
     return (
         <div className="px-4 py-2">
             <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#f0eaff] text-[#5426c7]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--tint)] text-[var(--accent)]">
                     <BookOpen size={20} />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-extrabold text-[#1c1730]">Books</h1>
-                    <p className="text-sm text-[#70698a]">View all generated books</p>
+                    <h1 className="text-2xl font-extrabold text-[var(--ink)]">Books</h1>
+                    <p className="text-sm text-[var(--text-muted)]">View all generated books</p>
                 </div>
             </div>
 
             <div className="mb-2 flex items-center gap-3">
-                <div className="flex flex-1 items-center gap-2 rounded-lg border border-[#eeeafa] bg-white px-3 py-2.5 transition-colors focus-within:border-[#c9b8f5]">
-                    <Search size={16} className="text-[#70698a]" />
+                <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--tint)] bg-white px-3 py-2.5 transition-colors focus-within:border-[#c9b8f5]">
+                    <Search size={16} className="text-[var(--text-muted)]" />
                     <input placeholder="Search books by title, user or ID..." className="w-full text-sm outline-none" />
                 </div>
-                <button className="flex items-center gap-2 rounded-lg border border-[#eeeafa] bg-white px-4 py-2.5 text-sm font-semibold transition-colors hover:border-[#c9b8f5] hover:bg-[#f5f1ff] hover:text-[#5426c7]">
+                <button className="flex items-center gap-2 rounded-lg border border-[var(--tint)] bg-white px-4 py-2.5 text-sm font-semibold transition-colors hover:border-[#c9b8f5] hover:bg-[var(--tint)] hover:text-[var(--accent)]">
                     <Filter size={16} /> Filter
                 </button>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-[#eeeafa] bg-white">
+            <div className="overflow-x-auto rounded-2xl border border-[var(--tint)] bg-white">
                 <table className="w-full min-w-150 text-sm">
                     <thead>
-                        <tr className="border-b border-[#eeeafa] bg-[#faf8ff] text-left text-[#5e5779]">
+                        <tr className="border-b border-[var(--tint)] bg-[var(--tint)] text-left text-[#5e5779]">
                             <th className="px-4 py-3.5 font-semibold">BookID</th>
                             <th className="px-4 py-3.5 font-semibold">Title</th>
                             <th className="px-4 py-3.5 font-semibold">Created By</th>
@@ -63,12 +63,12 @@ export function SuperAdminBooks() {
                         {books.map((book) => (
                             <tr
                                 key={book.id}
-                                className="border-b border-[#eeeafa] transition-colors last:border-0 hover:bg-[#faf8ff]"
+                                className="border-b border-[var(--tint)] transition-colors last:border-0 hover:bg-[var(--tint)]"
                             >
-                                <td className="px-4 py-3 text-[#70698a]">{book.id}</td>
-                                <td className="px-4 py-3 font-semibold text-[#1c1730]">{book.title}</td>
-                                <td className="px-4 py-3 text-[#70698a]">{book.createdBy}</td>
-                                <td className="px-4 py-3 text-[#70698a]">{book.createdOn}</td>
+                                <td className="px-4 py-3 text-[var(--text-muted)]">{book.id}</td>
+                                <td className="px-4 py-3 font-semibold text-[var(--ink)]">{book.title}</td>
+                                <td className="px-4 py-3 text-[var(--text-muted)]">{book.createdBy}</td>
+                                <td className="px-4 py-3 text-[var(--text-muted)]">{book.createdOn}</td>
                                 <td className="px-4 py-3"><StatusBadge status={book.status} /></td>
                             </tr>
                         ))}
@@ -76,21 +76,21 @@ export function SuperAdminBooks() {
                 </table>
             </div>
 
-            <div className="mt-4 flex items-center justify-between text-sm text-[#70698a]">
+            <div className="mt-4 flex items-center justify-between text-sm text-[var(--text-muted)]">
                 <span>Showing 1–8 of 5,892 books</span>
                 <div className="flex items-center gap-1">
                     {[1, 2, 3, 4, 5].map((p) => (
                         <button
                             key={p}
                             className={`h-8 w-8 rounded-lg text-sm font-semibold transition-colors ${
-                                p === 1 ? "bg-[#5426c7] text-white" : "hover:bg-[#f5f1ff]"
+                                p === 1 ? "bg-[var(--accent)] text-white" : "hover:bg-[var(--tint)]"
                             }`}
                         >
                             {p}
                         </button>
                     ))}
                     <span className="px-1">...</span>
-                    <button className="h-8 w-8 rounded-lg text-sm font-semibold transition-colors hover:bg-[#f5f1ff]">737</button>
+                    <button className="h-8 w-8 rounded-lg text-sm font-semibold transition-colors hover:bg-[var(--tint)]">737</button>
                 </div>
             </div>
         </div>

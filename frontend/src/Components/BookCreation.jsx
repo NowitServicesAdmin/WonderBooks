@@ -38,8 +38,8 @@ export const BookCreation = () => {
             onClick={() => setCreationMode("ai")}
             className={`flex h-[46px] w-[88px] items-center justify-center rounded-full transition-all duration-300 ${
               creationMode === "ai"
-                ? "bg-gradient-to-br from-[#6537d7] to-[#4320b5] text-white shadow-[0_6px_18px_rgba(83,45,190,0.3)]"
-                : "text-[#5c5691] hover:bg-[#f5f2ff]"
+                ? "bg-gradient-to-br from-[#6537d7] to-[var(--accent-hover)] text-white shadow-[0_6px_18px_rgba(83,45,190,0.3)]"
+                : "text-[#5c5691] hover:bg-[var(--tint)]"
             }`}
             aria-label="AI Creation Mode"
           >
@@ -51,8 +51,8 @@ export const BookCreation = () => {
             onClick={() => setCreationMode("manual")}
             className={`flex h-[46px] w-[68px] items-center justify-center rounded-full transition-all duration-300 ${
               creationMode === "manual"
-                ? "bg-gradient-to-br from-[#6537d7] to-[#4320b5] text-white shadow-[0_6px_18px_rgba(83,45,190,0.3)]"
-                : "text-[#5c5691] hover:bg-[#f5f2ff]"
+                ? "bg-gradient-to-br from-[#6537d7] to-[var(--accent-hover)] text-white shadow-[0_6px_18px_rgba(83,45,190,0.3)]"
+                : "text-[#5c5691] hover:bg-[var(--tint)]"
             }`}
             aria-label="Manual Creation Mode"
           >

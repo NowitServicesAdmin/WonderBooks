@@ -1,6 +1,4 @@
-
-
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import {
   ArrowRight,
   BookOpen,
@@ -9,8 +7,7 @@ import {
   Clock3,
   FileText,
   Lightbulb,
- 
-  MoreVertical,
+  // MoreVertical,
   PenLine,
   Plus,
   Sparkles,
@@ -19,28 +16,91 @@ import {
   ChevronLeft,
   X,
 } from "lucide-react";
-import { templates, myBooks } from "../../Data/Templatesdata";
+import { templates } from "../../Data/Templatesdata";
+import { getMyBooks } from "../../services/bookService";
 import { ContinueCreating } from "../../Components/AnimatedBook";
 import { useNavigate } from "react-router-dom";
+
+// How many books the "My Books" block on the dashboard shows at most.
+const MAX_DASHBOARD_BOOKS = 6;
+
+// "2 hours ago", "3 days ago", or a short date for anything older than a month.
+const formatUpdated = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr${hours > 1 ? "s" : ""} ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days > 1 ? "s" : ""} ago`;
+
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const toDashboardBook = (b) => ({
+  id: b._id,
+  title: b.title,
+  cover: b.coverImageUrl,
+  updatedAt: formatUpdated(b.updatedAt ?? b.createdAt) || "Updated recently",
+  progress: b.status === "completed" ? 100 : b.status === "failed" ? 0 : 15,
+  status:
+    b.status === "completed"
+      ? "Completed"
+      : b.status === "failed"
+        ? "Failed"
+        : "In Progress",
+});
 
 /* -------------------------------------------------------------------------- */
 /*                               MAIN DASHBOARD                               */
 /* -------------------------------------------------------------------------- */
 
 export const Dashboard = () => {
+  const navigate = useNavigate();
   const [ideasOpen, setIdeasOpen] = useState(false);
 
-  const dashboardBooks = useMemo(() => {
-    const allBooks = myBooks.map((item, index) => ({
-      id: item.id || index,
-      title: item.title,
-      cover: item.cover,
-      updatedAt: item.updatedAt || `Updated ${index + 2} days ago`,
-      progress: item.progress ?? (index === 4 ? 15 : 100),
-    }));
+  const [allBooks, setAllBooks] = useState([]);
+  const [booksLoading, setBooksLoading] = useState(true);
+  const [booksError, setBooksError] = useState("");
 
-    return allBooks.slice(0, 5);
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const data = await getMyBooks();
+        if (cancelled) return;
+        setAllBooks(data.map(toDashboardBook));
+        setBooksError("");
+      } catch {
+        if (cancelled) return;
+        setBooksError("We couldn't load your books.");
+      } finally {
+        if (!cancelled) setBooksLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  // Only the most recent MAX_DASHBOARD_BOOKS show up here - the full list lives on /books.
+  const dashboardBooks = useMemo(
+    () => allBooks.slice(0, MAX_DASHBOARD_BOOKS),
+    [allBooks]
+  );
 
   const templateCards = useMemo(
     () => templates.slice(0, 6),
@@ -59,7 +119,12 @@ export const Dashboard = () => {
                 onGetIdeas={() => setIdeasOpen(true)}
               />
 
-              <MyBooksSection books={dashboardBooks} />
+              <MyBooksSection
+                books={dashboardBooks}
+                loading={booksLoading}
+                error={booksError}
+                onViewAll={() => navigate("/books")}
+              />
 
               {/* <TemplatesSection templates={templateCards} /> */}
             </div>
@@ -82,23 +147,46 @@ export const Dashboard = () => {
 /*                                  MY BOOKS                                  */
 /* -------------------------------------------------------------------------- */
 
-const MyBooksSection = ({ books }) => (
-  <section className="rounded-[20px] border border-[#e5e2ec] bg-white px-6 py-5 shadow-[0_7px_24px_rgba(61,48,104,0.04)]">
-    <SectionHeader icon={BookOpen} title="My Books" />
+const MyBooksSection = ({ books, loading, error, onViewAll }) => (
+  <section className="rounded-[20px] border border-[#e5e2ec] bg-(--surface) px-6 py-5 shadow-[0_7px_24px_rgba(61,48,104,0.04)]">
+    <SectionHeader icon={BookOpen} title="My Books" onViewAll={onViewAll} />
 
-    <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-7 sm:grid-cols-3 md:grid-cols-5">
-      {books.map((book, index) => (
-        <DashboardBookCard key={book.id} book={book} index={index} />
-      ))}
-    </div>
+    {loading && (
+      <p className="py-8 text-center text-sm font-medium text-(--text-muted)">
+        Loading your books...
+      </p>
+    )}
+
+    {!loading && error && (
+      <p className="py-8 text-center text-sm font-medium text-[#d64545]">{error}</p>
+    )}
+
+    {!loading && !error && books.length === 0 && (
+      <p className="py-8 text-center text-sm font-medium text-(--text-muted)">
+        No books yet. Create your first story!
+      </p>
+    )}
+
+    {!loading && !error && books.length > 0 && (
+      <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        {books.map((book) => (
+          <DashboardBookCard key={book.id} book={book} />
+        ))}
+      </div>
+    )}
   </section>
 );
 
-const DashboardBookCard = ({ book, index }) => {
-  const status = index === 1 || index === 3 ? "Completed" : index === 2 ? "In Progress" : index === 4 ? "Draft" : "Completed";
+const DashboardBookCard = ({ book }) => {
+  const navigate = useNavigate();
+  const status = book.status || "Completed";
 
   return (
-    <button className="group min-w-0 text-left">
+    <button
+      type="button"
+      onClick={() => navigate(`/books/${book.id}`)}
+      className="group min-w-0 text-left"
+    >
       <div className="flex h-36.25 items-end justify-center sm:h-38.75">
         <SmallBook book={book} />
       </div>
@@ -110,7 +198,7 @@ const DashboardBookCard = ({ book, index }) => {
 
         <div className="mt-2 flex items-center justify-between gap-2">
           <StatusBadge status={status} />
-          <MoreVertical size={17} className="text-[#333860]" />
+          {/* <MoreVertical size={17} className="text-[#333860]" /> */}
         </div>
 
         <p className="mt-2 text-[11px] text-[#747b95]">
@@ -122,13 +210,17 @@ const DashboardBookCard = ({ book, index }) => {
 };
 
 
-const SectionHeader = ({ icon: Icon, title }) => (
+const SectionHeader = ({ icon: Icon, title, onViewAll }) => (
   <div className="flex items-center justify-between">
     <div className="flex items-center gap-3">
       {Icon && <Icon size={25} className="text-[#4d2ba4]" strokeWidth={1.9} />}
       <h2 className="text-[20px] font-bold text-[#34395c]">{title}</h2>
     </div>
-    <button className="flex items-center gap-1 text-[13px] font-semibold text-[#4d319f] hover:text-[#6a49c4]">
+    <button
+      type="button"
+      onClick={onViewAll}
+      className="flex items-center gap-1 text-[13px] font-semibold text-[#4d319f] hover:text-[#6a49c4]"
+    >
       View All <ArrowRight size={16} />
     </button>
   </div>
@@ -157,22 +249,22 @@ const QuickActions = () => {
   const actions = [
     { title: "Create New Book", subtitle: "Start a new magical story", icon: Plus ,navigation:'/create'},
     { title: "AI Story Ideas", subtitle: "Get inspired with ideas", icon: Sparkles ,navigation:'/home'},
-    { title: "Browse Templates", subtitle: "Choose from beautiful templates", icon: FileText,navigation:'/templates' },
+    { title: "Templates", subtitle: "Choose from beautiful templates", icon: FileText,navigation:'/templates' },
     { title: "My Characters", subtitle: "View your created characters", icon: Users },
   ];
 
   return (
-    <section className="rounded-[20px] border border-[#e4e1ea] bg-white p-5 shadow-[0_7px_24px_rgba(61,48,104,0.045)]">
+    <section className="rounded-[20px] border border-[#e4e1ea] bg-(--surface) p-5 shadow-[0_7px_24px_rgba(61,48,104,0.045)]">
       <div className="mb-4 flex items-center gap-3">
         <Sparkles size={26} className="text-[#4f2aad]" />
         <h2 className="text-[21px] font-bold text-[#33385c]">Quick Actions</h2>
       </div>
 
-      <div className="divide-y divide-[#eeeaf2]">
+      <div className="divide-y divide-(--tint)">
         {actions.map((action) => {
           const Icon = action.icon;
           return (
-            <button key={action.title} className="flex w-full items-center gap-3 py-4 text-left first:pt-1 last:pb-1 group">
+            <button key={action.title} onClick={() =>navigate(action.navigation)} className="flex w-full items-center gap-3 py-4 text-left first:pt-1 last:pb-1 group">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#f0edfa] text-[#5736b1] transition group-hover:bg-[#e8e2fa]">
                 <Icon size={22} />
               </span>
@@ -250,7 +342,7 @@ const JourneyCard = () => {
       : `${months[selectedMonth].slice(0, 3)} ${selectedYear}`;
 
   return (
-    <section className="relative rounded-[20px] border border-[#e4e1ea] bg-white p-5 shadow-[0_7px_24px_rgba(61,48,104,0.045)]">
+    <section className="relative rounded-[20px] border border-[#e4e1ea] bg-(--surface) p-5 shadow-[0_7px_24px_rgba(61,48,104,0.045)]">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -268,8 +360,8 @@ const JourneyCard = () => {
           <button
             onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
             className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 text-[12px] font-medium transition-all ${isMonthPickerOpen
-              ? "border-[#8b6ee8] bg-[#f6f3ff] text-[#5939b1]"
-              : "border-[#e5e1eb] bg-white text-[#646b85] hover:border-[#b9a9e8]"
+              ? "border-[#8b6ee8] bg-(--tint) text-(--accent-hover)"
+              : "border-(--border) bg-(--surface) text-[#646b85] hover:border-[#b9a9e8]"
               }`}
           >
             <CalendarDays size={14} />
@@ -283,13 +375,13 @@ const JourneyCard = () => {
 
           {/* Month Picker Dropdown */}
           {isMonthPickerOpen && (
-            <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-72.5 rounded-2xl border border-[#e7e3ee] bg-white p-4 shadow-[0_16px_40px_rgba(61,48,104,0.15)]">
+            <div className="absolute right-0 top-[calc(100%+10px)] z-50 w-72.5 rounded-2xl border border-[#e7e3ee] bg-(--surface) p-4 shadow-[0_16px_40px_rgba(61,48,104,0.15)]">
 
               {/* Year Navigation */}
               <div className="mb-4 flex items-center justify-between">
                 <button
                   onClick={() => setSelectedYear(selectedYear - 1)}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-[#72778c] transition hover:bg-[#f3f0fa] hover:text-[#5939b1]"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-[#72778c] transition hover:bg-(--tint) hover:text-(--accent-hover)"
                 >
                   <ChevronLeft size={17} />
                 </button>
@@ -303,7 +395,7 @@ const JourneyCard = () => {
                   onClick={() => setSelectedYear(selectedYear + 1)}
                   className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${selectedYear >= currentYear
                     ? "cursor-not-allowed text-[#d4d1db]"
-                    : "text-[#72778c] hover:bg-[#f3f0fa] hover:text-[#5939b1]"
+                    : "text-[#72778c] hover:bg-(--tint) hover:text-(--accent-hover)"
                     }`}
                 >
                   <ChevronRight size={17} />
@@ -313,9 +405,7 @@ const JourneyCard = () => {
               {/* Month Grid */}
               <div className="grid grid-cols-3 gap-2">
                 {months.map((month, index) => {
-                  const isSelected =
-                    selectedMonth === index &&
-                    selectedYear === selectedYear;
+                  const isSelected = selectedMonth === index;
 
                   const isFutureMonth =
                     selectedYear === currentYear &&
@@ -327,10 +417,10 @@ const JourneyCard = () => {
                       disabled={isFutureMonth}
                       onClick={() => handleMonthSelect(index)}
                       className={`rounded-[9px] px-2 py-2.5 text-[12px] font-medium transition-all ${isSelected
-                        ? "bg-[#5939b1] text-white shadow-[0_4px_10px_rgba(89,57,177,0.25)]"
+                        ? "bg-(--accent-hover) text-white shadow-[0_4px_10px_rgba(89,57,177,0.25)]"
                         : isFutureMonth
                           ? "cursor-not-allowed text-[#d8d5df]"
-                          : "text-[#626880] hover:bg-[#f2eff9] hover:text-[#5939b1]"
+                          : "text-[#626880] hover:bg-[#f2eff9] hover:text-(--accent-hover)"
                         }`}
                     >
                       {month.slice(0, 3)}
@@ -340,14 +430,14 @@ const JourneyCard = () => {
               </div>
 
               {/* Footer */}
-              <div className="mt-4 border-t border-[#eeeaf2] pt-3">
+              <div className="mt-4 border-t border-(--tint) pt-3">
                 <button
                   onClick={() => {
                     setSelectedMonth(currentMonth);
                     setSelectedYear(currentYear);
                     setIsMonthPickerOpen(false);
                   }}
-                  className="w-full rounded-[9px] bg-[#f3f0fa] py-2 text-[12px] font-semibold text-[#5939b1] transition hover:bg-[#ebe6f7]"
+                  className="w-full rounded-[9px] bg-(--tint) py-2 text-[12px] font-semibold text-(--accent-hover) transition hover:bg-[#ebe6f7]"
                 >
                   Go to Current Month
                 </button>
@@ -358,7 +448,7 @@ const JourneyCard = () => {
       </div>
 
       {/* Stats */}
-      <div className="mt-4 divide-y divide-[#eeeaf2]">
+      <div className="mt-4 divide-y divide-(--tint)">
         {stats.map((stat) => {
           const Icon = stat.icon;
 
@@ -367,7 +457,7 @@ const JourneyCard = () => {
               key={stat.label}
               className="group flex w-full items-center gap-3 py-4 text-left transition"
             >
-              <span className="flex h-9.5 w-9.5 items-center justify-center rounded-[10px] bg-[#f1eef9] text-[#5939b1] transition group-hover:scale-105 group-hover:bg-[#e9e3fa]">
+              <span className="flex h-9.5 w-9.5 items-center justify-center rounded-[10px] bg-[#f1eef9] text-(--accent-hover) transition group-hover:scale-105 group-hover:bg-[#e9e3fa]">
                 <Icon size={18} />
               </span>
 
@@ -381,7 +471,7 @@ const JourneyCard = () => {
 
               <ChevronRight
                 size={18}
-                className="text-[#b0b2bf] transition group-hover:translate-x-0.5 group-hover:text-[#5939b1]"
+                className="text-[#b0b2bf] transition group-hover:translate-x-0.5 group-hover:text-(--accent-hover)"
               />
             </button>
           );
@@ -409,7 +499,7 @@ const IdeasDrawer = ({ open, onClose }) => {
       <aside className={`fixed bottom-0 right-0 top-0 z-50 flex w-full max-w-107.5 flex-col border-l border-[#e7e2ef] bg-[#fcfbff] shadow-[-16px_0_45px_rgba(37,26,69,0.14)] transition-transform duration-500 ${open ? "translate-x-0" : "translate-x-full"}`}>
         <div className="flex items-start justify-between border-b border-[#ece8f2] p-7">
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-[#eee9ff] text-[#5735b0]"><Lightbulb size={22} /></span>
+            <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-(--tint) text-[#5735b0]"><Lightbulb size={22} /></span>
             <div>
               <h2 className="text-[20px] font-bold text-[#343955]">Story Ideas</h2>
               <p className="mt-1 text-[12px] text-[#7d8296]">Fresh inspiration for your adventure</p>
@@ -419,12 +509,12 @@ const IdeasDrawer = ({ open, onClose }) => {
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="rounded-[14px] border border-[#e3ddf5] bg-[#f7f4ff] p-4">
+          <div className="rounded-[14px] border border-[#e3ddf5] bg-(--tint) p-4">
             <div className="flex gap-3"><Sparkles className="shrink-0 text-[#6749bf]" size={20} /><div><h3 className="font-bold text-[#454b67]">Where should the story go next?</h3><p className="mt-1 text-[12px] leading-5 text-[#777d92]">Choose an idea and use it to continue your magical adventure.</p></div></div>
           </div>
           <div className="mt-5 space-y-3">
             {ideas.map(([title, description], index) => (
-              <button key={title} className="w-full rounded-[14px] border border-[#e7e3ed] bg-white p-4 text-left transition hover:-translate-y-px hover:shadow-md">
+              <button key={title} className="w-full rounded-[14px] border border-[#e7e3ed] bg-(--surface) p-4 text-left transition hover:-translate-y-px hover:shadow-md">
                 <div className="flex items-start justify-between gap-3"><h3 className="font-bold text-[#414661]">{title}</h3><span className="text-[#6749bf]">0{index + 1}</span></div>
                 <p className="mt-2 text-[12px] leading-5 text-[#747a91]">{description}</p>
               </button>
@@ -446,6 +536,7 @@ const StatusBadge = ({ status }) => {
     Completed: "bg-[#eaf7ef] text-[#408467]",
     "In Progress": "bg-[#fff6e7] text-[#c68830]",
     Draft: "bg-[#eef1f7] text-[#5d6684]",
+    Failed: "bg-[#fdecec] text-[#c0392b]",
   };
 
   return <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${styles[status]}`}>{status}</span>;

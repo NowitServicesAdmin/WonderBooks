@@ -185,7 +185,7 @@ export const Auth = () => {
     };
 
     return (
-        <div className="flex min-h-screen w-full items-center justify-center bg-[#f4f1ff] p-3 sm:p-4 md:p-6">
+        <div className="wb-keep-light flex min-h-screen w-full items-center justify-center bg-[#f4f1ff] p-3 sm:p-4 md:p-6">
             <div className="relative w-full max-w-6xl">
                 {/* decorative blobs */}
                 <div className="pointer-events-none absolute -right-10 -top-16 hidden h-56 w-56 rounded-full bg-[#e3d9ff] opacity-70 blur-2xl sm:block" />

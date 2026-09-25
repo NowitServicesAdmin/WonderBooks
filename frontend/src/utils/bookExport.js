@@ -1,10 +1,3 @@
-/**
- * Print / PDF export for a stored book.
- *
- * Mirrors the on-screen book: every page becomes two A4 sheets, an illustration
- * sheet and a story-text sheet, starting with the cover (illustration + title).
- * The closing "The End" page is left out.
- */
 import { getBookImageBlob } from "../services/bookService";
 
 const RTL_LANGUAGES = new Set(["Arabic"]);
@@ -41,6 +34,24 @@ const waitForImages = (doc) =>
     ),
   );
 
+const STORY_FONT_MAX = 22;
+const STORY_FONT_MIN = 10;
+
+const fitStoryText = (doc) => {
+  doc.querySelectorAll(".story").forEach((el) => {
+    const box = el.parentElement;
+    let lo = STORY_FONT_MIN;
+    let hi = STORY_FONT_MAX;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      el.style.fontSize = `${mid}pt`;
+      if (el.scrollHeight <= box.clientHeight) lo = mid;
+      else hi = mid - 1;
+    }
+    el.style.fontSize = `${lo}pt`;
+  });
+};
+
 export const printBook = async ({ title, pages, language }) => {
   const rtl = RTL_LANGUAGES.has(language);
 
@@ -76,7 +87,7 @@ export const printBook = async ({ title, pages, language }) => {
   .art { width: 100%; height: 100%; overflow: hidden; border-radius: 8mm; background: #f5f2ff; }
   .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .copy { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 8mm; }
-  .story { margin: 0; font-size: 22pt; line-height: 1.55; }
+  .story { margin: 0; font-size: ${STORY_FONT_MAX}pt; line-height: 1.55; overflow-wrap: break-word; }
   h1 { margin: 0; font-size: 38pt; line-height: 1.2; color: #29254d; }
   .sub { margin: 5mm 0 0; font-size: 15pt; color: #9893a8; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -97,6 +108,7 @@ export const printBook = async ({ title, pages, language }) => {
   doc.close();
 
   await waitForImages(doc);
+  fitStoryText(doc);
 
   const cleanup = () => iframe.remove();
   iframe.contentWindow.addEventListener("afterprint", cleanup, { once: true });
@@ -112,11 +124,14 @@ const PDF_W = 1240; // A4 at 150 dpi
 const PDF_H = 1754;
 const MARGIN = 110;
 
-// Images come through the API (not straight from the storage bucket) so no CORS setup is needed.
 const loadBitmap = async (bookId, page) => {
-  if (!page.image || page.imageKey == null) return null;
+  if (!page.image) return null;
   try {
-    return await createImageBitmap(await getBookImageBlob(bookId, page.imageKey));
+    const blob =
+      bookId && page.imageKey != null
+        ? await getBookImageBlob(bookId, page.imageKey)
+        : await (await fetch(page.image)).blob();
+    return await createImageBitmap(blob);
   } catch {
     const error = new Error("IMAGE_FAILED");
     error.code = "IMAGE_FAILED";

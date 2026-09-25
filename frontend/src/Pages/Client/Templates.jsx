@@ -36,11 +36,11 @@ export const Templates = () => {
   // Animatd search
   const AnimatedSearch = ({ search, setSearch }) => {
     return (
-      <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-[#e4e1ed] bg-[#faf9fc] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
+      <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--tint)] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
         <Search
           size={18}
           strokeWidth={2}
-          className="shrink-0 text-[#8c87a3]"
+          className="shrink-0 text-[var(--text-muted)]"
         />
 
         <input
@@ -124,12 +124,12 @@ export const Templates = () => {
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <h2 className="text-2xl font-extrabold tracking-tight text-[#29264d] sm:text-3xl">
+              <h2 className="text-2xl font-extrabold tracking-tight text-[var(--text-heading)] sm:text-3xl">
                 Templates
               </h2>
             </div>
 
-            <p className="mt-1.5 text-sm text-[#8f8ba3]">
+            <p className="mt-1.5 text-sm text-[var(--text-muted)]">
               Explore our ready-made stories and find one you love.
             </p>
           </div>
@@ -157,7 +157,7 @@ export const Templates = () => {
                   transition-all
                   ${active
                     ? "border-[#c8c0f6] bg-[#f0edff] text-[#624fc1] shadow-[0_2px_8px_rgba(93,43,197,0.10)]"
-                    : "border-[#e5e2ed] bg-white text-[#77738d] hover:border-[#cec8e8] hover:bg-[#faf9ff]"
+                    : "border-[#e5e2ed] bg-white text-[#77738d] hover:border-[#cec8e8] hover:bg-[var(--tint)]"
                   }
                 `}
               >
@@ -214,7 +214,7 @@ export const Templates = () => {
                     className="absolute inset-y-1 right-0 z-10 w-0.75 opacity-60"
                     style={{
                       background:
-                        "linear-gradient(to bottom, #ffffff, #ece7dc, #ffffff)",
+                        "linear-gradient(to bottom, var(--surface), #ece7dc, var(--surface))",
                     }}
                   />
 
@@ -495,7 +495,7 @@ export const Templates = () => {
               <p className="text-base font-semibold text-[#4a4665]">
                 No templates found
               </p>
-              <p className="mt-1.5 text-sm text-[#9995aa]">
+              <p className="mt-1.5 text-sm text-[var(--text-muted)]">
                 Try another search or category.
               </p>
             </div>

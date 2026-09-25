@@ -10,12 +10,12 @@ import {
 } from "../../services/settingsService";
 
 const tokens = {
-    ink: "#241B3A",
+    ink: "var(--ink)",
     inkSoft: "#5B5372",
     line: "#E8E1F7",
-    purple: "#5426C7",
-    purpleDeep: "#392078",
-    purpleTint: "#F1EBFC",
+    purple: "var(--accent)",
+    purpleDeep: "var(--ink)",
+    purpleTint: "var(--tint)",
     danger: "#D64545",
 };
 
@@ -142,7 +142,7 @@ function IconSelect({ icon: Icon, value, options, onChange }) {
                         borderRadius: 8,
                         borderColor: state.isFocused ? "#a98aff" : tokens.line,
                         boxShadow: state.isFocused ? "0 0 0 2px rgba(169,138,255,0.25)" : "none",
-                        backgroundColor: "#fff",
+                        backgroundColor: "var(--surface)",
                         "&:hover": { borderColor: "#c8b5ff" },
                     }),
                     valueContainer: (base) => ({ ...base, paddingLeft: 44 }),
@@ -151,12 +151,12 @@ function IconSelect({ icon: Icon, value, options, onChange }) {
                     dropdownIndicator: (base) => ({ ...base, color: tokens.inkSoft }),
                     option: (base, state) => ({
                         ...base,
-                        color: state.isSelected ? "#fff" : tokens.ink,
+                        color: state.isSelected ? "var(--surface)" : tokens.ink,
                         backgroundColor: state.isSelected
                             ? tokens.purple
                             : state.isFocused
-                                ? "#f6f3ff"
-                                : "#fff",
+                                ? "var(--tint)"
+                                : "var(--surface)",
                         cursor: "pointer",
                     }),
                     menu: (base) => ({ ...base, borderRadius: 8, overflow: "hidden", zIndex: 50 }),
@@ -380,7 +380,7 @@ function ProfilePanel() {
                         ) : (
                             <div
                                 className="flex h-20 w-20 items-center justify-center rounded-full text-2xl font-bold text-white sm:h-24 sm:w-24"
-                                style={{ background: "linear-gradient(135deg,#B98CF0,#5426C7)" }}
+                                style={{ background: "linear-gradient(135deg,#B98CF0,var(--accent))" }}
                             >
                                 {initials || "U"}
                             </div>
@@ -397,7 +397,7 @@ function ProfilePanel() {
                             aria-label="Change photo"
                             onClick={handleAvatarClick}
                             disabled={avatarUploading}
-                            className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-[#eeeafa] bg-white shadow-md disabled:opacity-60"
+                            className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--tint)] bg-white shadow-md disabled:opacity-60"
                             style={{ color: tokens.purple }}
                         >
                             {avatarUploading ? (
@@ -482,7 +482,7 @@ function ProfilePanel() {
                                 onClick={() => toggleIn("characters", id)}
                                 aria-pressed={active}
                                 className={`flex h-11 items-center gap-2 rounded-full border bg-white pl-1.5 pr-4 text-sm font-medium transition-all duration-200 ${active
-                                        ? "border-[#5426c7] text-[#241B3A] shadow-[0_4px_12px_rgba(84,38,199,0.15)]"
+                                        ? "border-[var(--accent)] text-[var(--ink)] shadow-[0_4px_12px_rgba(84,38,199,0.15)]"
                                         : "border-[#efe6d8] text-[#5B5372] hover:border-[#cbb7ff]"
                                     }`}
                             >
@@ -491,7 +491,7 @@ function ProfilePanel() {
                                 </span>
                                 {id}
                                 {active && (
-                                    <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-[#5426c7] text-white">
+                                    <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-[var(--accent)] text-white">
                                         <Check size={12} strokeWidth={3} />
                                     </span>
                                 )}
@@ -521,7 +521,7 @@ function ProfilePanel() {
                         className="w-full resize-none rounded-xl border bg-white px-4 pb-7 pt-3 text-sm outline-none transition focus:border-[#a98aff] focus:ring-2 focus:ring-[#a98aff]/25"
                         style={{ borderColor: tokens.line, color: tokens.ink }}
                     />
-                    <span className="pointer-events-none absolute bottom-2.5 right-4 text-xs text-[#8f8ba3]">
+                    <span className="pointer-events-none absolute bottom-2.5 right-4 text-xs text-[var(--text-muted)]">
                         {form.about.length}/{ABOUT_LIMIT}
                     </span>
                 </div>
@@ -539,7 +539,7 @@ function ProfilePanel() {
                     type="button"
                     onClick={() => setForm(saved)}
                     disabled={saving || loading}
-                    className="h-12 rounded-xl border bg-white px-7 text-sm font-semibold transition hover:bg-[#f5f1ff] active:scale-[0.98] disabled:opacity-60"
+                    className="h-12 rounded-xl border bg-white px-7 text-sm font-semibold transition hover:bg-[var(--tint)] active:scale-[0.98] disabled:opacity-60"
                     style={{ borderColor: tokens.line, color: tokens.ink }}
                 >
                     Cancel
@@ -548,7 +548,7 @@ function ProfilePanel() {
                     type="button"
                     onClick={handleSave}
                     disabled={saving || loading}
-                    className="flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(84,38,199,0.28)] transition hover:bg-[#4520a7] active:scale-[0.98] disabled:opacity-60"
+                    className="flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(84,38,199,0.28)] transition hover:bg-[var(--accent-hover)] active:scale-[0.98] disabled:opacity-60"
                     style={{ backgroundColor: tokens.purple }}
                 >
                     {saving ? (
@@ -573,11 +573,11 @@ function ProfilePanel() {
    NOTIFICATIONS
 =================================================================*/
 const NOTIFICATION_ITEMS = [
-    { id: "email", icon: Mail, title: "Email notifications", desc: "Receive updates about your books, orders and exciting news.", tint: "#F4EFFF", iconBg: "#EADFFF", iconColor: "#5426C7", on: true, details: "Sent to the email address on your profile. You can change it any time in Profile." },
+    { id: "email", icon: Mail, title: "Email notifications", desc: "Receive updates about your books, orders and exciting news.", tint: "var(--tint)", iconBg: "var(--tint)", iconColor: "var(--accent)", on: true, details: "Sent to the email address on your profile. You can change it any time in Profile." },
     { id: "push", icon: Bell, title: "Push notifications", desc: "Get notified about new features, tips and special offers.", tint: "#FFF0F5", iconBg: "#FFDDE8", iconColor: "#E23B7A", on: true, details: "Shown on this device while Wonder Books is installed or open." },
     { id: "reminders", icon: BookOpen, title: "Reading reminders", desc: "Gentle reminders to keep the reading habit alive.", tint: "#EEF4FF", iconBg: "#DCE8FF", iconColor: "#4F7BE8", on: true, details: "A soft nudge when it's time for your child's next story." },
     { id: "orders", icon: Package, title: "Order updates", desc: "Updates about your book orders and delivery status.", tint: "#FFF6EA", iconBg: "#FFE7CC", iconColor: "#E08E45", on: true, details: "Confirmations, shipping and delivery updates for every order." },
-    { id: "recs", icon: Sparkles, title: "Personalized recommendations", desc: "Story ideas based on your child's interests.", tint: "#F4EFFF", iconBg: "#EADFFF", iconColor: "#5426C7", on: true, details: "Uses the reading preferences you set in Profile." },
+    { id: "recs", icon: Sparkles, title: "Personalized recommendations", desc: "Story ideas based on your child's interests.", tint: "var(--tint)", iconBg: "var(--tint)", iconColor: "var(--accent)", on: true, details: "Uses the reading preferences you set in Profile." },
     { id: "offers", icon: Megaphone, title: "Product updates & offers", desc: "News, announcements and exclusive offers.", tint: "#FFF0F5", iconBg: "#FFDDE8", iconColor: "#E23B7A", on: false, details: "Occasional news about new features, plans and promotions." },
 ];
 
@@ -636,7 +636,7 @@ function NotificationsPanel({ goTo }) {
 
                 <Card className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-3">
-                        <IconTile icon={CalendarDays} bg="#EADFFF" color={tokens.purple} size={22} className="h-11 w-11" />
+                        <IconTile icon={CalendarDays} bg="var(--tint)" color={tokens.purple} size={22} className="h-11 w-11" />
                         <div>
                             <p className="text-base font-bold" style={{ color: tokens.ink }}>
                                 Notification frequency
@@ -657,8 +657,8 @@ function NotificationsPanel({ goTo }) {
                                     onClick={() => setFrequency(f)}
                                     aria-pressed={active}
                                     className={`h-11 rounded-full border px-6 text-sm font-semibold transition-all duration-200 ${active
-                                            ? "border-transparent bg-[#5426c7] text-white shadow-[0_5px_12px_rgba(84,38,199,0.25)]"
-                                            : "border-[#eeeafa] bg-white text-[#241B3A] hover:border-[#cbb7ff] hover:bg-[#f9f6ff]"
+                                            ? "border-transparent bg-[var(--accent)] text-white shadow-[0_5px_12px_rgba(84,38,199,0.25)]"
+                                            : "border-[var(--tint)] bg-white text-[var(--ink)] hover:border-[#cbb7ff] hover:bg-[var(--tint)]"
                                         }`}
                                 >
                                     {f}
@@ -681,7 +681,7 @@ function NotificationsPanel({ goTo }) {
                             Choose the notifications that matter to you and your little reader. We'll keep the noise low and the magic high!
                         </p>
                     </div>
-                    <div className="flex flex-col items-center bg-linear-to-b from-[#FBF9FF] to-[#F1EBFC] px-5 pb-5">
+                    <div className="flex flex-col items-center bg-linear-to-b from-[#FBF9FF] to-[var(--tint)] px-5 pb-5">
                         <img
                             src={ROBOT_IMG}
                             alt="Wonder Books robot reading a book"
@@ -695,7 +695,7 @@ function NotificationsPanel({ goTo }) {
 
                 <Card>
                     <div className="flex items-start gap-3">
-                        <IconTile icon={HelpCircle} bg="#EADFFF" color={tokens.purple} size={22} className="h-11 w-11 rounded-full" />
+                        <IconTile icon={HelpCircle} bg="var(--tint)" color={tokens.purple} size={22} className="h-11 w-11 rounded-full" />
                         <div>
                             <p className="text-base font-bold" style={{ color: tokens.ink }}>
                                 Need help?
@@ -708,7 +708,7 @@ function NotificationsPanel({ goTo }) {
                     <button
                         type="button"
                         onClick={() => goTo?.("help")}
-                        className="mt-4 flex h-12 w-full items-center justify-between rounded-xl border bg-white px-4 text-sm font-semibold transition hover:bg-[#f9f6ff]"
+                        className="mt-4 flex h-12 w-full items-center justify-between rounded-xl border bg-white px-4 text-sm font-semibold transition hover:bg-[var(--tint)]"
                         style={{ borderColor: tokens.line, color: tokens.purpleDeep }}
                     >
                         <span className="flex items-center gap-2.5">
@@ -747,7 +747,7 @@ function DownloadDataCard() {
                     type="button"
                     onClick={() => setRequested(true)}
                     disabled={requested}
-                    className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-6 text-sm font-semibold text-white transition hover:bg-[#4520a7] active:scale-[0.98] disabled:opacity-70"
+                    className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-6 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)] active:scale-[0.98] disabled:opacity-70"
                     style={{ backgroundColor: tokens.purple }}
                 >
                     {requested && <Check size={16} />}
@@ -818,7 +818,7 @@ function DeleteAccountCard() {
 }
 
 const QUICK_HELP = [
-    { id: "contact", icon: MessageCircle, title: "Contact Us", desc: "Need more help? Our support team is here for you.", tint: "#F4EFFF", border: "#E3D8FB", iconBg: "#EADFFF", iconColor: "#5426C7" },
+    { id: "contact", icon: MessageCircle, title: "Contact Us", desc: "Need more help? Our support team is here for you.", tint: "var(--tint)", border: "#E3D8FB", iconBg: "var(--tint)", iconColor: "var(--accent)" },
     { id: "center", icon: BookOpen, title: "Help Center", desc: "Browse guides and helpful resources.", tint: "#EEF4FF", border: "#D6E3FF", iconBg: "#DCE8FF", iconColor: "#4F7BE8" },
     { id: "report", icon: TriangleAlert, title: "Report a Problem", desc: "Let us know what went wrong. We'll look into it and help you.", tint: "#FFF0F1", border: "#FFD9DC", iconBg: "#FFDDE0", iconColor: "#E5333D" },
 ];
@@ -839,7 +839,7 @@ function HelpAboutPanel() {
             {/* Quick help */}
             <Card>
                 <div className="flex items-center gap-3">
-                    <IconTile icon={Headset} bg="#EADFFF" color={tokens.purple} />
+                    <IconTile icon={Headset} bg="var(--tint)" color={tokens.purple} />
                     <div>
                         <p className="text-lg font-extrabold" style={{ color: tokens.purple }}>
                             Quick Help
@@ -881,9 +881,9 @@ function HelpAboutPanel() {
             {/* FAQ + About */}
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <Card className="p-3! sm:p-4!">
-                    <div className="flex items-center justify-between rounded-xl bg-[#F4EFFF] px-3 py-3">
+                    <div className="flex items-center justify-between rounded-xl bg-[var(--tint)] px-3 py-3">
                         <div className="flex items-center gap-3">
-                            <IconTile icon={HelpCircle} bg={tokens.purple} color="#fff" size={22} className="h-10 w-10 rounded-full" />
+                            <IconTile icon={HelpCircle} bg={tokens.purple} color="var(--surface)" size={22} className="h-10 w-10 rounded-full" />
                             <p className="text-base font-extrabold sm:text-lg" style={{ color: tokens.purple }}>
                                 Frequently Asked Questions
                             </p>
@@ -980,7 +980,7 @@ function SettingsBreadcrumb({ activeId, onSelect }) {
                 onClick={() => setOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 transition ${open ? "bg-[#f1ebfc]" : "hover:bg-[#f5f1ff]"
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 transition ${open ? "bg-[var(--tint)]" : "hover:bg-[var(--tint)]"
                     }`}
                 style={{ color: tokens.purpleDeep }}
             >
@@ -993,7 +993,7 @@ function SettingsBreadcrumb({ activeId, onSelect }) {
 
             <ChevronRight size={17} className="text-[#a9a2c0]" />
 
-            <span className="text-[#5426c7]">{active.title}</span>
+            <span className="text-[var(--accent)]">{active.title}</span>
 
             {open && (
                 <div
@@ -1013,11 +1013,11 @@ function SettingsBreadcrumb({ activeId, onSelect }) {
                                     setOpen(false);
                                 }}
                                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${isActive
-                                        ? "bg-[#f1ebfc] text-[#5426c7]"
-                                        : "text-[#241B3A] hover:bg-[#f9f6ff]"
+                                        ? "bg-[var(--tint)] text-[var(--accent)]"
+                                        : "text-[var(--ink)] hover:bg-[var(--tint)]"
                                     }`}
                             >
-                                <cat.icon size={18} className={isActive ? "text-[#5426c7]" : "text-[#5B5372]"} />
+                                <cat.icon size={18} className={isActive ? "text-[var(--accent)]" : "text-[#5B5372]"} />
                                 {cat.title}
                             </button>
                         );

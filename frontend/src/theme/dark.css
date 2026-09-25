@@ -1,0 +1,125 @@
+html.dark {
+  color-scheme: dark;
+
+  /* Dark values for the same theme tokens declared in :root
+     (index.css). This is what makes the toggle switches (and
+     everything else keyed off --accent/--tint) visible in dark
+     mode instead of blending into the dark card background. */
+  --ink: #ece9f7;
+  --text-heading: #f3f1fb;
+  --text-muted: #adafc5;
+  --accent: #8b6ee8;
+  --accent-hover: #a58cf2;
+  --accent-bg: #2b2342;
+  --accent-border: #4e4077;
+  --tint: #251e39;
+  --surface: #1e1929;
+  --border: #392f57;
+}
+
+html.dark body {
+  background-color: #120f1f;
+  color: #ece9f7;
+}
+
+/* wb-keep-light elements (the book viewer, the Auth screen) are meant
+   to stay fully light even in dark mode. The generated overrides above
+   already protect the literal Tailwind color classes with :not(.wb-keep-light),
+   but the shared theme tokens (--ink, --accent, --tint, etc.) are CSS
+   custom properties that inherit right through those class boundaries.
+   Without this reset, anything inside a wb-keep-light element that reads
+   one of those tokens (var(--text-heading), var(--accent)...) still gets
+   the dark-mode value - e.g. the book's title page keeps its white
+   background but its title/labels flip to near-white text and vanish. */
+html.dark .wb-keep-light,
+html.dark .wb-keep-light * {
+  --ink: #2B2547;
+  --text-heading: #241f3d;
+  --text-muted: #5B5372;
+  --accent: #5426C7;
+  --accent-hover: #431f9c;
+  --accent-bg: #F1ECFF;
+  --accent-border: #cbb7ff;
+  --tint: #F1ECFF;
+  --surface: #ffffff;
+  --border: #E8E1F7;
+}
+
+html.wb-theme-switching,
+html.wb-theme-switching *,
+html.wb-theme-switching *::before,
+html.wb-theme-switching *::after {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease,
+    border-color 0.25s ease,
+    fill 0.25s ease,
+    stroke 0.25s ease !important;
+}
+
+/* The header's cloud artwork is a light picture - dim it so it doesn't glow,
+   but keep enough brightness that it still reads as art, not a black box. */
+html.dark .wb-header-art {
+  filter: brightness(0.55) saturate(0.75) hue-rotate(-8deg);
+}
+
+/* The header's readability overlay was auto-converted to a flat dark-grey
+   wash (matching its light "white" origin 1:1), which is why the whole
+   header loses its purple identity and reads as a plain black bar. Retint
+   it toward the brand purple instead, so the header still feels branded. */
+html.dark .from-white\/30 {
+  --tw-gradient-from: rgba(84, 38, 199, 0.35) !important;
+}
+html.dark .via-white\/10 {
+  --tw-gradient-via: rgba(84, 38, 199, 0.12) !important;
+}
+html.dark .to-white\/20 {
+  --tw-gradient-to: rgba(20, 14, 36, 0.55) !important;
+}
+
+/* ---- react-select (Settings page dropdowns) ---- */
+html.dark [class$="-control"] {
+  background-color: #1e1929 !important;
+  border-color: #392f57 !important;
+}
+html.dark [class$="-control"]:hover {
+  border-color: #6a56a8 !important;
+}
+html.dark [class$="-singleValue"],
+html.dark [class$="-Input"],
+html.dark [class$="-Input"] input {
+  color: #ece9f7 !important;
+}
+html.dark [class$="-menu"] {
+  background-color: #1e1929 !important;
+  border: 1px solid #392f57;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
+}
+html.dark [class$="-option"] {
+  background-color: #1e1929 !important;
+  color: #ece9f7 !important;
+}
+html.dark [class$="-option"]:hover,
+html.dark [class$="-option"]:active {
+  background-color: #2b2342 !important;
+}
+html.dark [class$="-option"][aria-selected="true"] {
+  background-color: #5426c7 !important;
+  color: #fff !important;
+}
+html.dark [class$="-indicatorSeparator"] {
+  background-color: #392f57 !important;
+}
+
+/* ---- recharts (super admin dashboard) ---- */
+html.dark .recharts-cartesian-grid line {
+  stroke: #322a4b;
+}
+html.dark .recharts-default-tooltip {
+  background-color: #1e1929 !important;
+  border-color: #392f57 !important;
+}
+html.dark .recharts-tooltip-label,
+html.dark .recharts-tooltip-item {
+  color: #ece9f7 !important;
+}

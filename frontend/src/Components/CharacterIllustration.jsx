@@ -226,8 +226,8 @@ export const CharacterWorkspace = ({
         w-full
         rounded-[15px]
         border
-        border-[#e3deea]
-        bg-[#fcfbfd]
+        border-[var(--border)]
+        bg-[var(--surface)]
         text-[14px]
         text-[#4b4655]
         outline-none
@@ -236,7 +236,7 @@ export const CharacterWorkspace = ({
         focus:border-[#8062db]
         focus:bg-white
         focus:ring-4
-        focus:ring-[#eee9ff]
+        focus:ring-[var(--tint)]
     `;
 
     const textareaClass = `
@@ -245,8 +245,8 @@ export const CharacterWorkspace = ({
         resize-none
         rounded-[15px]
         border
-        border-[#e3deea]
-        bg-[#fcfbfd]
+        border-[var(--border)]
+        bg-[var(--surface)]
         px-5
         py-3.5
         text-[13px]
@@ -258,7 +258,7 @@ export const CharacterWorkspace = ({
         focus:border-[#8062db]
         focus:bg-white
         focus:ring-4
-        focus:ring-[#eee9ff]
+        focus:ring-[var(--tint)]
     `;
 
     //    check
@@ -292,7 +292,7 @@ export const CharacterWorkspace = ({
                     border-b
                     border-[#eeeaf3]
                     bg-linear-to-r
-                    from-[#faf8ff]
+                    from-[var(--tint)]
                     to-white
                     px-4
                     py-4
@@ -309,7 +309,7 @@ export const CharacterWorkspace = ({
                             items-center
                             justify-center
                             rounded-[14px]
-                            bg-[#eee8ff]
+                            bg-[var(--tint)]
                             text-[#6543cf]
                         "
                     >
@@ -368,7 +368,7 @@ export const CharacterWorkspace = ({
                             Choose the type of character
                         </h3>
 
-                        <p className="mt-1 text-[11px] text-[#9b95a5]">
+                        <p className="mt-1 text-[11px] text-[var(--text-muted)]">
                             Select what kind of character you want to create.
                         </p>
                     </div>
@@ -403,8 +403,8 @@ export const CharacterWorkspace = ({
 
                         ${isSelected
                                             ? `
-                                    border-[#6947d7]
-                                    bg-[#6947d7]
+                                    border-[var(--accent-hover)]
+                                    bg-[var(--accent-hover)]
                                     text-white
                                     shadow-[0_7px_18px_rgba(105,71,215,0.22)]
                                 `
@@ -413,7 +413,7 @@ export const CharacterWorkspace = ({
                                     bg-white
                                     text-[#676174]
                                     hover:border-[#cbbdea]
-                                    hover:bg-[#faf8ff]
+                                    hover:bg-[var(--tint)]
                                 `
                                         }
                     `}
@@ -445,7 +445,7 @@ export const CharacterWorkspace = ({
                                 items-center
                                 justify-center
                                 rounded-[10px]
-                                bg-[#f1edff]
+                                bg-[var(--tint)]
                                 text-[#6b4bd3]
                             "
                         >
@@ -460,7 +460,7 @@ export const CharacterWorkspace = ({
                                 details
                             </h3>
 
-                            <p className="mt-0.5 text-[11px] text-[#9b95a5]">
+                            <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
                                 {currentCharacter
                                     ? "Your saved details are shown below. You can update them anytime."
                                     : "Add the details you'd like to use for this character."}
@@ -491,7 +491,7 @@ export const CharacterWorkspace = ({
                                     gap-1.5
                                     text-[12px]
                                     font-semibold
-                                    text-[#585261]
+                                    text-[var(--text-muted)]
                                 "
                             >
                                 <UserRound
@@ -527,7 +527,7 @@ export const CharacterWorkspace = ({
                                     gap-1.5
                                     text-[12px]
                                     font-semibold
-                                    text-[#585261]
+                                    text-[var(--text-muted)]
                                 "
                             >
                                 <CalendarDays
@@ -564,7 +564,7 @@ export const CharacterWorkspace = ({
                                     gap-1.5
                                     text-[12px]
                                     font-semibold
-                                    text-[#585261]
+                                    text-[var(--text-muted)]
                                 "
                             >
                                 <Users
@@ -610,8 +610,8 @@ export const CharacterWorkspace = ({
                                                 ${isSelected
                                                     ? option.selectedClass
                                                     : `
-                                                            border-[#e3deea]
-                                                            bg-[#fcfbfd]
+                                                            border-[var(--border)]
+                                                            bg-[var(--surface)]
                                                             text-[#686171]
                                                             hover:border-[#cfc5de]
                                                             hover:bg-white
@@ -678,7 +678,7 @@ export const CharacterWorkspace = ({
                                     gap-1.5
                                     text-[12px]
                                     font-semibold
-                                    text-[#585261]
+                                    text-[var(--text-muted)]
                                 "
                             >
                                 <Heart
@@ -724,7 +724,7 @@ export const CharacterWorkspace = ({
                                     gap-1.5
                                     text-[12px]
                                     font-semibold
-                                    text-[#585261]
+                                    text-[var(--text-muted)]
                                 "
                             >
                                 <Utensils
@@ -776,7 +776,7 @@ export const CharacterWorkspace = ({
                                     items-center
                                     justify-center
                                     rounded-[10px]
-                                    bg-[#f1edff]
+                                    bg-[var(--tint)]
                                     text-[#6b4bd3]
                                 "
                             >
@@ -836,13 +836,13 @@ export const CharacterWorkspace = ({
                                 border
                                 border-dashed
                                 border-[#d9d1e4]
-                                bg-[#fcfbfd]
+                                bg-[var(--surface)]
                                 px-4
                                 text-left
                                 transition-all
                                 duration-200
                                 hover:border-[#9278dc]
-                                hover:bg-[#faf8ff]
+                                hover:bg-[var(--tint)]
                             "
                         >
                             <div className="flex items-center gap-3">
@@ -899,7 +899,7 @@ export const CharacterWorkspace = ({
                                 rounded-[15px]
                                 border
                                 border-[#ded5eb]
-                                bg-[#faf8fd]
+                                bg-[var(--tint)]
                                 p-2.5
                             "
                         >
@@ -957,7 +957,7 @@ export const CharacterWorkspace = ({
                                     bg-white
                                     text-[#756b81]
                                     hover:border-[#cbbde0]
-                                    hover:text-[#6947d7]
+                                    hover:text-[var(--accent-hover)]
                                 "
                                 title="Change photo"
                             >
@@ -1033,7 +1033,7 @@ export const CharacterWorkspace = ({
                         <h3 className="text-[14px] font-bold text-[#4b4658]">
                             Story language & lettering
                         </h3>
-                        <p className="mt-1 text-[11px] text-[#9b95a5]">
+                        <p className="mt-1 text-[11px] text-[var(--text-muted)]">
                             These apply to the whole story, not just this character.
                         </p>
                     </div>
@@ -1051,7 +1051,7 @@ export const CharacterWorkspace = ({
                                     gap-1.5
                                     text-[12px]
                                     font-semibold
-                                    text-[#585261]
+                                    text-[var(--text-muted)]
                                 "
                             >
                                 <Languages
@@ -1088,14 +1088,14 @@ export const CharacterWorkspace = ({
 
                                                 ${isSelected
                                                     ? `
-                                                        border-[#6947d7]
-                                                        bg-[#f6f2ff]
+                                                        border-[var(--accent-hover)]
+                                                        bg-[var(--tint)]
                                                         text-[#5e3ccc]
                                                         shadow-[0_6px_14px_rgba(105,71,215,0.14)]
                                                     `
                                                     : `
-                                                        border-[#e3deea]
-                                                        bg-[#fcfbfd]
+                                                        border-[var(--border)]
+                                                        bg-[var(--surface)]
                                                         text-[#686171]
                                                         hover:border-[#cbbde0]
                                                         hover:bg-white
@@ -1124,7 +1124,7 @@ export const CharacterWorkspace = ({
                                     gap-1.5
                                     text-[12px]
                                     font-semibold
-                                    text-[#585261]
+                                    text-[var(--text-muted)]
                                 "
                             >
                                 <Type
@@ -1162,14 +1162,14 @@ export const CharacterWorkspace = ({
 
                                                 ${isSelected
                                                     ? `
-                                                        border-[#6947d7]
-                                                        bg-[#f6f2ff]
+                                                        border-[var(--accent-hover)]
+                                                        bg-[var(--tint)]
                                                         text-[#5e3ccc]
                                                         shadow-[0_6px_14px_rgba(105,71,215,0.14)]
                                                     `
                                                     : `
-                                                        border-[#e3deea]
-                                                        bg-[#fcfbfd]
+                                                        border-[var(--border)]
+                                                        bg-[var(--surface)]
                                                         text-[#686171]
                                                         hover:border-[#cbbde0]
                                                         hover:bg-white
@@ -1244,7 +1244,7 @@ export const CharacterWorkspace = ({
 
                         ${formData.name.trim()
                             ? `
-                                    bg-[#6947d7]
+                                    bg-[var(--accent-hover)]
                                     text-white
                                     shadow-[0_8px_18px_rgba(105,71,215,0.22)]
                                     hover:bg-[#5e3ccc]

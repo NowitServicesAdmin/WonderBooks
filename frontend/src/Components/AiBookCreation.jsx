@@ -85,7 +85,7 @@ export const AiBookCreation = () => {
     return (
         <div className="relative w-full overflow-hidden pb-8">
             {/* Background Glow */}
-            <div className="pointer-events-none absolute left-1/2 top-25 h-105 w-225 -translate-x-1/2 rounded-full bg-[#eee8ff]/30 blur-[120px]" />
+            <div className="pointer-events-none absolute left-1/2 top-25 h-105 w-225 -translate-x-1/2 rounded-full bg-[var(--tint)]/30 blur-[120px]" />
 
             <div className="relative z-10 mx-auto flex w-full max-w-315 flex-col">
                 {/* ================= ROBOT + MESSAGE ================= */}
@@ -112,7 +112,7 @@ export const AiBookCreation = () => {
 
                             const themes = [
                                 {
-                                    iconBg: "bg-gradient-to-br from-[#eee8ff] to-[#ddd2ff]",
+                                    iconBg: "bg-gradient-to-br from-[var(--tint)] to-[#ddd2ff]",
                                     border: "hover:border-[#cbbcf3]",
                                     glow: "hover:shadow-[0_12px_28px_rgba(112,84,214,0.14)]",
                                 },
@@ -139,7 +139,7 @@ export const AiBookCreation = () => {
                                 <button
                                     key={index}
                                     onClick={() => handleIdeaClick(idea.text)}
-                                    className={`group relative flex h-24 w-full items-center gap-3 overflow-hidden rounded-[20px] border px-4 text-left transition-all duration-300 ease-out ${isSelected ? "border-[#7654d8] bg-linear-to-br from-[#faf8ff] to-[#f1edff] shadow-[0_10px_28px_rgba(99,66,190,0.16)]" : `border-[#e5e1ed] bg-white/75 ${theme.border} ${theme.glow}`} hover:-translate-y-0.75 active:translate-y-0`}
+                                    className={`group relative flex h-24 w-full items-center gap-3 overflow-hidden rounded-[20px] border px-4 text-left transition-all duration-300 ease-out ${isSelected ? "border-[#7654d8] bg-linear-to-br from-[var(--tint)] to-[var(--tint)] shadow-[0_10px_28px_rgba(99,66,190,0.16)]" : `border-[#e5e1ed] bg-white/75 ${theme.border} ${theme.glow}`} hover:-translate-y-0.75 active:translate-y-0`}
                                 >
                                     {/* Background Glow */}
                                     <div className="absolute -right-5 -top-5 h-20 w-20 rounded-full bg-white/50 opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-100" />
@@ -212,7 +212,7 @@ export const AiBookCreation = () => {
                             >
                                 <div
                                     className={`max-w-[75%] rounded-[20px] px-5 py-3.5 text-[15px] leading-6 ${message.role === "user"
-                                        ? "rounded-br-md bg-[#5A39C7] text-white"
+                                        ? "rounded-br-md bg-[var(--accent)] text-white"
                                         : "rounded-bl-md border border-[#E5E1ED] bg-white text-[#53577D]"
                                         }`}
                                 >
@@ -250,7 +250,7 @@ export const AiBookCreation = () => {
                 <div className="mx-auto mt-10 w-full max-w-275">
                     <div className="flex items-center rounded-[22px] border border-[#DED9EE] bg-white px-5 py-2 shadow-[0_12px_35px_rgba(120,100,180,0.08)] transition-all duration-300 focus-within:border-[#B9A7E8] focus-within:shadow-[0_16px_40px_rgba(74,50,145,0.12)]">
                         {/* Left AI Icon */}
-                        <div className="mr-4 flex h-11.5 w-11.5 shrink-0 items-center justify-center rounded-[14px] bg-linear-to-br from-[#F0EAFF] to-[#E3D7FF] text-[#5A39C7]">
+                        <div className="mr-4 flex h-11.5 w-11.5 shrink-0 items-center justify-center rounded-[14px] bg-linear-to-br from-[#F0EAFF] to-[#E3D7FF] text-[var(--accent)]">
                             <Sparkles size={23} />
                         </div>
 
@@ -280,7 +280,7 @@ export const AiBookCreation = () => {
                         <button
                             onClick={handleSubmit}
                             disabled={!storyIdea.trim()}
-                            className="flex h-13 w-14.5 shrink-0 items-center justify-center rounded-[10px] bg-linear-to-r from-[#6539D5] to-[#4822B8] text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)] active:translate-y-0 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-13 w-14.5 shrink-0 items-center justify-center rounded-[10px] bg-linear-to-r from-[#6539D5] to-[var(--accent-hover)] text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)] active:translate-y-0 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
                             aria-label="Create book"
                         >
                             <Send size={22} strokeWidth={2.3} />

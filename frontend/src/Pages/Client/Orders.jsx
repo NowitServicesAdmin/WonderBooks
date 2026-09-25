@@ -310,7 +310,7 @@ export const OrderDetails = ({
       {/* Top */}
       {/* -------------------------------------------------------------- */}
 
-      <div className="relative border-b border-[#efedf3] px-8 pb-6 pt-7">
+      <div className="relative border-b border-[var(--tint)] px-8 pb-6 pt-7">
         <button
           onClick={onClose}
           className="absolute right-6 top-6 text-[#687092] transition hover:text-[#403780]"
@@ -381,7 +381,7 @@ export const OrderDetails = ({
                             : "border-[#cfceda] bg-white text-[#aaa9b8]"
                           }
                           ${active
-                            ? "ring-4 ring-[#eee9ff]"
+                            ? "ring-4 ring-[var(--tint)]"
                             : ""
                           }
                         `}
@@ -448,7 +448,7 @@ export const OrderDetails = ({
 
       {!isCancelled && (
         <div className="mx-8 mt-4 flex items-center gap-4 rounded-[10px] border border-[#d9d0f3] bg-[#f8f6ff] px-5 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#eee9ff] text-[#634ac4]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--tint)] text-[#634ac4]">
             <Printer size={17} />
           </div>
 
@@ -485,11 +485,11 @@ export const OrderDetails = ({
       {/* Shipping + payment */}
       {/* -------------------------------------------------------------- */}
 
-      <div className="mx-8 mt-4 grid grid-cols-[1fr_1fr] overflow-hidden rounded-[12px] border border-[#eceaf2]">
+      <div className="mx-8 mt-4 grid grid-cols-[1fr_1fr] overflow-hidden rounded-[12px] border border-[var(--tint)]">
 
         {/* Shipping */}
 
-        <div className="border-r border-[#eceaf2] px-5 py-4">
+        <div className="border-r border-[var(--tint)] px-5 py-4">
           <div className="flex items-center justify-between">
             <h4 className="text-[12px] font-bold text-[#2f3456]">
               Shipping Address
@@ -548,7 +548,7 @@ export const OrderDetails = ({
               </span>
             </div>
 
-            <div className="border-t border-[#eceaf2] pt-3">
+            <div className="border-t border-[var(--tint)] pt-3">
               <div className="flex justify-between font-bold text-[#393061]">
                 <span>Total Paid</span>
                 <span>₹{order.price}</span>
@@ -562,7 +562,7 @@ export const OrderDetails = ({
       {/* Book details */}
       {/* -------------------------------------------------------------- */}
 
-      <div className="mx-8 mt-4 rounded-[12px] border border-[#eceaf2] p-5">
+      <div className="mx-8 mt-4 rounded-[12px] border border-[var(--tint)] p-5">
         <h4 className="text-[12px] font-bold text-[#2f3456]">
           Book Details
         </h4>
@@ -633,7 +633,7 @@ export const OrderDetails = ({
       {/* Bottom actions */}
       {/* -------------------------------------------------------------- */}
 
-      <div className="mt-auto flex items-center justify-between border-t border-[#efedf3] px-8 py-5">
+      <div className="mt-auto flex items-center justify-between border-t border-[var(--tint)] px-8 py-5">
         <button className="flex items-center gap-2 rounded-[9px] border border-[#bcb0eb] px-4 py-2.5 text-[12px] font-semibold text-[#5743b2] transition hover:bg-[#f7f5ff]">
           <Download size={16} />
           Download Invoice
@@ -773,7 +773,7 @@ export const Orders = () => {
 
           <section
             className={
-              hasSelection ? "border-r border-[#efedf3]" : ""
+              hasSelection ? "border-r border-[var(--tint)]" : ""
             }
           >
 

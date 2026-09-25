@@ -5,11 +5,11 @@ import { usePlanCatalog } from "../../hooks/usePlanCatalog";
 import { getMyPaymentHistory } from "../../services/subscriptionService";
 
 const tokens = {
-    ink: "#241B3A",
+    ink: "var(--ink)",
     inkSoft: "#5B5372",
     purple: "#6D28D9",
     purpleDeep: "#4C1D95",
-    purpleTint: "#F1EBFC",
+    purpleTint: "var(--tint)",
     line: "#E8E1F7",
 };
 
@@ -101,7 +101,7 @@ const SubscriptionPanel = () => {
                         className="flex flex-1 items-center justify-center rounded-full text-xs font-semibold transition-colors"
                         style={{
                             background: billing === "monthly" ? tokens.purple : "transparent",
-                            color: billing === "monthly" ? "#fff" : tokens.ink,
+                            color: billing === "monthly" ? "var(--surface)" : tokens.ink,
                         }}
                     >
                         Monthly
@@ -112,7 +112,7 @@ const SubscriptionPanel = () => {
                         className="flex flex-1 items-center justify-center rounded-full text-xs font-semibold transition-colors"
                         style={{
                             background: billing === "yearly" ? tokens.purple : "transparent",
-                            color: billing === "yearly" ? "#fff" : tokens.ink,
+                            color: billing === "yearly" ? "var(--surface)" : tokens.ink,
                         }}
                     >
                         Yearly
@@ -124,7 +124,7 @@ const SubscriptionPanel = () => {
             {plansLoading ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {[0, 1, 2].map((i) => (
-                        <div key={i} className="h-70 animate-pulse rounded-2xl bg-[#f1ebfc]" />
+                        <div key={i} className="h-70 animate-pulse rounded-2xl bg-[var(--tint)]" />
                     ))}
                 </div>
             ) : plans.length === 0 ? (
@@ -271,7 +271,7 @@ const SubscriptionPanel = () => {
                     Payment history
                 </h3>
                 {paymentsLoading ? (
-                    <div className="h-16 animate-pulse rounded-xl bg-[#f1ebfc]" />
+                    <div className="h-16 animate-pulse rounded-xl bg-[var(--tint)]" />
                 ) : payments.length === 0 ? (
                     <div
                         className="flex items-center gap-2 rounded-xl border border-dashed p-4 text-sm"

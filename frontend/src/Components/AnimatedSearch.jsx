@@ -42,11 +42,11 @@ export function AnimatedSearch({ search, setSearch }) {
   }, [search]);
 
   return (
-    <div className="flex h-11 w-[420px] items-center gap-2 rounded-xl border border-[#e4e1ed] bg-[#faf9fc] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)]">
+    <div className="flex h-11 w-[420px] items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--tint)] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)]">
       <Search
         size={18}
         strokeWidth={2}
-        className="shrink-0 text-[#8c87a3]"
+        className="shrink-0 text-[var(--text-muted)]"
       />
 
       <input

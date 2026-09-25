@@ -214,7 +214,7 @@ export const StepRail = ({
                                             className={`
                                                 absolute inset-1.25 rounded-full transition-colors duration-300 lg:inset-2
                                                 ${isActive
-                                                    ? "bg-linear-to-br from-[#f1edff] to-[#e6ddfb]"
+                                                    ? "bg-linear-to-br from-(--tint) to-[#e6ddfb]"
                                                     : isCompleted
                                                         ? "bg-[#f7f4fd]"
                                                         : "bg-[#f8f7fa]"
@@ -284,7 +284,7 @@ export const StepRail = ({
                                                 "
                                             >
 
-                                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#6947d7]" />
+                                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-(--accent-hover)" />
 
                                                 <span className="min-w-0 flex-1 truncate">
                                                     {preview}

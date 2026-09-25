@@ -26,7 +26,7 @@ export function Layout({ header = true, superadmin = false }) {
 
     return (
         <SubscriptionProvider enabled={!superadmin}>
-            <div className="flex h-screen overflow-hidden text-[#29204f]">
+            <div className="flex h-screen overflow-hidden text-[var(--text-heading)]">
                 {/* ================= SIDEBAR ================= */}
                 <SideNav
                     superadmin={superadmin}
@@ -42,14 +42,14 @@ export function Layout({ header = true, superadmin = false }) {
                         type="button"
                         aria-label="Open menu"
                         onClick={() => setMobileMenuOpen(true)}
-                        className="fixed left-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-xl border border-[#eeeafa] bg-white text-[#5426c7] shadow-md transition-all active:scale-95 md:hidden"
+                        className="fixed left-3 top-3 z-30 flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--tint)] bg-[var(--surface)] text-[var(--accent)] shadow-md transition-all active:scale-95 md:hidden"
                     >
                         <Menu size={20} />
                     </button>
 
                     {/* Fixed Header */}
                     {header && (
-                        <div className="z-20 flex-none bg-white">
+                        <div className="z-20 flex-none bg-[var(--surface)]">
                             <Header
                                 superadmin={superadmin}
                                 userName={user?.name || user?.email?.split("@")[0] || "there"}
