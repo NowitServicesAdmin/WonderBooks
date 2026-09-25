@@ -17,7 +17,7 @@ import { createBook } from "../services/bookService";
 import { useNavigate } from "react-router-dom";
 
 
-const STORY_OPTIONS = {
+export const STORY_OPTIONS = {
     age: [
         {
             id: "0-3",

@@ -1,4 +1,6 @@
 import crypto from "crypto";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import mongoose from "mongoose";
 import book from "../models/book.js";
 import { analyzeStory } from "../components/storyAnalyzer.js";
@@ -734,10 +736,6 @@ const getCharacterReferenceImages = async (
     return references.slice(0, 4);
 };
 
-
-
-
-
 // Runs the whole (slow) generation pipeline AFTER the HTTP response has already
 // been sent. The book document (status: "generating") exists before this starts,
 // so the "My Books" page can show a loading skeleton and poll until it finishes.
@@ -1189,25 +1187,24 @@ export const getBookById = async (req, res) => {
         });
     }
 };
-
 export const testImagePrompts = async (req, res) => {
     try {
         console.log("Triggering");
 
-        const imagePrompts = await generateImagePrompt(generatedStory);
+        // const imagePrompts = await generateImagePrompt(generatedStory);
 
-        console.log(imagePrompts, "@imagePrompt");
+        // console.log(imagePrompts, "@imagePrompt");
 
-        const page1Prompt = imagePrompts.images[0].prompt;
+        // const page1Prompt = imagePrompts.images[0].prompt;
 
         console.log("Generating image for page 1...");
 
-        const imageBuffer = await generateImage(page1Prompt);
+        // const imageBuffer = await generateImage(page1Prompt);
 
-        console.log("Generated image size:", imageBuffer.length);
+        // console.log("Generated image size:", imageBuffer.length);
 
-        res.set("Content-Type", "image/png");
-        res.send(imageBuffer);
+        // res.set("Content-Type", "image/png");
+        // res.send(imageBuffer);
     } catch (error) {
         console.error("Image generation error:", error);
 
@@ -1218,9 +1215,296 @@ export const testImagePrompts = async (req, res) => {
     }
 };
 
-// Streams one of the book's images through the API so the browser can read it
-// (used for the PDF download - the storage bucket itself needn't allow CORS).
-// :index is "cover" or the 0-based page position.
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const MODEL = process.env.CHAT_MODEL || "gpt-4.1-mini";
+
+const callLLM = async ({ system, messages }) => {
+    const response = await openai.chat.completions.create({
+        model: MODEL,
+        messages: [
+            { role: "system", content: system },
+            ...messages.map((m) => ({
+                role: m.role === "assistant" ? "assistant" : "user",
+                content: m.content
+            }))
+        ],
+        response_format: { type: "json_object" } // enforces valid JSON output, no markdown fences
+    });
+
+    return response.choices[0]?.message?.content ?? "";
+};
+
+/* ------------------------------------------------------------------ */
+/* Allowed values — keep in sync with what your pipeline understands   */
+/* ------------------------------------------------------------------ */
+
+const ALLOWED = {
+    age: ["0-2 years", "3-5 years", "6-8 years", "9-12 years"],
+    imageStyle: ["Watercolor", "Cartoon", "3D animated", "Pencil sketch", "Flat vector"],
+    language: ["English", "Hindi", "Spanish", "French", "German"],
+    font: ["Rounded & Playful", "Classic Storybook", "Clean & Simple", "Handwritten"],
+    characterType: ["Child", "Parent", "Grandparent", "Sibling", "Friend", "Pet"]
+};
+
+const DEFAULTS = {
+    age: "3-5 years",
+    theme: "Adventure",
+    subject: "Family",
+    centralmsg: "Be kind",
+    imageStyle: "Watercolor",
+    language: "English",
+    font: "Rounded & Playful"
+};
+
+const MAX_QUESTIONS = 2;
+
+/* ------------------------------------------------------------------ */
+/* Prompt                                                              */
+/* ------------------------------------------------------------------ */
+
+const buildSystemPrompt = ({ state, questionsAsked }) => `
+You are Bookie, a warm, playful assistant inside a children's picture-book app.
+People type rough, casual ideas like "we are going on a road trip". Turn that into a complete story brief
+silently, and talk like a friendly person, not a form.
+
+WHAT TO DO
+1. From the user's words, infer and fill: idea, theme, subject, centralmsg, imageStyle, language, font, age, characters.
+   - "idea": enrich their rough input into a charming 2-3 sentence story premise (settings, mood, a small
+     problem or surprise). Keep their facts (names, places, who is travelling).
+   - theme / subject / centralmsg: short free-text labels (1-4 words), e.g. "Adventure", "Family road trip", "Togetherness".
+   - imageStyle, language, font, age must be EXACTLY one of the allowed values below, or null if unknown.
+   - language: the language the user writes in if supported, else "English".
+   - Extra people or pets they mention (mom, dog, grandma) become characters.
+2. Never ask for something you can reasonably infer or choose yourself.
+3. The ONLY things you may ask about, and only if missing: who the story is for (age group) and the hero's name.
+   Ask at most ONE question per reply. One friendly sentence can cover both.
+4. Questions asked so far: ${questionsAsked}. If that is ${MAX_QUESTIONS} or more, do NOT ask anything.
+   Make sensible assumptions and finish.
+5. When you have enough, set "ready": true and reply with a short, excited recap of the enhanced story
+   (2-3 sentences, mention the hero). Tell them they can type any change or press Create.
+6. If the user asks for a change, update the brief, keep "ready": true, and briefly confirm what changed.
+7. Keep everything already in the current brief unless the user changes it.
+8. Reply style: 1-3 short sentences, warm, no lists, no headings. Never mention fields, settings, JSON or forms.
+   Reply in the user's language.
+9. "chips": 0-3 short tappable suggestions ONLY when you ask a question (e.g. age groups). Otherwise [].
+
+ALLOWED VALUES
+age: ${JSON.stringify(ALLOWED.age)}
+imageStyle: ${JSON.stringify(ALLOWED.imageStyle)}
+language: ${JSON.stringify(ALLOWED.language)}
+font: ${JSON.stringify(ALLOWED.font)}
+character type: ${JSON.stringify(ALLOWED.characterType)}
+
+CURRENT BRIEF
+${JSON.stringify(state)}
+
+OUTPUT: return ONLY a JSON object, no markdown, in exactly this shape:
+{
+  "reply": string,
+  "storySettings": {
+    "idea": string, "theme": string, "subject": string, "centralmsg": string,
+    "imageStyle": string|null, "language": string|null, "font": string|null, "age": string|null
+  },
+  "characters": [
+    { "id": string|null, "type": string, "name": string, "gender": string, "age": string, "hobbies": string, "favouriteFood": string }
+  ],
+  "ready": boolean,
+  "chips": string[]
+}
+Use "" for unknown character details. The first character is the hero.
+`.trim();
+
+/* ------------------------------------------------------------------ */
+/* Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+const str = (v, max = 400) =>
+    typeof v === "string" ? v.trim().slice(0, max) : "";
+
+const oneOf = (v, list) => {
+    const s = str(v, 80).toLowerCase();
+    return list.find((item) => item.toLowerCase() === s) || null;
+};
+
+const normalizeMessages = (messages) => {
+    const out = [];
+
+    for (const m of (Array.isArray(messages) ? messages : []).slice(-24)) {
+        const role = m?.role === "assistant" ? "assistant" : "user";
+        const content = str(m?.content, 2000);
+        if (!content) continue;
+
+        if (out.length === 0 && role !== "user") continue;
+
+        const last = out[out.length - 1];
+        if (last && last.role === role) {
+            last.content += `\n${content}`;
+        } else {
+            out.push({ role, content });
+        }
+    }
+    return out;
+};
+
+const parseJson = (raw) => {
+    const cleaned = String(raw || "")
+        .replace(/```json|```/g, "")
+        .trim();
+
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("No JSON in model reply");
+
+    return JSON.parse(cleaned.slice(start, end + 1));
+};
+
+const sanitizeCharacters = (list, previous = []) => {
+    const usedIds = new Set();
+
+    return (Array.isArray(list) ? list : [])
+        .filter((c) => str(c?.name))
+        .slice(0, 6)
+        .map((c, index) => {
+            const name = str(c.name, 60);
+
+            // keep existing ids so uploaded photos stay attached
+            const prev =
+                previous.find((p) => p.id && p.id === c.id) ||
+                previous.find((p) => p.name?.toLowerCase() === name.toLowerCase());
+
+            let id = prev?.id || str(c.id, 40);
+            if (!id || usedIds.has(id)) {
+                id = `c${crypto.randomUUID().slice(0, 8)}`;
+            }
+            usedIds.add(id);
+
+            return {
+                id,
+                type: oneOf(c.type, ALLOWED.characterType) || (index === 0 ? "Child" : "Friend"),
+                name,
+                gender: str(c.gender, 20),
+                age: str(c.age, 20),
+                hobbies: str(c.hobbies, 120),
+                favouriteFood: str(c.favouriteFood, 120)
+            };
+        });
+};
+
+const sanitizeSettings = (s = {}) => ({
+    idea: str(s.idea, 1200),
+    theme: str(s.theme, 60),
+    subject: str(s.subject, 80),
+    centralmsg: str(s.centralmsg, 80),
+    imageStyle: oneOf(s.imageStyle, ALLOWED.imageStyle),
+    language: oneOf(s.language, ALLOWED.language),
+    font: oneOf(s.font, ALLOWED.font),
+    age: oneOf(s.age, ALLOWED.age)
+});
+
+export const chatBook = async (req, res) => {
+    try {
+        const messages = normalizeMessages(req.body?.messages);
+
+        if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
+            return res.status(400).json({
+                success: false,
+                message: "A user message is required"
+            });
+        }
+
+        const prevSettings = sanitizeSettings(req.body?.state?.storySettings);
+        const prevCharacters = sanitizeCharacters(req.body?.state?.characters);
+
+        const questionsAsked = messages.filter(
+            (m) => m.role === "assistant" && m.content.includes("?")
+        ).length;
+
+        const raw = await callLLM({
+            system: buildSystemPrompt({
+                state: { storySettings: prevSettings, characters: prevCharacters },
+                questionsAsked
+            }),
+            messages
+        });
+
+        let parsed;
+        try {
+            parsed = parseJson(raw);
+        } catch {
+            return res.json({
+                success: true,
+                reply: "Sorry, I got a bit muddled. Could you tell me your story idea once more?",
+                state: { storySettings: prevSettings, characters: prevCharacters },
+                ready: false,
+                chips: []
+            });
+        }
+
+        const storySettings = sanitizeSettings(parsed.storySettings);
+        const characters = sanitizeCharacters(parsed.characters, prevCharacters);
+
+        // keep earlier values when the model returns null
+        for (const key of Object.keys(storySettings)) {
+            if (!storySettings[key] && prevSettings[key]) {
+                storySettings[key] = prevSettings[key];
+            }
+        }
+
+        // fill the things we never ask the user about
+        storySettings.theme ||= DEFAULTS.theme;
+        storySettings.subject ||= DEFAULTS.subject;
+        storySettings.centralmsg ||= DEFAULTS.centralmsg;
+        storySettings.imageStyle ||= DEFAULTS.imageStyle;
+        storySettings.language ||= DEFAULTS.language;
+        storySettings.font ||= DEFAULTS.font;
+
+        // the two things we may ask about; stop asking after MAX_QUESTIONS
+        const stillMissing = !storySettings.age || characters.length === 0;
+
+        if (stillMissing && questionsAsked >= MAX_QUESTIONS) {
+            storySettings.age ||= DEFAULTS.age;
+            if (characters.length === 0) {
+                characters.push({
+                    id: `c${crypto.randomUUID().slice(0, 8)}`,
+                    type: "Child",
+                    name: "Buddy",
+                    gender: "",
+                    age: "",
+                    hobbies: "",
+                    favouriteFood: ""
+                });
+            }
+        }
+
+        const ready =
+            Boolean(parsed.ready) &&
+            Boolean(storySettings.age) &&
+            characters.length > 0 &&
+            Boolean(storySettings.idea);
+
+        const chips = (Array.isArray(parsed.chips) ? parsed.chips : [])
+            .map((c) => str(c, 40))
+            .filter(Boolean)
+            .slice(0, 3);
+
+        return res.json({
+            success: true,
+            reply: str(parsed.reply, 900) || "Tell me more about your story!",
+            state: { storySettings, characters },
+            ready,
+            chips: ready ? [] : chips
+        });
+    } catch (error) {
+        console.error("Book chat error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Something went wrong"
+        });
+    }
+};
+
 export const getBookImage = async (req, res) => {
     try {
         const { bookId, index } = req.params;
