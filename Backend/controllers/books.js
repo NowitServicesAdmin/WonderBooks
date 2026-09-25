@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-
+import OpenAI from "openai";
 import mongoose from "mongoose";
 import book from "../models/book.js";
 import { analyzeStory } from "../components/storyAnalyzer.js";
@@ -736,10 +736,6 @@ const getCharacterReferenceImages = async (
     return references.slice(0, 4);
 };
 
-
-
-
-
 // Runs the whole (slow) generation pipeline AFTER the HTTP response has already
 // been sent. The book document (status: "generating") exists before this starts,
 // so the "My Books" page can show a loading skeleton and poll until it finishes.
@@ -1219,27 +1215,24 @@ export const testImagePrompts = async (req, res) => {
     }
 };
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const MODEL = process.env.CHAT_MODEL || "gemini-3.6-flash";
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const MODEL = process.env.CHAT_MODEL || "gpt-4.1-mini";
 
 const callLLM = async ({ system, messages }) => {
-    const model = genAI.getGenerativeModel({
+    const response = await openai.chat.completions.create({
         model: MODEL,
-        systemInstruction: system
+        messages: [
+            { role: "system", content: system },
+            ...messages.map((m) => ({
+                role: m.role === "assistant" ? "assistant" : "user",
+                content: m.content
+            }))
+        ],
+        response_format: { type: "json_object" } // enforces valid JSON output, no markdown fences
     });
 
-    // Gemini uses role "model" instead of "assistant", and the last
-    // message is sent separately via sendMessage, not in the history.
-    const history = messages.slice(0, -1).map((m) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }]
-    }));
-
-    const chat = model.startChat({ history });
-    const last = messages[messages.length - 1];
-    const result = await chat.sendMessage(last.content);
-
-    return result.response.text();
+    return response.choices[0]?.message?.content ?? "";
 };
 
 /* ------------------------------------------------------------------ */
@@ -1409,11 +1402,6 @@ const sanitizeSettings = (s = {}) => ({
     age: oneOf(s.age, ALLOWED.age)
 });
 
-/* ------------------------------------------------------------------ */
-/* POST /api/books/chat                                                */
-/* body: { messages: [{role, content}], state: { storySettings, characters } } */
-/* ------------------------------------------------------------------ */
-
 export const chatBook = async (req, res) => {
     try {
         const messages = normalizeMessages(req.body?.messages);
@@ -1516,9 +1504,7 @@ export const chatBook = async (req, res) => {
         });
     }
 };
-// Streams one of the book's images through the API so the browser can read it
-// (used for the PDF download - the storage bucket itself needn't allow CORS).
-// :index is "cover" or the 0-based page position.
+
 export const getBookImage = async (req, res) => {
     try {
         const { bookId, index } = req.params;

@@ -19,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 /*                                STORY OPTIONS                               */
 /* -------------------------------------------------------------------------- */
 
-const STORY_OPTIONS = {
+export const STORY_OPTIONS = {
     age: [
         {
             id: "0-3",
