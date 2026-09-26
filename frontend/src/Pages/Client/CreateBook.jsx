@@ -18,13 +18,13 @@ export const CreateBook = () => {
   const navigate = useNavigate();
   const handleCreateAI = () => {
     console.log("Create with AI clicked");
-    navigate("/bookcreation");
+    navigate("bookcreation");
     // Navigate to AI creation flow
   };
 
   const handleCreateManual = () => {
     console.log("Create manually clicked");
-    navigate("/bookcreation");
+    navigate("bookcreation");
     // Navigate to Manual creation flow
   };
 

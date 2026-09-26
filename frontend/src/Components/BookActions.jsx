@@ -5,9 +5,11 @@ import {
   Download,
   Loader2,
   Printer,
+  ShoppingCartIcon,
   Volume2,
 } from "lucide-react";
 import { downloadBookPdf, printBook } from "../utils/bookExport";
+import { PrintOrderModal } from "./PrintOrderModal";
 
 const BTN =
   "inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 sm:px-4";
@@ -16,16 +18,17 @@ const BTN_ACTIVE = "border-[var(--accent)] bg-[var(--accent)] text-white hover:b
 
 // Who reads the story aloud. Only the picker exists so far - the reading itself comes later.
 const READER_VOICES = [
-  { id: "grandmother", label: "Grandmother", icons : "" },
-  { id: "grandfather", label: "Grandfather", icons : "" },
-  { id: "mother", label: "Mother", icons : "" },
-  { id: "father", label: "Father", icons : "" },
-  { id: "brother", label: "Brother", icons : "" },
-  { id: "sister", label: "Sister", icons : "" },
+  { id: "grandmother", label: "Grandmother", icons: "" },
+  { id: "grandfather", label: "Grandfather", icons: "" },
+  { id: "mother", label: "Mother", icons: "" },
+  { id: "father", label: "Father", icons: "" },
+  { id: "brother", label: "Brother", icons: "" },
+  { id: "sister", label: "Sister", icons: "" },
 ];
 
 export const BookActions = ({ book, pages }) => {
   const language = book.storyData?.language || "English";
+  const font = book.storyData?.font;
 
   const [downloading, setDownloading] = useState(false);
   const [notice, setNotice] = useState(null); // { tone: "ok" | "error", text }
@@ -34,6 +37,8 @@ export const BookActions = ({ book, pages }) => {
   const [voiceMenuOpen, setVoiceMenuOpen] = useState(false);
   const [voice, setVoice] = useState(null);
   const voiceMenuRef = useRef(null);
+
+  const [orderModalOpen, setOrderModalOpen] = useState(false);
 
   useEffect(() => () => clearTimeout(noticeTimer.current), []);
 
@@ -64,7 +69,7 @@ export const BookActions = ({ book, pages }) => {
     if (downloading) return;
     setDownloading(true);
     try {
-      await downloadBookPdf({ bookId: book._id, title: book.title, pages, language });
+      await downloadBookPdf({ bookId: book._id, title: book.title, pages, language, font });
     } catch {
       flash("error", "Couldn't create the PDF. Please try again.");
     } finally {
@@ -74,10 +79,15 @@ export const BookActions = ({ book, pages }) => {
 
   const handlePrint = async () => {
     try {
-      await printBook({ title: book.title, pages, language });
+      await printBook({ title: book.title, pages, language, font });
     } catch {
       flash("error", "Couldn't open the print dialog. Please try again.");
     }
+  };
+
+  const handleOrderSuccess = (order) => {
+    setOrderModalOpen(false);
+    flash("ok", `Order placed! We'll print "${book.title}" and ship it your way.`);
   };
 
   const handleVoiceSelect = (id) => {
@@ -108,14 +118,24 @@ export const BookActions = ({ book, pages }) => {
         ) : (
           <Download size={17} />
         )}
-        <span className="hidden sm:inline">
+        {/* <span className="hidden sm:inline">
           {downloading ? "Preparing..." : "Download"}
-        </span>
+        </span> */}
       </button>
 
       <button type="button" onClick={handlePrint} className={`${BTN} ${BTN_IDLE}`}>
         <Printer size={17} />
-        <span className="hidden sm:inline">Print</span>
+        {/* <span className="hidden sm:inline">Print</span> */}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setOrderModalOpen(true)}
+        disabled={book.status !== "completed"}
+        title={book.status !== "completed" ? "Finish the book to order a printed copy" : "Order a printed copy"}
+        className={`${BTN} ${BTN_IDLE}`}
+      >
+        <ShoppingCartIcon size={17} />
       </button>
 
       {/* Read Aloud: pick who reads the story */}
@@ -152,11 +172,10 @@ export const BookActions = ({ book, pages }) => {
                   role="menuitemradio"
                   aria-checked={active}
                   onClick={() => handleVoiceSelect(option.id)}
-                  className={`flex w-full items-center  rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
-                    active
+                  className={`flex w-full items-center  rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${active
                       ? "bg-(--tint) text-(--accent)"
                       : "text-(--text-heading) hover:bg-(--tint)"
-                  }`}
+                    }`}
                 >
                   <p>{option.icon}</p>
                   {option.label}
@@ -167,6 +186,13 @@ export const BookActions = ({ book, pages }) => {
           </div>
         )}
       </div>
+
+      <PrintOrderModal
+        book={book}
+        isOpen={orderModalOpen}
+        onClose={() => setOrderModalOpen(false)}
+        onSuccess={handleOrderSuccess}
+      />
     </div>
   );
 };

@@ -154,6 +154,7 @@ export const BookReader = () => {
         <BookViewer
           pages={pages}
           badge={sd.theme || "Story"}
+          font={sd.font}
           onExit={goBack}
           renderInfoPage={(page) => (
             <BookInfoPage

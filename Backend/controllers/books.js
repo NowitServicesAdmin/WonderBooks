@@ -14,6 +14,8 @@ import {
     getStorageImage
 } from "../services/storageService.js";
 import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
+import { generateCharacterBible } from "../components/characterBible.js";
+import { generateCharacterReferences } from "../services/characterReferenceService.js";
 
 const test_story = {
     title: "Cherry's Jungle Adventure",
@@ -87,580 +89,6 @@ const buildStoryDataFromSelections = (selections = {}, characters = []) => {
         }))
     };
 };
-
-// Get canonical character reference images from R2
-// const getCharacterReferenceImages = async (
-//     characters = [],
-//     characterReferences = []
-// ) => {
-//     const references = [];
-
-//     for (const characterReference of characterReferences) {
-//         const lookupValue =
-//             String(characterReference || "")
-//                 .trim()
-//                 .toLowerCase();
-
-//         if (!lookupValue) {
-//             continue;
-//         }
-
-//         // Match by character ID first
-//         // and fall back to character name
-//         const character = characters.find(
-//             (item) => {
-//                 const characterId =
-//                     String(item?.id || "")
-//                         .trim()
-//                         .toLowerCase();
-
-//                 const characterName =
-//                     String(item?.name || "")
-//                         .trim()
-//                         .toLowerCase();
-
-//                 return (
-//                     characterId === lookupValue ||
-//                     characterName === lookupValue
-//                 );
-//             }
-//         );
-
-//         if (!character) {
-//             console.warn(
-//                 `Character reference not found for: ${characterReference}`
-//             );
-//             continue;
-//         }
-
-//         if (!character.referenceStorageKey) {
-//             console.warn(
-//                 `No canonical reference found for character: ${character.name} (${character.id})`
-//             );
-//             continue;
-//         }
-
-//         try {
-//             console.log(
-//                 `Loading canonical reference for ${character.name} (${character.id})...`
-//             );
-
-//             const response =
-//                 await getStorageImage(
-//                     character.referenceStorageKey
-//                 );
-
-//             if (!response?.Body) {
-//                 console.warn(
-//                     `Empty R2 reference for character: ${character.name}`
-//                 );
-//                 continue;
-//             }
-
-//             const bytes =
-//                 await response.Body.transformToByteArray();
-
-//             if (!bytes?.length) {
-//                 console.warn(
-//                     `Empty reference buffer for character: ${character.name}`
-//                 );
-//                 continue;
-//             }
-
-//             references.push({
-//                 buffer: Buffer.from(bytes),
-//                 contentType: "image/png"
-//             });
-
-//             console.log(
-//                 `Reference loaded for ${character.name}`
-//             );
-//         } catch (error) {
-//             console.error(
-//                 `Failed to load reference for character ${character.name}:`,
-//                 error
-//             );
-//         }
-//     }
-
-//     return references.slice(0, 4);
-// };
-
-// export const createBook = async (req, res) => {
-//     try {
-//         const mode = req.body.mode;
-//         const message = req.body.message;
-
-//         const storySettings =
-//             typeof req.body.storySettings === "string"
-//                 ? JSON.parse(req.body.storySettings)
-//                 : req.body.storySettings;
-
-//         const characters =
-//             typeof req.body.characters === "string"
-//                 ? JSON.parse(req.body.characters)
-//                 : req.body.characters || [];
-
-//         let storyData;
-
-//         if (mode === "manual") {
-//             if (
-//                 !storySettings ||
-//                 Object.keys(storySettings).length === 0
-//             ) {
-//                 return res.status(400).json({
-//                     success: false,
-//                     message:
-//                         "Story settings are required for manual mode"
-//                 });
-//             }
-
-//             storyData = buildStoryDataFromSelections(
-//                 storySettings,
-//                 characters
-//             );
-
-//             console.log(
-//                 "Manual mode story data built:",
-//                 storyData
-//             );
-//         } else {
-//             if (!message?.trim()) {
-//                 return res.status(400).json({
-//                     success: false,
-//                     message: "Story idea is required"
-//                 });
-//             }
-
-//             console.log(
-//                 "Story idea received:",
-//                 message
-//             );
-
-//             storyData =
-//                 await analyzeStory(message);
-
-//             console.log(
-//                 "Story analysis completed:",
-//                 storyData
-//             );
-//         }
-
-//         // Generate story
-//         // const generatedStory = await generateStory(storyData);
-
-//         const generatedStory = test_story;
-
-//         console.log(
-//             "Story generation completed:",
-//             generatedStory
-//         );
-
-//         if (
-//             !generatedStory?.title ||
-//             generatedStory.title === "undefined" ||
-//             !Array.isArray(generatedStory?.pages) ||
-//             generatedStory.pages.length === 0
-//         ) {
-//             throw new Error(
-//                 "Generated story is invalid or contains no pages"
-//             );
-//         }
-
-//         // Create book first so we have bookId
-//         const new_book = await book.create({
-//             title: generatedStory.title,
-//             mode: mode === "manual"
-//                 ? "manual"
-//                 : "ai",
-//             status: "generating",
-//             storyData,
-//             pages: generatedStory.pages.map(
-//                 (page, index) => ({
-//                     position: index + 1,
-//                     pageNumber:
-//                         page.pageNumber ||
-//                         index + 1,
-//                     content:
-//                         page.content || "",
-//                     imageUrl: null,
-//                     storageProvider: null,
-//                     storageKey: null,
-//                     imagePrompt: "",
-//                     status: "pending"
-//                 })
-//             )
-//         });
-
-//         const bookId =
-//             new_book._id.toString();
-
-//         console.log(
-//             "Book created:",
-//             bookId
-//         );
-
-//         // Upload character photos to private AWS S3
-//         const uploadedCharacters =
-//             [...storyData.characters];
-
-//         for (const file of req.files || []) {
-//             const match =
-//                 file.fieldname.match(
-//                     /^characterPhoto-(.+)$/
-//                 );
-
-//             if (!match) {
-//                 console.warn(
-//                     "Skipping unknown uploaded file:",
-//                     file.fieldname
-//                 );
-//                 continue;
-//             }
-
-//             const characterId =
-//                 match[1];
-
-//             const characterIndex =
-//                 uploadedCharacters.findIndex(
-//                     (character) =>
-//                         String(character.id) ===
-//                         String(characterId)
-//                 );
-
-//             if (characterIndex === -1) {
-//                 console.warn(
-//                     "Character not found for file:",
-//                     file.originalname
-//                 );
-//                 continue;
-//             }
-
-//             const extension =
-//                 file.originalname
-//                     ?.split(".")
-//                     .pop()
-//                     ?.toLowerCase() || "jpg";
-
-//             const key =
-//                 `characters/${bookId}/${characterId}-${crypto.randomUUID()}.${extension}`;
-
-//             console.log(
-//                 `Uploading photo for character ${uploadedCharacters[characterIndex].name}...`
-//             );
-
-//             const uploadedPhoto =
-//                 await uploadToS3({
-//                     key,
-//                     buffer: file.buffer,
-//                     contentType:
-//                         file.mimetype
-//                 });
-
-//             uploadedCharacters[
-//                 characterIndex
-//             ].photoUrl =
-//                 uploadedPhoto.url;
-
-//             uploadedCharacters[
-//                 characterIndex
-//             ].photoStorageProvider =
-//                 uploadedPhoto.provider;
-
-//             uploadedCharacters[
-//                 characterIndex
-//             ].photoStorageKey =
-//                 uploadedPhoto.key;
-
-//             console.log(
-//                 `Character photo uploaded: ${uploadedPhoto.url}`
-//             );
-//         }
-
-//         // Save character photo URLs and storage information
-//         await book.updateOne(
-//             { _id: bookId },
-//             {
-//                 $set: {
-//                     "storyData.characters":
-//                         uploadedCharacters
-//                 }
-//             }
-//         );
-
-//         // Update local storyData so Character Bible generation
-//         // receives the uploaded photo information
-//         storyData.characters =
-//             uploadedCharacters;
-
-//         console.log(
-//             "Character photos saved to MongoDB"
-//         );
-
-//         // Generate the canonical Character Bible
-//         const characterBible =
-//             await generateCharacterBible({
-//                 story: generatedStory,
-//                 storyData
-//             });
-
-//         console.log(
-//             "Character Bible generated:",
-//             characterBible
-//         );
-
-//         // Generate canonical visual references
-//         // for every recurring character
-//         const charactersWithReferences =
-//             await generateCharacterReferences({
-//                 bookId,
-//                 characters:
-//                     characterBible.characters,
-//                 imageStyle:
-//                     storyData.imageStyle
-//             });
-
-//         console.log(
-//             "Character references generated"
-//         );
-
-//         storyData.characters =
-//             charactersWithReferences;
-
-//         // Save complete Character Bible
-//         // and reference metadata
-//         await book.updateOne(
-//             { _id: bookId },
-//             {
-//                 $set: {
-//                     "storyData.characters":
-//                         charactersWithReferences
-//                 }
-//             }
-//         );
-
-//         console.log(
-//             "Character Bible and references saved to MongoDB"
-//         );
-
-//         // Generate image prompts
-//         const imagePrompts =
-//             await generateImagePrompt(
-//                 generatedStory,
-//                 storyData
-//             );
-
-//         console.log(
-//             "Image prompts generated"
-//         );
-
-//         if (
-//             !imagePrompts?.images ||
-//             !Array.isArray(
-//                 imagePrompts.images
-//             )
-//         ) {
-//             throw new Error(
-//                 "Image prompts were not generated correctly"
-//             );
-//         }
-
-//         // Save all generated prompts
-//         await book.updateOne(
-//             { _id: bookId },
-//             {
-//                 $set: {
-//                     imagePrompts:
-//                         imagePrompts.images
-//                 }
-//             }
-//         );
-
-//         // Generate page images
-//         for (
-//             const imageData of
-//             imagePrompts.images
-//         ) {
-//             const pageNumber =
-//                 imageData.pageNumber;
-
-//             const prompt =
-//                 imageData.prompt;
-
-//             if (
-//                 !pageNumber ||
-//                 !prompt
-//             ) {
-//                 console.warn(
-//                     "Skipping invalid image prompt:",
-//                     imageData
-//                 );
-//                 continue;
-//             }
-
-//             try {
-//                 await book.updateOne(
-//                     {
-//                         _id: bookId,
-//                         "pages.pageNumber":
-//                             pageNumber
-//                     },
-//                     {
-//                         $set: {
-//                             "pages.$.status":
-//                                 "generating",
-//                             "pages.$.imagePrompt":
-//                                 prompt
-//                         }
-//                     }
-//                 );
-
-//                 console.log(
-//                     `Generating image for page ${pageNumber}...`
-//                 );
-
-//                 // Only send the canonical references
-//                 // for characters that appear on this page
-//                 const referenceImages =
-//                     await getCharacterReferenceImages(
-//                         storyData.characters,
-//                         imageData.characters || []
-//                     );
-
-//                 console.log(
-//                     `Page ${pageNumber} character references:`,
-//                     imageData.characters || []
-//                 );
-
-//                 const imageBuffer =
-//                     await generateImage({
-//                         prompt,
-//                         referenceImages,
-//                         width: 768,
-//                         height: 1024
-//                     });
-
-//                 if (
-//                     !imageBuffer ||
-//                     !imageBuffer.length
-//                 ) {
-//                     throw new Error(
-//                         `No image generated for page ${pageNumber}`
-//                     );
-//                 }
-
-//                 console.log(
-//                     `Generated image size: ${imageBuffer.length}`
-//                 );
-
-//                 const key =
-//                     `books/${bookId}/page-${pageNumber}.png`;
-
-//                 const uploadedImage =
-//                     await uploadImage({
-//                         key,
-//                         buffer:
-//                             imageBuffer,
-//                         contentType:
-//                             "image/png"
-//                     });
-
-//                 await book.updateOne(
-//                     {
-//                         _id: bookId,
-//                         "pages.pageNumber":
-//                             pageNumber
-//                     },
-//                     {
-//                         $set: {
-//                             "pages.$.imageUrl":
-//                                 uploadedImage.url,
-//                             "pages.$.storageProvider":
-//                                 uploadedImage.provider,
-//                             "pages.$.storageKey":
-//                                 uploadedImage.key,
-//                             "pages.$.status":
-//                                 "completed"
-//                         }
-//                     }
-//                 );
-
-//                 console.log(
-//                     `Page ${pageNumber} completed using ${uploadedImage.provider}`
-//                 );
-//             } catch (pageError) {
-//                 console.error(
-//                     `Page ${pageNumber} image generation failed:`,
-//                     pageError
-//                 );
-
-//                 await book.updateOne(
-//                     {
-//                         _id: bookId,
-//                         "pages.pageNumber":
-//                             pageNumber
-//                     },
-//                     {
-//                         $set: {
-//                             "pages.$.status":
-//                                 "failed"
-//                         }
-//                     }
-//                 );
-//             }
-//         }
-
-//         const completedBook =
-//             await book.findById(
-//                 bookId
-//             ).lean();
-
-//         const allPagesCompleted =
-//             completedBook?.pages?.length > 0 &&
-//             completedBook.pages.every(
-//                 (page) =>
-//                     page.status ===
-//                     "completed"
-//             );
-
-//         await book.updateOne(
-//             { _id: bookId },
-//             {
-//                 $set: {
-//                     status:
-//                         allPagesCompleted
-//                             ? "completed"
-//                             : "failed"
-//                 }
-//             }
-//         );
-
-//         console.log(
-//             `Book ${bookId} status: ${allPagesCompleted ? "completed" : "failed"}`
-//         );
-
-//         return res.json({
-//             success: true,
-//             bookId,
-//             status:
-//                 allPagesCompleted
-//                     ? "completed"
-//                     : "failed"
-//         });
-//     } catch (error) {
-//         console.error(
-//             "Create book error:",
-//             error
-//         );
-
-//         return res.status(500).json({
-//             success: false,
-//             message:
-//                 error.message ||
-//                 "Something went wrong"
-//         });
-//     }
-// };
 
 const getCharacterReferenceImages = async (
     characters = [],
@@ -840,14 +268,88 @@ const generateBookInBackground = async ({
         );
 
         storyData.characters = uploadedCharacters;
+        let charactersWithReferences = storyData.characters;
 
-        const referenceImages = await getCharacterPhotoReferenceImages(
-            storyData.characters
-        );
+        try {
+            const characterBible = await generateCharacterBible({
+                story: generatedStory,
+                storyData
+            });
 
-        console.log(
-            `Loaded ${referenceImages.length} character reference photo(s) for generation.`
-        );
+            console.log("Character Bible generated:", characterBible);
+
+            // Don't trust the LLM to faithfully echo back hasPhoto/photoStorageKey -
+            // re-attach the REAL uploaded-photo info by id/name match so a character
+            // with a real photo definitely gets used as its identity source, even if
+            // the model dropped or nulled those fields in its JSON output.
+            const bibleCharactersWithPhotoInfo = characterBible.characters.map(
+                (bibleCharacter) => {
+                    const original = storyData.characters.find((character) => {
+                        return (
+                            String(character.id) === String(bibleCharacter.id) ||
+                            String(character.name || "").toLowerCase() ===
+                                String(bibleCharacter.name || "").toLowerCase()
+                        );
+                    });
+
+                    if (!original) {
+                        return bibleCharacter;
+                    }
+
+                    return {
+                        ...bibleCharacter,
+                        hasPhoto: Boolean(original.hasPhoto),
+                        photoStorageProvider: original.photoStorageProvider || null,
+                        photoStorageKey: original.photoStorageKey || null
+                    };
+                }
+            );
+
+            const bibleCharactersWithReferences = await generateCharacterReferences({
+                bookId,
+                characters: bibleCharactersWithPhotoInfo,
+                imageStyle: storyData.imageStyle
+            });
+
+            console.log("Canonical character references generated");
+            charactersWithReferences = storyData.characters.map((character) => {
+                const match = bibleCharactersWithReferences.find((bibleCharacter) => {
+                    return (
+                        String(bibleCharacter.id) === String(character.id) ||
+                        String(bibleCharacter.name || "").toLowerCase() ===
+                            String(character.name || "").toLowerCase()
+                    );
+                });
+
+                if (!match) {
+                    return character;
+                }
+
+                return {
+                    ...character,
+                    referenceImageUrl: match.referenceImageUrl,
+                    referenceStorageProvider: match.referenceStorageProvider,
+                    referenceStorageKey: match.referenceStorageKey
+                };
+            });
+
+            await book.updateOne(
+                { _id: bookId },
+                { $set: { "storyData.characters": charactersWithReferences } }
+            );
+
+            storyData.characters = charactersWithReferences;
+
+            console.log("Character Bible and canonical references saved to MongoDB");
+        } catch (bibleError) {
+            // If the bible/reference step fails for any reason, fall back to
+            // whatever raw uploaded photos exist rather than failing the whole
+            // book - pages just won't have as strong an identity anchor.
+            console.error(
+                "Character Bible / canonical reference generation failed, falling back to uploaded photos only:",
+                bibleError
+            );
+        }
 
         const imagePrompts = await generateImagePrompt(generatedStory, storyData);
 
@@ -873,10 +375,24 @@ const generateBookInBackground = async ({
         console.log("Generating cover image...");
 
         try {
+            let coverReferenceImages = await getCharacterReferenceImages(
+                storyData.characters,
+                imagePrompts.cover.characters || []
+            );
+
+            if (!coverReferenceImages.length) {
+                coverReferenceImages = await getCharacterPhotoReferenceImages(
+                    storyData.characters
+                );
+            }
+
+            console.log(
+                `Loaded ${coverReferenceImages.length} character reference image(s) for cover.`
+            );
+
             const rawCoverBuffer = await generateImage({
                 prompt: imagePrompts.cover.prompt,
-                referenceImages,
-                referenceImages,
+                referenceImages: coverReferenceImages,
                 width: 768,
                 height: 1024
             });
@@ -889,7 +405,6 @@ const generateBookInBackground = async ({
 
             const uploadedCover = await uploadImage({
                 key: coverKey,
-                buffer: finalCoverBuffer,
                 buffer: finalCoverBuffer,
                 contentType: "image/png"
             });
@@ -935,9 +450,24 @@ const generateBookInBackground = async ({
 
                 console.log(`Generating image for page ${pageNumber}...`);
 
+                let pageReferenceImages = await getCharacterReferenceImages(
+                    storyData.characters,
+                    imageData.characters || []
+                );
+
+                if (!pageReferenceImages.length) {
+                    pageReferenceImages = await getCharacterPhotoReferenceImages(
+                        storyData.characters
+                    );
+                }
+
+                console.log(
+                    `Loaded ${pageReferenceImages.length} character reference image(s) for page ${pageNumber}.`
+                );
+
                 const imageBuffer = await generateImage({
                     prompt,
-                    referenceImages,
+                    referenceImages: pageReferenceImages,
                     width: 768,
                     height: 1024
                 });
@@ -1089,7 +619,7 @@ export const getMyBooks = async (req, res) => {
         );
 
         const books = await book
-            .find({ user: req.userId })
+            .find({ user: req.userId, status: { $ne: "failed" } })
             .select("title mode status coverImageUrl storyData.theme storyData.characters.name pages.status createdAt updatedAt")
             .sort({ createdAt: -1 })
             .lean();

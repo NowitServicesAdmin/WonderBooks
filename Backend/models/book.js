@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const CharacterSchema = new mongoose.Schema(
     {
         id: {
-            type: Number,
+            type: String,
             required: true
         },
 

@@ -1,8 +1,8 @@
 import { getBookImageBlob } from "../services/bookService";
+import { getStoryFontFamily, getWebFontLoadNames, GOOGLE_FONTS_HREF } from "./storyFonts";
 
 const RTL_LANGUAGES = new Set(["Arabic"]);
 const NO_SPACE_LANGUAGES = new Set(["Chinese", "Japanese"]); // wrap between characters
-const FONT_STACK = 'Georgia, "Noto Serif", "Times New Roman", serif';
 
 const exportPages = (pages) => pages.filter((p) => p.kind !== "end");
 
@@ -52,8 +52,9 @@ const fitStoryText = (doc) => {
   });
 };
 
-export const printBook = async ({ title, pages, language }) => {
+export const printBook = async ({ title, pages, language, font }) => {
   const rtl = RTL_LANGUAGES.has(language);
+  const fontStack = getStoryFontFamily(font);
 
   const body = exportPages(pages)
     .map((page) => {
@@ -76,12 +77,15 @@ export const printBook = async ({ title, pages, language }) => {
 <head>
 <meta charset="utf-8" />
 <title>${escapeHtml(title)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="${GOOGLE_FONTS_HREF}" rel="stylesheet" />
 <style>
   /* margin 0 also removes the browser's own header/footer (date, URL, page numbers) */
   @page { size: A4 portrait; margin: 0; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; }
-  body { font-family: ${FONT_STACK}; color: #3c3860; }
+  body { font-family: ${fontStack}; color: #3c3860; }
   .sheet { width: 210mm; height: 296mm; padding: 14mm; break-after: page; page-break-after: always; overflow: hidden; }
   .sheet:last-child { break-after: auto; page-break-after: auto; }
   .art { width: 100%; height: 100%; overflow: hidden; border-radius: 8mm; background: #f5f2ff; }
@@ -107,7 +111,14 @@ export const printBook = async ({ title, pages, language }) => {
   doc.write(html);
   doc.close();
 
-  await waitForImages(doc);
+  await Promise.all([
+    waitForImages(doc),
+    // The web fonts (Baloo 2, Fredoka One, etc.) are loaded via the <link>
+    // above, which is async - without waiting for them, print/PDF can kick
+    // off before the font finishes downloading and silently fall back to a
+    // default font for that one print.
+    doc.fonts?.ready?.catch(() => {}),
+  ]);
   fitStoryText(doc);
 
   const cleanup = () => iframe.remove();
@@ -206,7 +217,7 @@ const renderImageSheet = (bitmap) => {
 };
 
 // Text sheet: cover title, or the story text at the largest size that fits.
-const renderTextSheet = (page, { rtl, noSpaces }) => {
+const renderTextSheet = (page, { rtl, noSpaces, fontStack }) => {
   const { canvas, ctx } = newSheet();
   const boxW = PDF_W - MARGIN * 2;
   const boxH = PDF_H - MARGIN * 2;
@@ -217,7 +228,7 @@ const renderTextSheet = (page, { rtl, noSpaces }) => {
 
   if (page.kind === "cover") {
     ctx.fillStyle = "#29254d";
-    ctx.font = `bold 84px ${FONT_STACK}`;
+    ctx.font = `bold 84px ${fontStack}`;
     const lines = wrapLines(ctx, page.heading || "", boxW, noSpaces);
     const gap = 30;
     const totalH = lines.length * 104 + gap + 44;
@@ -227,7 +238,7 @@ const renderTextSheet = (page, { rtl, noSpaces }) => {
       y += 104;
     });
     ctx.fillStyle = "#9893a8";
-    ctx.font = `40px ${FONT_STACK}`;
+    ctx.font = `40px ${fontStack}`;
     ctx.fillText(page.sub || "", PDF_W / 2, y + gap);
     return canvas;
   }
@@ -236,7 +247,7 @@ const renderTextSheet = (page, { rtl, noSpaces }) => {
   let size = 56;
   let lines = [];
   for (; size >= 18; size -= 2) {
-    ctx.font = `${size}px ${FONT_STACK}`;
+    ctx.font = `${size}px ${fontStack}`;
     lines = wrapLines(ctx, page.text || "", boxW, noSpaces);
     if (lines.length * size * 1.55 <= boxH) break;
   }
@@ -249,16 +260,28 @@ const renderTextSheet = (page, { rtl, noSpaces }) => {
   return canvas;
 };
 
-export const downloadBookPdf = async ({ bookId, title, pages, language }) => {
+export const downloadBookPdf = async ({ bookId, title, pages, language, font }) => {
   const list = exportPages(pages);
+  const fontStack = getStoryFontFamily(font);
   const opts = {
     rtl: RTL_LANGUAGES.has(language),
     noSpaces: NO_SPACE_LANGUAGES.has(language),
+    fontStack,
   };
+
+  // Canvas text silently falls back to a default font if you draw with a
+  // family that hasn't finished downloading yet (no error is thrown), so
+  // force-load whichever web font this book actually uses before drawing
+  // any text sheets.
+  const fontLoads = getWebFontLoadNames(font).map((name) =>
+    document.fonts.load(`16px "${name}"`).catch(() => {}),
+  );
 
   const [{ jsPDF }, bitmaps] = await Promise.all([
     import("jspdf"),
     Promise.all(list.map((p) => loadBitmap(bookId, p))),
+    Promise.all(fontLoads),
+    document.fonts?.ready?.catch(() => {}),
   ]);
 
   const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });

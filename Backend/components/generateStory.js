@@ -15,7 +15,8 @@
 import { openai } from "../config/openai.js";
 import { generateStoryPrompt } from "./generatestoryPrompt.js";
 
-const MAX_OUTPUT_TOKENS = 6000; // plenty of headroom above what a 2-10 page story + reasoning needs
+
+const MAX_OUTPUT_TOKENS = 12000;
 
 const requestStory = async (prompt) => {
     const response = await openai.responses.create({

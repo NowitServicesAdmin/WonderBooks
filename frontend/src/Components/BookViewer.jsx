@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import HTMLFlipBook from "react-pageflip";
 
 import { ChevronLeft, ChevronRight, ImageOff, Star, WandSparkles, X } from "lucide-react";
+import { getStoryFontFamily } from "../utils/storyFonts";
 
 const THUMBS_VISIBLE = 6;
 const PAGE_W = 600;
@@ -14,7 +15,7 @@ const PORTRAIT_BELOW = 600;
 const TEXT_MAX = 32; 
 const TEXT_MIN = 11;
 
-export const BookViewer = ({ pages, badge = "", onExit, renderInfoPage }) => {
+export const BookViewer = ({ pages, badge = "", onExit, renderInfoPage, font }) => {
     const bookRef = useRef(null);
     const [leafIndex, setLeafIndex] = useState(0);
     const pageIndex = Math.floor(leafIndex / 2);
@@ -187,7 +188,7 @@ export const BookViewer = ({ pages, badge = "", onExit, renderInfoPage }) => {
                                             </div>
                                         ) : leaf.page.kind === "story" ? (
                                             <div className="h-full w-full bg-white px-14 py-16">
-                                                <FitText text={leaf.page.text} />
+                                                <FitText text={leaf.page.text} font={font} />
                                             </div>
                                         ) : leaf.page.kind === "cover" && renderInfoPage ? (
                                             renderInfoPage(leaf.page)
@@ -336,7 +337,7 @@ const ScaledPage = ({ fallbackScale, children }) => {
  * It re-fits whenever the box gets a real size, because react-pageflip builds pages
  * off-screen first (size 0) and only then moves them into the book.
  */
-const FitText = ({ text = "" }) => {
+const FitText = ({ text = "", font }) => {
     const boxRef = useRef(null);
     const textRef = useRef(null);
 
@@ -366,11 +367,15 @@ const FitText = ({ text = "" }) => {
         document.fonts?.ready?.then(fit);
 
         return () => observer.disconnect();
-    }, [text]);
+    }, [text, font]);
 
     return (
         <div ref={boxRef} className="flex h-full w-full items-center justify-center overflow-hidden">
-            <p ref={textRef} className="w-full text-center font-serif leading-normal text-[#3c3860]">
+            <p
+                ref={textRef}
+                className="w-full text-center leading-normal text-[#3c3860]"
+                style={{ fontFamily: getStoryFontFamily(font) }}
+            >
                 {text}
             </p>
         </div>

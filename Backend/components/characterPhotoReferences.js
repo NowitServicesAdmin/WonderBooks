@@ -13,8 +13,17 @@ const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
  * (character.photoStorageKey), rather than a canonical Gemini-generated
  * reference (character.referenceStorageKey).
  *
+ * Each returned reference carries the character's name/type/id alongside
+ * its image buffer. Without this, every reference photo (person, pet,
+ * object) was an anonymous, unlabeled buffer — the image model had no way
+ * to know which photo belonged to which character, so it defaulted to
+ * treating the request as if there were only one identity to match
+ * (almost always the person). Keeping this metadata attached lets
+ * generateImage build an explicit "reference photo N = this character"
+ * manifest so every character with a photo gets matched to its own.
+ *
  * @param {Array<Object>} characters - storyData.characters
- * @returns {Promise<Array<{ buffer: Buffer, contentType: string }>>}
+ * @returns {Promise<Array<{ buffer: Buffer, contentType: string, characterId: string, characterName: string, characterType: string }>>}
  */
 export const getCharacterPhotoReferenceImages = async (characters = []) => {
     const references = [];
@@ -61,7 +70,10 @@ export const getCharacterPhotoReferenceImages = async (characters = []) => {
 
             references.push({
                 buffer: Buffer.from(bytes),
-                contentType: "image/png"
+                contentType: "image/png",
+                characterId: character.id,
+                characterName: character.name || "Unnamed character",
+                characterType: character.type || "Character"
             });
 
             console.log(`Photo loaded for ${character.name}`);

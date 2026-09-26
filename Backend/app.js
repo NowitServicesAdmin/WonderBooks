@@ -11,6 +11,7 @@ import authRoutes from "./routes/auth.js";
 import subscriptionRoutes from "./routes/subscriptions.js";
 import adminPlanRoutes from "./routes/adminPlans.js";
 import settingsRoutes from "./routes/settings.js";
+import orderRoutes from "./routes/orders.js";
 import OpenAI from "openai";
 
 const app = express();
@@ -53,6 +54,7 @@ app.use("/api/book", bookRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/admin", adminPlanRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/orders", orderRoutes);
 
 const startServer = async () => {
   try {

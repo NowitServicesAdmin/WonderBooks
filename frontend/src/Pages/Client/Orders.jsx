@@ -1,8 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Bell,
   Search,
-  Filter,
   ChevronRight,
   X,
   Package,
@@ -10,90 +8,48 @@ import {
   Printer,
   Truck,
   BookOpen,
-  MapPin,
   Pencil,
   Download,
   Trash2,
   ShoppingBag,
+  Loader2,
 } from "lucide-react";
 
-import { myBooks } from "../../Data/Templatesdata"; // adjust path if needed
+import { getMyOrders, cancelOrder as cancelOrderRequest } from "../../services/orderService";
 
 /* -------------------------------------------------------------------------- */
 /*                                  ORDER DATA                                */
 /* -------------------------------------------------------------------------- */
 
-const orderMeta = [
-  {
-    bookId: 1,
-    orderId: "WB-ORD-2025-0528-0012",
-    status: "In Progress",
-    date: "May 28, 2025",
-    time: "10:30 AM",
-    price: 699,
-    statusStep: 1,
-    shippingAddress: {
-      name: "Arav Sharma",
-      address: "123, Green Park Society",
-      city: "Koramangala, Bangalore - 560034",
-      state: "Karnataka, India",
-      phone: "+91 98765 43210",
-    },
-  },
-  {
-    bookId: 2,
-    orderId: "WB-ORD-2025-0518-0009",
-    status: "Delivered",
-    date: "May 18, 2025",
-    time: "09:15 AM",
-    price: 649,
-    statusStep: 3,
-  },
+// Backend status -> the label/step the (mock-era) UI below was built around.
+const STATUS_LABELS = {
+  confirmed: "In Progress",
+  printing: "In Progress",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
 
-  // Additional visual order records using your existing book data.
-  {
-    bookId: 1,
-    orderId: "WB-ORD-2025-0510-0007",
-    status: "Delivered",
-    date: "May 10, 2025",
-    time: "08:45 AM",
-    price: 599,
-    statusStep: 3,
-    title: "My Birthday Surprise",
-  },
-  {
-    bookId: 2,
-    orderId: "WB-ORD-2025-0428-0004",
-    status: "Shipped",
-    date: "Apr 28, 2025",
-    time: "11:00 AM",
-    price: 699,
-    statusStep: 2,
-    title: "Unicorn Dreams",
-  },
-  {
-    bookId: 2,
-    orderId: "WB-ORD-2025-0415-0002",
-    status: "Cancelled",
-    date: "Apr 15, 2025",
-    time: "04:10 PM",
-    price: 599,
-    statusStep: -1,
-    title: "Pirate Magic",
-  },
-];
-
-const orders = orderMeta.map((order) => {
-  const book = myBooks.find((item) => item.id === order.bookId);
+// Shapes a /api/orders row into what the components on this page expect.
+const mapOrder = (apiOrder) => {
+  const created = new Date(apiOrder.createdAt);
 
   return {
-    ...order,
+    orderId: apiOrder.orderNumber,
+    _id: apiOrder._id,
+    status: STATUS_LABELS[apiOrder.status] || "In Progress",
+    rawStatus: apiOrder.status,
+    date: created.toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" }),
+    time: created.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
+    price: apiOrder.amount,
+    statusStep: apiOrder.statusStep,
+    shippingAddress: apiOrder.shippingAddress,
     book: {
-      ...book,
-      title: order.title || book?.title,
+      title: apiOrder.book?.title,
+      cover: apiOrder.book?.coverImageUrl,
     },
   };
-});
+};
 
 const steps = [
   {
@@ -172,11 +128,11 @@ const BookCover = ({
       <div className="absolute -bottom-2 left-3 right-0 h-4 rounded-full bg-black/15 blur-md" />
 
       {/* Pages */}
-      <div className="absolute bottom-1 right-[-6px] top-[3px] w-[9px] rounded-r-sm bg-[#eee7da] shadow-md" />
+      <div className="absolute bottom-1 -right-1.5 top-0.75 w-2.25 rounded-r-sm bg-[#eee7da] shadow-md" />
 
       {/* Spine */}
       <div
-        className={`absolute bottom-0 left-0 top-0 ${config.spine} rounded-l-[4px]`}
+        className={`absolute bottom-0 left-0 top-0 ${config.spine} rounded-l-sm`}
         style={{
           background:
             book?.spineDark ||
@@ -186,7 +142,7 @@ const BookCover = ({
 
       {/* Cover */}
       <div
-        className="absolute bottom-0 left-[8px] right-0 top-0 overflow-hidden rounded-r-[5px] border border-black/10 bg-slate-900 shadow-[8px_10px_15px_rgba(20,15,40,0.25)]"
+        className="absolute bottom-0 left-2 right-0 top-0 overflow-hidden rounded-r-[5px] border border-black/10 bg-slate-900 shadow-[8px_10px_15px_rgba(20,15,40,0.25)]"
         style={{
           transform: "rotateY(-3deg)",
           transformOrigin: "left center",
@@ -199,7 +155,7 @@ const BookCover = ({
         />
 
         {/* Dark overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-[#120c22]/70" />
+        <div className="absolute inset-0 bg-linear-to-b from-black/5 via-transparent to-[#120c22]/70" />
 
         {/* Book title */}
         <div className="absolute inset-x-2 top-3 text-center">
@@ -238,7 +194,7 @@ export const OrderListItem = ({
         }
       `}
     >
-      <div className="flex min-h-[145px] items-center gap-5 px-6 py-4">
+      <div className="flex min-h-36.25 items-center gap-5 px-6 py-4">
         {/* Book */}
         <BookCover book={order.book} size="small" />
 
@@ -264,7 +220,7 @@ export const OrderListItem = ({
         <div className="flex h-full flex-col items-end self-stretch py-1">
           <span
             className={`
-              rounded-md border px-3 py-[6px]
+              rounded-md border px-3 py-1.5
               text-[11px] font-semibold
               ${getStatusClass(order.status)}
             `}
@@ -296,6 +252,8 @@ export const OrderListItem = ({
 export const OrderDetails = ({
   order,
   onClose,
+  onCancel,
+  cancelling,
 }) => {
   if (!order) return null;
 
@@ -310,7 +268,7 @@ export const OrderDetails = ({
       {/* Top */}
       {/* -------------------------------------------------------------- */}
 
-      <div className="relative border-b border-[var(--tint)] px-8 pb-6 pt-7">
+      <div className="relative border-b border-(--tint) px-8 pb-6 pt-7">
         <button
           onClick={onClose}
           className="absolute right-6 top-6 text-[#687092] transition hover:text-[#403780]"
@@ -331,7 +289,7 @@ export const OrderDetails = ({
 
             <span
               className={`
-                mt-3 inline-flex rounded-md border px-3 py-[6px]
+                mt-3 inline-flex rounded-md border px-3 py-1.5
                 text-[11px] font-semibold
                 ${getStatusClass(order.status)}
               `}
@@ -381,7 +339,7 @@ export const OrderDetails = ({
                             : "border-[#cfceda] bg-white text-[#aaa9b8]"
                           }
                           ${active
-                            ? "ring-4 ring-[var(--tint)]"
+                            ? "ring-4 ring-(--tint)"
                             : ""
                           }
                         `}
@@ -397,7 +355,7 @@ export const OrderDetails = ({
                     {index < steps.length - 1 && (
                       <div
                         className={`
-                          h-[2px] flex-1
+                          h-0.5 flex-1
                           ${index < currentStep
                             ? "bg-[#9d8be2]"
                             : "bg-[#dedde7]"
@@ -448,7 +406,7 @@ export const OrderDetails = ({
 
       {!isCancelled && (
         <div className="mx-8 mt-4 flex items-center gap-4 rounded-[10px] border border-[#d9d0f3] bg-[#f8f6ff] px-5 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--tint)] text-[#634ac4]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-(--tint) text-[#634ac4]">
             <Printer size={17} />
           </div>
 
@@ -485,11 +443,11 @@ export const OrderDetails = ({
       {/* Shipping + payment */}
       {/* -------------------------------------------------------------- */}
 
-      <div className="mx-8 mt-4 grid grid-cols-[1fr_1fr] overflow-hidden rounded-[12px] border border-[var(--tint)]">
+      <div className="mx-8 mt-4 grid grid-cols-[1fr_1fr] overflow-hidden rounded-xl border border-(--tint)">
 
         {/* Shipping */}
 
-        <div className="border-r border-[var(--tint)] px-5 py-4">
+        <div className="border-r border-(--tint) px-5 py-4">
           <div className="flex items-center justify-between">
             <h4 className="text-[12px] font-bold text-[#2f3456]">
               Shipping Address
@@ -502,29 +460,16 @@ export const OrderDetails = ({
           </div>
 
           <div className="mt-4 space-y-2 text-[11px] leading-relaxed text-[#5f6682]">
+            <p>{order.shippingAddress?.name}</p>
+            <p>{order.shippingAddress?.line1}</p>
+            {order.shippingAddress?.line2 && <p>{order.shippingAddress.line2}</p>}
             <p>
-              {order.shippingAddress?.name || "Arav Sharma"}
+              {[order.shippingAddress?.city, order.shippingAddress?.state, order.shippingAddress?.postalCode]
+                .filter(Boolean)
+                .join(", ")}
             </p>
-
-            <p>
-              {order.shippingAddress?.address ||
-                "123, Green Park Society"}
-            </p>
-
-            <p>
-              {order.shippingAddress?.city ||
-                "Koramangala, Bangalore - 560034"}
-            </p>
-
-            <p>
-              {order.shippingAddress?.state ||
-                "Karnataka, India"}
-            </p>
-
-            <p>
-              {order.shippingAddress?.phone ||
-                "+91 98765 43210"}
-            </p>
+            <p>{order.shippingAddress?.country}</p>
+            <p>{order.shippingAddress?.phone}</p>
           </div>
         </div>
 
@@ -548,7 +493,7 @@ export const OrderDetails = ({
               </span>
             </div>
 
-            <div className="border-t border-[var(--tint)] pt-3">
+            <div className="border-t border-(--tint) pt-3">
               <div className="flex justify-between font-bold text-[#393061]">
                 <span>Total Paid</span>
                 <span>₹{order.price}</span>
@@ -562,7 +507,7 @@ export const OrderDetails = ({
       {/* Book details */}
       {/* -------------------------------------------------------------- */}
 
-      <div className="mx-8 mt-4 rounded-[12px] border border-[var(--tint)] p-5">
+      <div className="mx-8 mt-4 rounded-xl border border-(--tint) p-5">
         <h4 className="text-[12px] font-bold text-[#2f3456]">
           Book Details
         </h4>
@@ -574,11 +519,6 @@ export const OrderDetails = ({
             <DetailRow
               label="Story Title"
               value={order.book.title}
-            />
-
-            <DetailRow
-              label="Pages"
-              value="24 Pages"
             />
 
             <DetailRow
@@ -595,21 +535,16 @@ export const OrderDetails = ({
               label="Paper Quality"
               value="Premium Matte"
             />
-
-            <DetailRow
-              label="Language"
-              value="English"
-            />
           </div>
 
           {/* Book preview */}
 
-          <div className="relative flex h-[170px] items-center justify-center overflow-hidden rounded-[5px] bg-[#f4eee4] shadow-inner">
+          <div className="relative flex h-42.5 items-center justify-center overflow-hidden rounded-[5px] bg-[#f4eee4] shadow-inner">
             <div className="absolute right-0 top-0 h-full w-[48%] bg-[#fffdf8]" />
 
             <div className="absolute right-4 top-7 w-[35%] text-[8px] leading-[1.8] text-[#575d72]">
               <p>
-                Arav and his dog, Buddy looked up at the stars.
+                The boy and his dog, Buddy looked up at the stars.
                 “Wow! The universe is so big and beautiful!”
               </p>
 
@@ -618,7 +553,7 @@ export const OrderDetails = ({
               </p>
             </div>
 
-            <div className="absolute left-7 top-[-2px]">
+            <div className="absolute left-7 -top-0.5">
               <BookCover
                 book={order.book}
                 size="large"
@@ -633,16 +568,20 @@ export const OrderDetails = ({
       {/* Bottom actions */}
       {/* -------------------------------------------------------------- */}
 
-      <div className="mt-auto flex items-center justify-between border-t border-[var(--tint)] px-8 py-5">
+      <div className="mt-auto flex items-center justify-between border-t border-(--tint) px-8 py-5">
         <button className="flex items-center gap-2 rounded-[9px] border border-[#bcb0eb] px-4 py-2.5 text-[12px] font-semibold text-[#5743b2] transition hover:bg-[#f7f5ff]">
           <Download size={16} />
           Download Invoice
         </button>
 
-        {order.status === "In Progress" && (
-          <button className="flex items-center gap-2 rounded-[9px] border border-[#f1bebe] px-4 py-2.5 text-[12px] font-semibold text-[#c95752] transition hover:bg-[#fff7f7]">
-            <Trash2 size={16} />
-            Cancel Order
+        {order.rawStatus === "confirmed" && (
+          <button
+            onClick={onCancel}
+            disabled={cancelling}
+            className="flex items-center gap-2 rounded-[9px] border border-[#f1bebe] px-4 py-2.5 text-[12px] font-semibold text-[#c95752] transition hover:bg-[#fff7f7] disabled:pointer-events-none disabled:opacity-50"
+          >
+            {cancelling ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+            {cancelling ? "Cancelling..." : "Cancel Order"}
           </button>
         )}
       </div>
@@ -674,9 +613,58 @@ const DetailRow = ({
 /* ========================================================================== */
 
 export const Orders = () => {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+
   const [activeTab, setActiveTab] = useState("All Orders");
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const { data } = await getMyOrders();
+        if (cancelled) return;
+        setOrders((data.orders || []).map(mapOrder));
+        setError("");
+      } catch {
+        if (!cancelled) setError("We couldn't load your orders. Please try again.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleCancelOrder = async () => {
+    if (!selectedOrder || cancelling) return;
+    setCancelling(true);
+    try {
+      await cancelOrderRequest(selectedOrder._id);
+      setOrders((prev) =>
+        prev.map((order) =>
+          order._id === selectedOrder._id
+            ? { ...order, status: "Cancelled", rawStatus: "cancelled", statusStep: -1 }
+            : order
+        )
+      );
+      setSelectedOrder((prev) =>
+        prev ? { ...prev, status: "Cancelled", rawStatus: "cancelled", statusStep: -1 } : prev
+      );
+    } catch {
+      setError("Couldn't cancel this order. Please try again.");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const tabs = [
     {
@@ -725,7 +713,7 @@ export const Orders = () => {
 
       return matchesTab && matchesSearch;
     });
-  }, [activeTab, search]);
+  }, [orders, activeTab, search]);
 
   const hasSelection = Boolean(selectedOrder);
 
@@ -740,7 +728,7 @@ export const Orders = () => {
 
         <header className="flex flex-col gap-5 border-[#ebe9f0] px-7 py-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-[58px] w-[58px] items-center justify-center rounded-[18px] bg-gradient-to-br from-[#f1effb] to-[#e7e3f8] text-[#513cb0]">
+            <div className="flex h-14.5 w-14.5 items-center justify-center rounded-[18px] bg-linear-to-br from-[#f1effb] to-[#e7e3f8] text-[#513cb0]">
               <ShoppingBag size={26} strokeWidth={1.8} />
             </div>
 
@@ -763,7 +751,7 @@ export const Orders = () => {
         {/* ============================================================ */}
 
         <div
-          className={`grid min-h-[850px] grid-cols-1 ${hasSelection ? "lg:grid-cols-[50%_50%]" : ""
+          className={`grid min-h-212.5 grid-cols-1 ${hasSelection ? "lg:grid-cols-[50%_50%]" : ""
             }`}
         >
 
@@ -773,7 +761,7 @@ export const Orders = () => {
 
           <section
             className={
-              hasSelection ? "border-r border-[var(--tint)]" : ""
+              hasSelection ? "border-r border-(--tint)" : ""
             }
           >
 
@@ -802,7 +790,7 @@ export const Orders = () => {
 
 
                     {activeTab === tab.label && (
-                      <span className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-[#654bc7]" />
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-[#654bc7]" />
                     )}
                   </button>
                 ))}
@@ -824,7 +812,7 @@ export const Orders = () => {
                     setSearch(e.target.value)
                   }
                   placeholder="Search your orders..."
-                  className="h-[43px] w-full rounded-full border border-[#e1deea] bg-white pl-11 pr-4 text-[12px] text-[#3c4160] outline-none transition placeholder:text-[#9a9aad] focus:border-[#917ee0] focus:ring-2 focus:ring-[#eeeaff]"
+                  className="h-10.75 w-full rounded-full border border-[#e1deea] bg-white pl-11 pr-4 text-[12px] text-[#3c4160] outline-none transition placeholder:text-[#9a9aad] focus:border-[#917ee0] focus:ring-2 focus:ring-[#eeeaff]"
                 />
               </div>
 
@@ -839,7 +827,17 @@ export const Orders = () => {
                   : "grid-cols-1 lg:grid-cols-2"
                 }`}
             >
-              {filteredOrders.length > 0 ? (
+              {loading ? (
+                <div className="col-span-full flex min-h-75 flex-col items-center justify-center text-center">
+                  <Loader2 size={32} className="animate-spin text-[#8066d7]" />
+                  <p className="mt-4 text-[12px] text-[#7b8098]">Loading your orders...</p>
+                </div>
+              ) : error ? (
+                <div className="col-span-full flex min-h-75 flex-col items-center justify-center text-center">
+                  <Package size={40} className="text-[#b4afc8]" />
+                  <h3 className="mt-4 text-[16px] font-bold text-[#3d4262]">{error}</h3>
+                </div>
+              ) : filteredOrders.length > 0 ? (
                 filteredOrders.map((order) => (
                   <OrderListItem
                     key={order.orderId}
@@ -854,7 +852,7 @@ export const Orders = () => {
                   />
                 ))
               ) : (
-                <div className="col-span-full flex min-h-[300px] flex-col items-center justify-center text-center">
+                <div className="col-span-full flex min-h-75 flex-col items-center justify-center text-center">
                   <Package
                     size={40}
                     className="text-[#b4afc8]"
@@ -865,7 +863,9 @@ export const Orders = () => {
                   </h3>
 
                   <p className="mt-2 text-[12px] text-[#7b8098]">
-                    Try changing your search or filter.
+                    {orders.length === 0
+                      ? "Order a printed copy of one of your books to see it here."
+                      : "Try changing your search or filter."}
                   </p>
                 </div>
               )}
@@ -880,26 +880,26 @@ export const Orders = () => {
               </p>
 
               <div className="flex items-center gap-2">
-                <button className="flex h-[38px] w-[38px] items-center justify-center rounded-full text-[#817b9b] hover:bg-[#f1eef8]">
+                <button className="flex h-9.5 w-9.5 items-center justify-center rounded-full text-[#817b9b] hover:bg-[#f1eef8]">
                   <ChevronRight
                     size={17}
                     className="rotate-180"
                   />
                 </button>
 
-                <button className="flex h-[38px] w-[38px] items-center justify-center rounded-[12px] bg-[#f0ecfa] text-[12px] font-semibold text-[#5943b2]">
+                <button className="flex h-9.5 w-9.5 items-center justify-center rounded-xl bg-[#f0ecfa] text-[12px] font-semibold text-[#5943b2]">
                   1
                 </button>
 
-                <button className="flex h-[38px] w-[30px] items-center justify-center text-[12px] font-semibold text-[#4d4675]">
+                <button className="flex h-9.5 w-7.5 items-center justify-center text-[12px] font-semibold text-[#4d4675]">
                   2
                 </button>
 
-                <button className="flex h-[38px] w-[30px] items-center justify-center text-[12px] font-semibold text-[#4d4675]">
+                <button className="flex h-9.5 w-7.5 items-center justify-center text-[12px] font-semibold text-[#4d4675]">
                   3
                 </button>
 
-                <button className="flex h-[38px] w-[38px] items-center justify-center rounded-full text-[#5843ae] hover:bg-[#f1eef8]">
+                <button className="flex h-9.5 w-9.5 items-center justify-center rounded-full text-[#5843ae] hover:bg-[#f1eef8]">
                   <ChevronRight size={17} />
                 </button>
               </div>
@@ -917,6 +917,8 @@ export const Orders = () => {
                 onClose={() =>
                   setSelectedOrder(null)
                 }
+                onCancel={handleCancelOrder}
+                cancelling={cancelling}
               />
             </section>
           )}
