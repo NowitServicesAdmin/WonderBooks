@@ -271,9 +271,19 @@ const generateBookInBackground = async ({
         let charactersWithReferences = storyData.characters;
 
         try {
+            // Load the REAL uploaded photos so the bible step can look at
+            // them instead of guessing appearance blind (this is also
+            // where an animal's actual species, e.g. bison vs wolf, gets
+            // picked up - there's no separate species field anywhere in
+            // the form, so the photo is the only source of truth for it).
+            const characterPhotosForBible = await getCharacterPhotoReferenceImages(
+                storyData.characters
+            );
+
             const characterBible = await generateCharacterBible({
                 story: generatedStory,
-                storyData
+                storyData,
+                characterPhotos: characterPhotosForBible
             });
 
             console.log("Character Bible generated:", characterBible);
@@ -515,7 +525,12 @@ const generateBookInBackground = async ({
 
         await book.updateOne(
             { _id: bookId },
-            { $set: { status: allPagesCompleted ? "completed" : "failed" } }
+            {
+                $set: {
+                    status: allPagesCompleted ? "completed" : "failed",
+                    ...(allPagesCompleted ? { completedAt: new Date() } : {})
+                }
+            }
         );
 
         console.log(`Book ${bookId} status: ${allPagesCompleted ? "completed" : "failed"}`);
@@ -620,7 +635,7 @@ export const getMyBooks = async (req, res) => {
 
         const books = await book
             .find({ user: req.userId, status: { $ne: "failed" } })
-            .select("title mode status coverImageUrl storyData.theme storyData.characters.name pages.status createdAt updatedAt")
+            .select("title mode status coverImageUrl storyData.theme storyData.characters.name pages.status createdAt updatedAt completedAt")
             .sort({ createdAt: -1 })
             .lean();
 
@@ -639,7 +654,8 @@ export const getMyBooks = async (req, res) => {
                     pageCount: pages.length,
                     completedPages: pages.filter((p) => p.status === "completed").length,
                     createdAt: b.createdAt,
-                    updatedAt: b.updatedAt
+                    updatedAt: b.updatedAt,
+                    completedAt: b.completedAt || null
                 };
             })
         });

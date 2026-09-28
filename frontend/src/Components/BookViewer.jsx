@@ -374,7 +374,7 @@ const FitText = ({ text = "", font }) => {
             <p
                 ref={textRef}
                 className="w-full text-center leading-normal text-[#3c3860]"
-                style={{ fontFamily: getStoryFontFamily(font) }}
+                style={{ fontFamily: getStoryFontFamily(font), whiteSpace: "pre-line" }}
             >
                 {text}
             </p>

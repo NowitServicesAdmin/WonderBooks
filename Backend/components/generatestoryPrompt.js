@@ -1,7 +1,6 @@
 // Buckets any age-group string (however it's phrased across the different
 // creation flows, e.g. "0–3 years", "4-7 years", "9-12 years", "18+ years")
 // into the five bands the product defines, and returns the exact
-// per-page length rule for that band.
 const getAgeLengthRule = (age) => {
     const raw = String(age || "").toLowerCase();
     const isAdult = /18\s*\+|18\s*plus|\badult/.test(raw);
@@ -11,34 +10,34 @@ const getAgeLengthRule = (age) => {
     if (isAdult || min >= 18) {
         return {
             band: "18+ years",
-            rule: "Each page's content MUST be a full page of text: roughly 20-28 sentences (approximately 250-350 words). Use rich, fully developed prose."
+            rule: "Each page's content MUST be roughly 20-28 lines of text (approximately 250-350 words total), each line separated by a line break (\\n). Use rich, fully developed prose, broken into natural lines rather than one solid block."
         };
     }
 
     if (min >= 13) {
         return {
             band: "13-17 years",
-            rule: "Each page's content MUST be about half a page of text: roughly 10-14 sentences (approximately 120-180 words)."
+            rule: "Each page's content MUST be roughly 10-14 lines of text (approximately 120-180 words total), each line separated by a line break (\\n)."
         };
     }
 
     if (min >= 8) {
         return {
             band: "8-13 years",
-            rule: "Each page's content MUST be exactly 8 to 9 sentences/lines. Not fewer than 8, not more than 9."
+            rule: "Each page's content MUST be exactly 8 to 9 lines, each line separated by a line break (\\n). Not fewer than 8, not more than 9."
         };
     }
 
     if (min >= 4) {
         return {
             band: "4-7 years",
-            rule: "Each page's content MUST be exactly 4 to 6 short sentences/lines. Not fewer than 4, not more than 6."
+            rule: "Each page's content MUST be exactly 4 to 6 short lines, each line separated by a line break (\\n). Not fewer than 4, not more than 6."
         };
     }
 
     return {
         band: "0-3 years",
-        rule: "Each page's content MUST be exactly 3 to 4 very short, simple sentences/lines. Not fewer than 3, not more than 4."
+        rule: "Each page's content MUST be exactly 3 to 4 very short, simple lines, each line separated by a line break (\\n). Not fewer than 3, not more than 4."
     };
 };
 
@@ -204,8 +203,12 @@ ${ageLength.rule}
 
 This length rule applies to EVERY page, not just the first or last.
 Do not let any page fall noticeably short of or exceed this range.
-Count sentences/lines as you write each page and adjust before
-moving to the next one.
+Count LINES, not sentences, as you write each page - a single
+sentence that wraps across two written lines still only counts as
+one line for this rule. Insert an actual "\\n" line break between
+each line in the JSON "content" string, the way text is broken into
+lines on a printed picture-book page, and adjust the line count
+before moving to the next page.
 
 ILLUSTRATION-FRIENDLY REQUIREMENTS:
 
@@ -250,6 +253,7 @@ Rules:
 8. Page numbers must be 1 through ${pageCount}.
 9. Each page must contain meaningful story content.
 9a. Each page's "content" must follow the PAGE LENGTH rule above (${ageLength.band}: ${ageLength.rule})
+9b. Within the "content" string, separate each line with a literal "\n" character - do not return the whole page as one unbroken paragraph.
 10. Return valid JSON only.
 11. Do not use markdown.
 12. Do not wrap the JSON in code fences.

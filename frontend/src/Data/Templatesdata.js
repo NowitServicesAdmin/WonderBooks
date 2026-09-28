@@ -80,7 +80,7 @@ export const templates = [
       "Follow a magical dream through a world filled with stars, clouds, and imagination.",
   },
   {
-    id: 8,
+    id: 9,
     type:'premium',
     title: "Dreamland Adventures",
     category: "Bedtime",

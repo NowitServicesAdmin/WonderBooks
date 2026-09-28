@@ -1,11 +1,33 @@
-/* eslint-disable react-hooks/static-components */
 /* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable react-hooks/exhaustive-deps */
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Heart, Crown,} from "lucide-react";
 import { templates, categories, categoryThemes } from './../../Data/Templatesdata';
 import { useEffect } from "react";
+
+// Moved to module scope (was previously declared inside Templates()),
+// which meant a brand-new component function was created on every
+// render, causing React to unmount/remount the search <input> on every
+// single placeholder-animation tick.
+const AnimatedSearch = ({ search, setSearch, placeholder }) => {
+  return (
+    <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-(--border) bg-(--tint) px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
+    <Search
+      size={18}
+      strokeWidth={2}
+      className="shrink-0 text-(--text-muted)"
+    />
+
+    <input
+      type="text"
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      placeholder={placeholder}
+      className="w-full bg-transparent text-sm text-[#403b61] outline-none placeholder:text-[#aaa7b8]"
+    />
+  </div>
+  );
+};
 
 export const Templates = () => {
   const navigate = useNavigate();
@@ -33,26 +55,6 @@ export const Templates = () => {
       return categoryMatch && searchMatch;
     });
   }, [activeCategory, search]);
-  // Animatd search
-  const AnimatedSearch = ({ search, setSearch }) => {
-    return (
-      <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--tint)] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
-        <Search
-          size={18}
-          strokeWidth={2}
-          className="shrink-0 text-[var(--text-muted)]"
-        />
-
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={placeholder}
-          className="w-full bg-transparent text-sm text-[#403b61] outline-none placeholder:text-[#aaa7b8]"
-        />
-      </div>
-    );
-  };
 
   useEffect(() => {
     // Stop animation while user is typing
@@ -98,7 +100,13 @@ export const Templates = () => {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, []);
+    // `search` is now a real dependency: previously this only checked
+    // `search` once at mount, so the type/erase loop ran forever even
+    // after the user started typing - it never re-evaluated the "stop
+    // animating while typing" condition, which is what was producing an
+    // unbroken stream of re-renders (and, with it, the debug console.log
+    // below firing on every tick).
+  }, [search]);
 
   const handleTemplateClick = (id) => {
     navigate(`/templates/${id}`);
@@ -116,7 +124,6 @@ export const Templates = () => {
       setHeartBursts((current) => ({ ...current, [id]: false }));
     }, 700);
   };
-  console.log("Filtered Templates:@j", filteredTemplates); // Debugging line
   return (
     <section className="w-full overflow-hidden rounded-2xl bg-transparent">
       <div className="p-3">
@@ -124,12 +131,12 @@ export const Templates = () => {
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <h2 className="text-2xl font-extrabold tracking-tight text-[var(--text-heading)] sm:text-3xl">
+              <h2 className="text-2xl font-extrabold tracking-tight text-(--text-heading) sm:text-3xl">
                 Templates
               </h2>
             </div>
 
-            <p className="mt-1.5 text-sm text-[var(--text-muted)]">
+            <p className="mt-1.5 text-sm text-(--text-muted)">
               Explore our ready-made stories and find one you love.
             </p>
           </div>
@@ -138,6 +145,7 @@ export const Templates = () => {
           <AnimatedSearch
             search={search}
             setSearch={setSearch}
+            placeholder={placeholder}
           />
         </div>
 
@@ -157,7 +165,7 @@ export const Templates = () => {
                   transition-all
                   ${active
                     ? "border-[#c8c0f6] bg-[#f0edff] text-[#624fc1] shadow-[0_2px_8px_rgba(93,43,197,0.10)]"
-                    : "border-[#e5e2ed] bg-white text-[#77738d] hover:border-[#cec8e8] hover:bg-[var(--tint)]"
+                    : "border-[#e5e2ed] bg-white text-[#77738d] hover:border-[#cec8e8] hover:bg-(--tint)"
                   }
                 `}
               >
@@ -174,11 +182,18 @@ export const Templates = () => {
             const isPremium = template.type === "premium";
 
             return (
-              <button
+              <div
                 key={template.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => handleTemplateClick(template.id)}
-                className="group min-w-0 text-left outline-none"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    handleTemplateClick(template.id);
+                  }
+                }}
+                className="group min-w-0 cursor-pointer text-left outline-none"
               >
                 {/* BOOK COVER */}
                 <div
@@ -484,7 +499,7 @@ export const Templates = () => {
                     }}
                   />
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -495,7 +510,7 @@ export const Templates = () => {
               <p className="text-base font-semibold text-[#4a4665]">
                 No templates found
               </p>
-              <p className="mt-1.5 text-sm text-[var(--text-muted)]">
+              <p className="mt-1.5 text-sm text-(--text-muted)">
                 Try another search or category.
               </p>
             </div>

@@ -26,10 +26,6 @@ const AI_ROBOT_IMAGE =
 const defaultAvatarUrl = (seed) =>
     `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(seed || "storybook-hero")}`;
 
-// Used if the API response doesn't include a cover image yet.
-const DEFAULT_COVER_FALLBACK =
-    "https://res.cloudinary.com/djdct0pxu/image/upload/v1788501579/Screenshot_2026-09-04_112746-removebg-preview_etj2un.png";
-
 const storyIdeas = [
     { emoji: "🐘", text: "A brave little elephant" },
     { emoji: "🚀", text: "An exciting space adventure" },
@@ -184,11 +180,6 @@ const MiniGameLoader = () => {
     );
 };
 
-/* ------------------------------------------------------------------
-   Round avatar-chip option, matching the reference "choose a theme"
-   picker: circular image, label underneath, purple ring + check when
-   selected. Used inside each Customize row's expanded carousel.
-   ------------------------------------------------------------------ */
 const CircleOptionChip = ({ option, isSelected, onClick }) => (
     <button type="button" onClick={onClick} className="flex w-18 shrink-0 flex-col items-center gap-1.5">
         <span
@@ -208,17 +199,6 @@ const CircleOptionChip = ({ option, isSelected, onClick }) => (
     </button>
 );
 
-/* ------------------------------------------------------------------
-   Customize panel — lets the user override the AI's guesses for
-   theme / subject / central message / image style. Each category is a
-   single collapsed pill (icon + current pick); tapping it expands into
-   a round-chip carousel, one category open at a time so the panel
-   never floods the chat with four big grids at once.
-
-   Image style intentionally shows only 2 choices (Watercolour and 3D
-   Storybook) rather than the full catalog, per request — swap the ids
-   in IMAGE_STYLE_QUICK_IDS if you'd rather offer a different pair.
-   ------------------------------------------------------------------ */
 const IMAGE_STYLE_QUICK_IDS = ["watercolor", "3d"];
 
 const CustomizePanel = ({ storySettings, onChange }) => {
@@ -320,7 +300,7 @@ const CustomizePanel = ({ storySettings, onChange }) => {
     );
 };
 
-export const AiBookCreation = () => {
+export const AiBookCreation = ({ initialIdea = "" }) => {
     const navigate = useNavigate();
 
     const [storyIdea, setStoryIdea] = useState("");
@@ -331,7 +311,6 @@ export const AiBookCreation = () => {
     const [ready, setReady] = useState(false);
     const [pickingPhoto, setPickingPhoto] = useState(false);
     const [photoCount, setPhotoCount] = useState(0);
-    const [bookStatus, setBookStatus] = useState(null); // null | "completed" | "failed"
 
     // Reactive mirror of store.current.state.storySettings, so the
     // Customize panel re-renders when the user swaps a card.
@@ -346,17 +325,38 @@ export const AiBookCreation = () => {
 
     const store = useRef({
         history: [],
-        state: { storySettings: {}, characters: [], companions: [] },
+        state: { storySettings: {}, characters: [] },
         files: {},
     });
     const fileRef = useRef(null);
     const companionFileRef = useRef(null);
     const pendingPhotoId = useRef(null);
-    const bottomRef = useRef(null);
+    const scrollRef = useRef(null);
+    const textareaRef = useRef(null);
+    const creatingRef = useRef(false);
+    const initialIdeaSent = useRef(false);
 
+    // Keep only the chat area pinned to the latest message.
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        const el = scrollRef.current;
+        if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
     }, [messages, isLoading, busy, chips, ready, pickingPhoto, companionPrompt, showCustomize]);
+
+    // Grow the textarea with its content (capped by max-h); it scrolls inside beyond that.
+    useEffect(() => {
+        const ta = textareaRef.current;
+        if (!ta) return;
+        ta.style.height = "auto";
+        ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
+    }, [storyIdea]);
+
+    // An idea typed in the header is sent as the first chat message.
+    useEffect(() => {
+        if (!initialIdea || initialIdeaSent.current) return;
+        initialIdeaSent.current = true;
+        handleSubmit(initialIdea);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [initialIdea]);
 
     /* ---------------- chat turn ---------------- */
     // Accepts an optional override so chip clicks can send immediately
@@ -384,7 +384,7 @@ export const AiBookCreation = () => {
             ]);
 
             s.history.push({ role: "assistant", content: data.reply });
-            s.state = { companions: [], ...s.state, ...data.state };
+            s.state = { ...s.state, ...data.state };
             setStorySettings(s.state.storySettings || {});
 
             setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
@@ -457,9 +457,6 @@ export const AiBookCreation = () => {
     };
 
     /* ---------------- + menu: add character / pet / object ---------------- */
-    // One shared form (name required, description + photo optional). A
-    // "character" is appended to the real cast (gets a canonical photo
-    // reference like the hero); "pet"/"object" go on the side as companions.
 
     const startCompanion = (type) => {
         setPickingPhoto(false);
@@ -490,52 +487,37 @@ export const AiBookCreation = () => {
         const hasPhoto = Boolean(companionDraft.photoFile);
         const s = store.current;
 
-        if (type === "character") {
-            const newCharacter = {
-                id,
-                type: "Friend",
-                name,
-                gender: "",
-                age: "",
-                hobbies: description,
-                favouriteFood: "",
-            };
-            s.state.characters = [...s.state.characters, newCharacter];
-            if (hasPhoto) s.files[id] = companionDraft.photoFile;
-            setPhotoCount(Object.keys(s.files).length);
+        const characterType = type === "character" ? "Friend" : type === "pet" ? "Pet" : "Object";
+        const newCharacter = {
+            id,
+            type: characterType,
+            name,
+            gender: "",
+            age: "",
+            hobbies: description,
+            favouriteFood: "",
+        };
+        s.state.characters = [...s.state.characters, newCharacter];
+        if (hasPhoto) s.files[id] = companionDraft.photoFile;
+        setPhotoCount(Object.keys(s.files).length);
 
-            setMessages((prev) => [
-                ...prev,
-                {
-                    role: "user",
-                    content: `Added ${name} to the story${description ? ` — ${description}` : ""}`,
-                    photo: companionDraft.photoPreview || undefined,
-                },
-                { role: "assistant", content: `Great — ${name} joins the adventure!` },
-            ]);
-        } else {
-            const companion = {
-                id,
-                type,
-                name,
-                description,
-                hasPhoto,
-                avatarUrl: hasPhoto ? null : defaultAvatarUrl(name),
-            };
-            s.state.companions = [...(s.state.companions || []), companion];
-            if (hasPhoto) s.files[id] = companionDraft.photoFile;
-
-            const kindLabel = type === "pet" ? "pet" : "object";
-            setMessages((prev) => [
-                ...prev,
-                {
-                    role: "user",
-                    content: `Added ${name} as their ${kindLabel}${description ? ` — ${description}` : ""}`,
-                    photo: companionDraft.photoPreview || undefined,
-                },
-                { role: "assistant", content: `Perfect — ${name} will be part of the story!` },
-            ]);
-        }
+        const kindLabel = type === "pet" ? "pet" : type === "object" ? "object" : null;
+        setMessages((prev) => [
+            ...prev,
+            {
+                role: "user",
+                content: kindLabel
+                    ? `Added ${name} as their ${kindLabel}${description ? ` — ${description}` : ""}`
+                    : `Added ${name} to the story${description ? ` — ${description}` : ""}`,
+                photo: companionDraft.photoPreview || undefined,
+            },
+            {
+                role: "assistant",
+                content: kindLabel
+                    ? `Perfect — ${name} will be part of the story!`
+                    : `Great — ${name} joins the adventure!`,
+            },
+        ]);
 
         cancelCompanion();
     };
@@ -543,18 +525,18 @@ export const AiBookCreation = () => {
     /* ---------------- create the book ---------------- */
 
     const handleCreate = async () => {
-        if (busy) return;
+        if (busy || creatingRef.current) return;
+        creatingRef.current = true;
         const { state, files } = store.current;
 
         setReady(false);
         setShowCustomize(false);
         setShowAddMenu(false);
         setBusy(true);
-        setBookStatus(null);
         setMessages((prev) => [
             ...prev,
             { role: "user", content: "Create my book" },
-            { role: "assistant", content: "On it! Writing the story and drawing the pages. This can take a few minutes." },
+            { role: "assistant", content: "On it! Taking you to My Books, where your story will appear as it's being made." },
         ]);
 
         try {
@@ -564,41 +546,30 @@ export const AiBookCreation = () => {
                     .map(([k, v]) => [k, { label: v }])
             );
 
-            // Any character without an uploaded photo still gets a face —
-            // a generated default avatar — so the book never ends up blank.
+            // Any character (including pets/objects added via the + menu)
+            // without an uploaded photo still gets a face — a generated
+            // default avatar — so the book never ends up blank.
             const characters = state.characters.map((c) => ({
                 ...c,
                 hasPhoto: Boolean(files[c.id]),
                 avatarUrl: files[c.id] ? null : defaultAvatarUrl(c.name || c.id),
             }));
 
-            // Pets/objects already carry name, description, hasPhoto and a
-            // fallback avatarUrl from saveCompanion; just pass them through.
-            const companions = state.companions || [];
+            const data = await createBook({ storySettings: storySettingsPayload, characters, files });
+            const bookId = data?.bookId || data?.book?.id;
 
-            const data = await createBook({ storySettings: storySettingsPayload, characters, companions, files });
+            // The server answers as soon as the book is registered and keeps
+            // generating in the background. My Books shows it as a loading
+            // card until it's done, so head there right away.
+            if (bookId) {
+                navigate("/books");
+                return; // stay locked - this page is unmounting
+            }
 
-            const bookId = data.bookId || data.book?.id;
-            const coverImage = data.coverImage || data.book?.coverImage || data.book?.coverUrl || DEFAULT_COVER_FALLBACK;
-
-            setBusy(false);
-            setBookStatus(data.status);
-
-            setMessages((prev) => [
-                ...prev,
-                data.status === "completed"
-                    ? {
-                        role: "assistant",
-                        content: "Your book is ready! 🎉",
-                        bookCover: { bookId, coverImage },
-                    }
-                    : {
-                        role: "assistant",
-                        content: "Your book was created, but some pages didn't draw. You can retry them from your library.",
-                    },
-            ]);
+            throw new Error("No bookId returned");
         } catch (error) {
             console.error("Create book error:", error);
+            creatingRef.current = false;
             setBusy(false);
             setReady(true);
             setMessages((prev) => [
@@ -615,14 +586,14 @@ export const AiBookCreation = () => {
 
     const handleRestart = () => {
         if (busy) return;
-        store.current = { history: [], state: { storySettings: {}, characters: [], companions: [] }, files: {} };
+        creatingRef.current = false;
+        store.current = { history: [], state: { storySettings: {}, characters: [] }, files: {} };
         setMessages([]);
         setStoryIdea("");
         setChips([]);
         setReady(false);
         setPickingPhoto(false);
         setPhotoCount(0);
-        setBookStatus(null);
         setStorySettings({});
         setShowCustomize(false);
         setShowAddMenu(false);
@@ -634,14 +605,14 @@ export const AiBookCreation = () => {
     const heroName = characters[0]?.name;
 
     return (
-        <div className="relative w-full overflow-hidden pb-8">
+        <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden pb-4">
             {/* Background Glow */}
-            <div className="pointer-events-none absolute left-1/2 top-25 h-105 w-225 -translate-x-1/2 rounded-full bg-[var(--tint)]/30 blur-[120px]" />
+            <div className="pointer-events-none absolute left-1/2 top-25 h-105 w-225 -translate-x-1/2 rounded-full bg-(--tint)/30 blur-[120px]" />
 
-            <div className="relative z-10 mx-auto flex w-full max-w-315 flex-col">
+            <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-315 flex-1 flex-col">
                 {/* ================= ROBOT + MESSAGE ================= */}
-                <div className="mt-12 flex items-center justify-center gap-8">
-                    <div className="relative flex h-57.5 w-75 shrink-0 items-center justify-center sm:h-75 sm:w-97.5">
+                <div className={`flex shrink-0 items-center justify-center gap-8 ${hasChat ? "mt-1" : "mt-12"}`}>
+                    <div className={`relative flex shrink-0 items-center justify-center transition-all duration-300 ${hasChat ? "h-24 w-32" : "h-57.5 w-75 sm:h-75 sm:w-97.5"}`}>
                         <Sparkles size={22} className={`absolute left-1.25 top-15 text-[#c29aff] ${isLoading || busy ? "animate-pulse" : ""}`} fill="currentColor" />
                         <Sparkles size={28} className={`absolute right-3.75 top-13.75 text-[#ffc34e] ${isLoading || busy ? "animate-pulse" : ""}`} fill="currentColor" />
                         <Sparkles size={18} className={`absolute bottom-13.75 left-6.25 text-[#f3b13b] ${isLoading || busy ? "animate-pulse" : ""}`} fill="currentColor" />
@@ -650,7 +621,7 @@ export const AiBookCreation = () => {
                 </div>
 
                 {!hasChat && (
-                    <p className="mx-auto -mt-4 max-w-140 text-center text-[15px] leading-6 text-[#777A9B]">
+                    <p className="mx-auto -mt-4 shrink-0 max-w-140 text-center text-[15px] leading-6 text-[#777A9B]">
                         Hi, I'm Bookie! Tell me what your story is about — a few rough words are enough,
                         like <span className="font-semibold text-[#5A39C7]">&ldquo;we&rsquo;re going on a road trip&rdquo;</span>.
                         I'll take it from there.
@@ -659,7 +630,7 @@ export const AiBookCreation = () => {
 
                 {/* Story Ideas — only before the conversation starts */}
                 {!hasChat && (
-                    <div className="mt-6 flex w-full justify-center">
+                    <div className="scrollbar-hide mt-6 flex min-h-0 w-full flex-1 justify-center overflow-y-auto pb-2">
                         <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
                             {storyIdeas.map((idea, index) => {
                                 const isSelected = storyIdea === idea.text;
@@ -709,8 +680,8 @@ export const AiBookCreation = () => {
 
                 {/* ================= CONVERSATION ================= */}
                 {hasChat && (
-                    <div className="mx-auto mt-8 flex w-full max-w-275 flex-col gap-4">
-                        <div className="flex justify-end">
+                    <div className="mx-auto mt-2 flex min-h-0 w-full max-w-275 flex-1 flex-col gap-2">
+                        <div className="flex shrink-0 justify-end">
                             <button
                                 onClick={handleRestart}
                                 disabled={busy}
@@ -721,6 +692,8 @@ export const AiBookCreation = () => {
                             </button>
                         </div>
 
+                        {/* Only this area scrolls; the robot, header and input stay put */}
+                        <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden pr-2">
                         {messages.map((message, index) => (
                             <div key={index} className={`flex w-full ${message.role === "user" ? "justify-end" : "justify-start"}`}>
                                 {message.bookCover ? (
@@ -744,7 +717,7 @@ export const AiBookCreation = () => {
                                     </div>
                                 ) : (
                                     <div
-                                        className={`max-w-[75%] rounded-[20px] px-5 py-3.5 text-[15px] leading-6 ${message.role === "user" ? "rounded-br-md bg-[#5A39C7] text-white" : "rounded-bl-md border border-[#E5E1ED] bg-white text-[#53577D]"}`}
+                                        className={`max-w-[75%] whitespace-pre-wrap wrap-break-word rounded-[20px] px-5 py-3.5 text-[15px] leading-6 ${message.role === "user" ? "rounded-br-md bg-[#5A39C7] text-white" : "rounded-bl-md border border-[#E5E1ED] bg-white text-[#53577D]"}`}
                                     >
                                         {message.photo && (
                                             <img src={message.photo} alt="" className="mb-2 h-28 w-28 rounded-[14px] object-cover" />
@@ -915,15 +888,15 @@ export const AiBookCreation = () => {
                         <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
                         <input ref={companionFileRef} type="file" accept="image/*" hidden onChange={onCompanionFile} />
 
-                        <div ref={bottomRef} />
+                        </div>
                     </div>
                 )}
 
                 {/* ================= PROMPT INPUT ================= */}
-                <div className="mx-auto mt-10 w-full max-w-275">
+                <div className="mx-auto mt-4 w-full max-w-275 shrink-0">
                     <div className="flex items-center rounded-[22px] border border-[#DED9EE] bg-white px-5 py-2 shadow-[0_12px_35px_rgba(120,100,180,0.08)] transition-all duration-300 focus-within:border-[#B9A7E8] focus-within:shadow-[0_16px_40px_rgba(74,50,145,0.12)]">
                         {/* Left AI Icon */}
-                        <div className="mr-4 flex h-11.5 w-11.5 shrink-0 items-center justify-center rounded-[14px] bg-linear-to-br from-[#F0EAFF] to-[#E3D7FF] text-[var(--accent)]">
+                        <div className="mr-4 flex h-11.5 w-11.5 shrink-0 items-center justify-center rounded-[14px] bg-linear-to-br from-[#F0EAFF] to-[#E3D7FF] text-(--accent)">
                             <Sparkles size={23} />
                         </div>
 
@@ -977,6 +950,7 @@ export const AiBookCreation = () => {
                         </div>
 
                         <textarea
+                            ref={textareaRef}
                             value={storyIdea}
                             onChange={(event) => setStoryIdea(event.target.value)}
                             onKeyDown={handleKeyDown}
@@ -991,7 +965,7 @@ export const AiBookCreation = () => {
                             }
                             rows={1}
                             disabled={isLoading || busy || !!companionPrompt}
-                            className="min-h-12.5 max-h-30 flex-1 resize-none bg-transparent py-3 text-[17px] text-[#38345F] outline-none placeholder:text-[#9693A8] disabled:opacity-60"
+                            className="min-h-12.5 max-h-30 flex-1 resize-none overflow-y-auto bg-transparent py-3 text-[17px] text-[#38345F] outline-none placeholder:text-[#9693A8] disabled:opacity-60"
                         />
 
                         <div className="mx-3 h-9 w-px bg-[#E7E3EF]" />
@@ -1007,7 +981,7 @@ export const AiBookCreation = () => {
                         <button
                             onClick={() => handleSubmit()}
                             disabled={!storyIdea.trim() || isLoading || busy || !!companionPrompt}
-                            className="flex h-13 w-14.5 shrink-0 items-center justify-center rounded-[10px] bg-linear-to-r from-[#6539D5] to-[var(--accent-hover)] text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)] active:translate-y-0 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-13 w-14.5 shrink-0 items-center justify-center rounded-[10px] bg-linear-to-r from-[#6539D5] to-(--accent-hover) text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)] active:translate-y-0 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
                             aria-label="Send"
                         >
                             <Send size={22} strokeWidth={2.3} />

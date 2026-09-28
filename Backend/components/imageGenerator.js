@@ -4,7 +4,7 @@ import { toFile } from "openai/uploads";
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1-mini";
-const QUALITY = process.env.OPENAI_IMAGE_QUALITY || "medium"; // low | medium | high
+const QUALITY = process.env.OPENAI_IMAGE_QUALITY || "high"; // low | medium | high
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -31,12 +31,7 @@ const closestSupportedSize = (width, height) => {
   return ratio < 1 ? "1024x1536" : "1536x1024";
 };
 
-// Builds a numbered list mapping each reference photo, in the exact order
-// it is attached to the request, to the character it belongs to (e.g.
-// "Reference photo 1: Buddy (Child)", "Reference photo 2: Max (Pet)",
-// "Reference photo 3: Teddy (Object)"). The order here MUST match the
-// order the files are attached in generateImage, or the labels will point
-// at the wrong photo.
+
 const buildReferenceManifest = (referenceImages) =>
     referenceImages
         .map((image, index) => {
