@@ -1,17 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Bot, Pencil, 
   // Sparkles 
 } from "lucide-react";
 import { AiBookCreation } from "./AiBookCreation";
 import { ManualMode } from "./ManualMode";
 export const BookCreation = () => {
-  const [creationMode, setCreationMode] = useState("ai");
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // An idea typed in the header arrives via router state and always opens AI mode.
+  const [incomingIdea] = useState(() => location.state?.idea?.trim() || "");
+  const [creationMode, setCreationMode] = useState(
+    location.state?.mode === "manual" && !incomingIdea ? "manual" : "ai"
+  );
+
+  // Clear the router state so a refresh doesn't resend the idea.
+  useEffect(() => {
+    if (location.state?.idea) {
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state, location.pathname, navigate]);
 
   return (
-    <div className="relative min-h-screen w-full px-10">
+    <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden px-10">
       
       {/* ================= PAGE HEADER ================= */}
-      <div className="relative z-20 flex items-start justify-between pt-5">
+      <div className="relative z-20 flex shrink-0 items-start justify-between pt-5">
         
         {/* Greeting */}
         <div>
@@ -36,10 +51,10 @@ export const BookCreation = () => {
           {/* AI Mode */}
           <button
             onClick={() => setCreationMode("ai")}
-            className={`flex h-[46px] w-[88px] items-center justify-center rounded-full transition-all duration-300 ${
+            className={`flex h-11.5 w-22 items-center justify-center rounded-full transition-all duration-300 ${
               creationMode === "ai"
-                ? "bg-gradient-to-br from-[#6537d7] to-[var(--accent-hover)] text-white shadow-[0_6px_18px_rgba(83,45,190,0.3)]"
-                : "text-[#5c5691] hover:bg-[var(--tint)]"
+                ? "bg-linear-to-br from-[#6537d7] to-(--accent-hover) text-white shadow-[0_6px_18px_rgba(83,45,190,0.3)]"
+                : "text-[#5c5691] hover:bg-(--tint)"
             }`}
             aria-label="AI Creation Mode"
           >
@@ -49,10 +64,10 @@ export const BookCreation = () => {
           {/* Manual Mode */}
           <button
             onClick={() => setCreationMode("manual")}
-            className={`flex h-[46px] w-[68px] items-center justify-center rounded-full transition-all duration-300 ${
+            className={`flex h-11.5 w-17 items-center justify-center rounded-full transition-all duration-300 ${
               creationMode === "manual"
-                ? "bg-gradient-to-br from-[#6537d7] to-[var(--accent-hover)] text-white shadow-[0_6px_18px_rgba(83,45,190,0.3)]"
-                : "text-[#5c5691] hover:bg-[var(--tint)]"
+                ? "bg-linear-to-br from-[#6537d7] to-(--accent-hover) text-white shadow-[0_6px_18px_rgba(83,45,190,0.3)]"
+                : "text-[#5c5691] hover:bg-(--tint)"
             }`}
             aria-label="Manual Creation Mode"
           >
@@ -63,9 +78,19 @@ export const BookCreation = () => {
 
       {/* ================= PAGE CONTENT ================= */}
 
-      {creationMode === "ai" && <AiBookCreation />}
+      {/* AI mode manages its own inner scroll (only the chat scrolls);
+          manual mode keeps scrolling as a normal page. */}
+      {creationMode === "ai" && (
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <AiBookCreation initialIdea={incomingIdea} />
+        </div>
+      )}
 
-      {creationMode === "manual" && <ManualMode />}
+      {creationMode === "manual" && (
+        <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto">
+          <ManualMode />
+        </div>
+      )}
       
     </div>
   );

@@ -207,6 +207,11 @@ const BookSchema = new mongoose.Schema(
         pages: {
             type: [BookPageSchema],
             default: []
+        },
+        
+        completedAt: {
+            type: Date,
+            default: null
         }
     },
     {
