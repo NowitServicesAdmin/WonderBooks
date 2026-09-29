@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { templates, buildPages } from "../Data/Templatesdata";
@@ -9,6 +9,7 @@ import { BookActions } from "./BookActions";
 export const TemplateDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
     const selectedTemplate = useMemo(
         () => templates.find((t) => String(t.id) === String(id)),
@@ -22,7 +23,6 @@ export const TemplateDetail = () => {
 
     const goBackToList = () => navigate("/templates");
 
-    // not found
     if (!selectedTemplate) {
         return (
             <section className="flex min-h-125 w-full items-center justify-center rounded-2xl border border-[#e6e3f2] bg-white p-8 text-center">
@@ -30,11 +30,9 @@ export const TemplateDetail = () => {
                     <p className="text-lg font-bold text-(--text-heading)">
                         Template not found
                     </p>
-
                     <p className="mt-2 text-sm text-(--text-muted)">
                         It may have been removed, or the link is incorrect.
                     </p>
-
                     <button
                         type="button"
                         onClick={goBackToList}
@@ -50,9 +48,14 @@ export const TemplateDetail = () => {
 
     const bestForAge = selectedTemplate.age.replace(/^Ages\s*/i, "");
 
-    // Templates aren't saved books, so there's no _id / imageKey behind them -
-    // BookActions and bookExport fall back to the template's own image URLs.
-    const templateAsBook = { title: selectedTemplate.title, storyData: { language: "English" } };
+    // Templates aren't saved books, so there's no real Mongo _id behind them.
+    // A stable synthetic id lets Read Aloud generate/cache audio for template previews too.
+    const templateAsBook = {
+        _id: `template-${selectedTemplate.id}`,
+        title: selectedTemplate.title,
+        storyData: { language: "English" },
+        status: "completed",
+    };
 
     return (
         <div className="flex h-full w-full flex-col gap-3">
@@ -67,7 +70,7 @@ export const TemplateDetail = () => {
                     <ArrowLeft size={18} />
                 </button>
                 <div className="min-w-0 flex-1">
-                    <BookActions book={templateAsBook} pages={pages} />
+                    <BookActions book={templateAsBook} pages={pages} currentPageIndex={currentPageIndex} />
                 </div>
             </div>
             <div className="min-h-0 flex-1">
@@ -75,6 +78,7 @@ export const TemplateDetail = () => {
                     pages={pages}
                     badge={selectedTemplate.category}
                     onExit={goBackToList}
+                    onPageChange={setCurrentPageIndex}
                     renderInfoPage={(page) => (
                         <BookInfoPage
                             title={page.heading}
