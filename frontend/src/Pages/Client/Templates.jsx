@@ -100,13 +100,7 @@ export const Templates = () => {
     return () => {
       clearTimeout(timeoutId);
     };
-    // `search` is now a real dependency: previously this only checked
-    // `search` once at mount, so the type/erase loop ran forever even
-    // after the user started typing - it never re-evaluated the "stop
-    // animating while typing" condition, which is what was producing an
-    // unbroken stream of re-renders (and, with it, the debug console.log
-    // below firing on every tick).
-  }, [search]);
+      }, [search]);
 
   const handleTemplateClick = (id) => {
     navigate(`/templates/${id}`);
