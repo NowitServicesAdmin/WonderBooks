@@ -14,6 +14,8 @@ import {
 import { StepRail } from "./StepRail";
 import { CharacterWorkspace } from "./CharacterIllustration";
 import { createBook } from "../services/bookService";
+import WonderAlertModal from "./WonderAlertModal";
+import { PlanLimitAlert, getPlanLimitError } from "./PlanLimitAlert";
 import { useNavigate } from "react-router-dom";
 
 
@@ -784,6 +786,8 @@ const StepWorkspace = ({ step, selections, onSelect }) => {
 
 export const ManualMode = () => {
     const navigate = useNavigate();
+    const [limitInfo, setLimitInfo] = useState(null);
+    const [showCreateError, setShowCreateError] = useState(false);
     const [activeStepId, setActiveStepId] = useState(STEPS[0].id);
 
     const [selections, setSelections] = useState({
@@ -942,9 +946,15 @@ export const ManualMode = () => {
             submittingRef.current = false;
             setIsSubmitting(false);
 
-            alert(
-                "Something went wrong while creating your story. Please try again."
-            );
+            // Plan limit reached / no active plan -> Wonder "upgrade" alert
+            // with a button to the subscription screen.
+            const limit = getPlanLimitError(error);
+            if (limit) {
+                setLimitInfo(limit);
+                return;
+            }
+
+            setShowCreateError(true);
         }
     };
 
@@ -1024,6 +1034,18 @@ export const ManualMode = () => {
                     </button>
                 </div>
             </div>
+
+            <PlanLimitAlert info={limitInfo} onClose={() => setLimitInfo(null)} />
+
+            <WonderAlertModal
+                isOpen={showCreateError}
+                onClose={() => setShowCreateError(false)}
+                type="error"
+                title="Oops, something went wrong"
+                message="We couldn't create your story. Please try again."
+                primaryText="Try Again"
+                onPrimary={() => setShowCreateError(false)}
+            />
         </div>
     );
 };

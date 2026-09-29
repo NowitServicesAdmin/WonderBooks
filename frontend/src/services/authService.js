@@ -10,6 +10,11 @@ export const verifyOtp = async ({ email, otp, name, mode }) => {
     return response.data;
 };
 
+export const googleAuth = async ({ accessToken }) => {
+    const response = await api.post("/auth/google", { accessToken });
+    return response.data;
+};
+
 export const fetchCurrentUser = async () => {
     const response = await api.get("/auth/me");
     return response.data;

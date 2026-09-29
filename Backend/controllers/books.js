@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import mongoose from "mongoose";
 import book from "../models/book.js";
+import { canAccessFeature } from "../config/subscriptionLimits.js";
 import { analyzeStory } from "../components/storyAnalyzer.js";
 import { generateStory } from "../components/generateStory.js";
 import { generateImagePrompt } from "../components/generateImagePrompt.js";
@@ -551,6 +552,20 @@ export const createBook = async (req, res) => {
     let bookId;
 
     try {
+        // Plan limit (basic 1 / gold 5 / premium 10 books). Checked before
+        // anything is created so a blocked request costs nothing.
+        const access = await canAccessFeature({ userId: req.userId, component: "book" });
+        if (!access.allowed) {
+            return res.status(403).json({
+                success: false,
+                code: access.reason,
+                message: access.message,
+                limit: access.limit,
+                currentUsage: access.currentUsage,
+                remaining: access.remaining
+            });
+        }
+
         const mode = req.body.mode;
         const message = req.body.message;
 

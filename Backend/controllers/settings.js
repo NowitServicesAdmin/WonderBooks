@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { User } from "../models/user.js";
-import { uploadToS3, deleteFromS3 } from "../services/s3Service.js";
+import { uploadToS3, deleteFromS3, normalizeS3Url } from "../services/s3Service.js";
 import { sendEmail } from "../config/mailer.js";
 
 const ABOUT_LIMIT = 200;
@@ -29,7 +29,7 @@ const sanitizeProfile = (user) => ({
     ageGroup: user.ageGroup || "",
     favoriteCharacters: user.favoriteCharacters || [],
     about: user.about || "",
-    avatarUrl: user.avatarUrl || null,
+    avatarUrl: normalizeS3Url(user.avatarUrl) || null,
     isVerified: Boolean(user.isVerified),
     createdAt: user.createdAt,
 });

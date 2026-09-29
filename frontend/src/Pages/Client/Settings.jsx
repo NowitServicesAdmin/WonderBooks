@@ -397,7 +397,7 @@ function ProfilePanel() {
                             aria-label="Change photo"
                             onClick={handleAvatarClick}
                             disabled={avatarUploading}
-                            className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-[var(--tint)] bg-white shadow-md disabled:opacity-60"
+                            className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-(--tint) bg-white shadow-md disabled:opacity-60"
                             style={{ color: tokens.purple }}
                         >
                             {avatarUploading ? (
@@ -482,7 +482,7 @@ function ProfilePanel() {
                                 onClick={() => toggleIn("characters", id)}
                                 aria-pressed={active}
                                 className={`flex h-11 items-center gap-2 rounded-full border bg-white pl-1.5 pr-4 text-sm font-medium transition-all duration-200 ${active
-                                        ? "border-[var(--accent)] text-[var(--ink)] shadow-[0_4px_12px_rgba(84,38,199,0.15)]"
+                                        ? "border-(--accent) text-(--ink) shadow-[0_4px_12px_rgba(84,38,199,0.15)]"
                                         : "border-[#efe6d8] text-[#5B5372] hover:border-[#cbb7ff]"
                                     }`}
                             >
@@ -491,7 +491,7 @@ function ProfilePanel() {
                                 </span>
                                 {id}
                                 {active && (
-                                    <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-[var(--accent)] text-white">
+                                    <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-(--accent) text-white">
                                         <Check size={12} strokeWidth={3} />
                                     </span>
                                 )}
@@ -521,7 +521,7 @@ function ProfilePanel() {
                         className="w-full resize-none rounded-xl border bg-white px-4 pb-7 pt-3 text-sm outline-none transition focus:border-[#a98aff] focus:ring-2 focus:ring-[#a98aff]/25"
                         style={{ borderColor: tokens.line, color: tokens.ink }}
                     />
-                    <span className="pointer-events-none absolute bottom-2.5 right-4 text-xs text-[var(--text-muted)]">
+                    <span className="pointer-events-none absolute bottom-2.5 right-4 text-xs text-(--text-muted)">
                         {form.about.length}/{ABOUT_LIMIT}
                     </span>
                 </div>
@@ -539,7 +539,7 @@ function ProfilePanel() {
                     type="button"
                     onClick={() => setForm(saved)}
                     disabled={saving || loading}
-                    className="h-12 rounded-xl border bg-white px-7 text-sm font-semibold transition hover:bg-[var(--tint)] active:scale-[0.98] disabled:opacity-60"
+                    className="h-12 rounded-xl border bg-white px-7 text-sm font-semibold transition hover:bg-(--tint) active:scale-[0.98] disabled:opacity-60"
                     style={{ borderColor: tokens.line, color: tokens.ink }}
                 >
                     Cancel
@@ -548,7 +548,7 @@ function ProfilePanel() {
                     type="button"
                     onClick={handleSave}
                     disabled={saving || loading}
-                    className="flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(84,38,199,0.28)] transition hover:bg-[var(--accent-hover)] active:scale-[0.98] disabled:opacity-60"
+                    className="flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(84,38,199,0.28)] transition hover:bg-(--accent-hover) active:scale-[0.98] disabled:opacity-60"
                     style={{ backgroundColor: tokens.purple }}
                 >
                     {saving ? (
@@ -563,7 +563,6 @@ function ProfilePanel() {
             </div>
         </div>
 
-        <DownloadDataCard />
         <DeleteAccountCard />
         </div>
     );
@@ -657,8 +656,8 @@ function NotificationsPanel({ goTo }) {
                                     onClick={() => setFrequency(f)}
                                     aria-pressed={active}
                                     className={`h-11 rounded-full border px-6 text-sm font-semibold transition-all duration-200 ${active
-                                            ? "border-transparent bg-[var(--accent)] text-white shadow-[0_5px_12px_rgba(84,38,199,0.25)]"
-                                            : "border-[var(--tint)] bg-white text-[var(--ink)] hover:border-[#cbb7ff] hover:bg-[var(--tint)]"
+                                            ? "border-transparent bg-(--accent) text-white shadow-[0_5px_12px_rgba(84,38,199,0.25)]"
+                                            : "border-(--tint) bg-white text-(--ink) hover:border-[#cbb7ff] hover:bg-(--tint)"
                                         }`}
                                 >
                                     {f}
@@ -681,7 +680,7 @@ function NotificationsPanel({ goTo }) {
                             Choose the notifications that matter to you and your little reader. We'll keep the noise low and the magic high!
                         </p>
                     </div>
-                    <div className="flex flex-col items-center bg-linear-to-b from-[#FBF9FF] to-[var(--tint)] px-5 pb-5">
+                    <div className="flex flex-col items-center bg-linear-to-b from-[#FBF9FF] to-(--tint) px-5 pb-5">
                         <img
                             src={ROBOT_IMG}
                             alt="Wonder Books robot reading a book"
@@ -708,7 +707,7 @@ function NotificationsPanel({ goTo }) {
                     <button
                         type="button"
                         onClick={() => goTo?.("help")}
-                        className="mt-4 flex h-12 w-full items-center justify-between rounded-xl border bg-white px-4 text-sm font-semibold transition hover:bg-[var(--tint)]"
+                        className="mt-4 flex h-12 w-full items-center justify-between rounded-xl border bg-white px-4 text-sm font-semibold transition hover:bg-(--tint)"
                         style={{ borderColor: tokens.line, color: tokens.purpleDeep }}
                     >
                         <span className="flex items-center gap-2.5">
@@ -723,40 +722,6 @@ function NotificationsPanel({ goTo }) {
     );
 }
 
-function DownloadDataCard() {
-    const [requested, setRequested] = useState(false);
-    return (
-        <AccordionCard
-            icon={Download}
-            iconBg="#DCE8FF"
-            iconColor="#4F7BE8"
-            title="Download Your Data"
-            titleColor={tokens.purple}
-            subtitle="Get a copy of your Wonder Books data."
-        >
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <p className="text-sm font-semibold" style={{ color: tokens.ink }}>
-                        Request a copy of your data
-                    </p>
-                    <p className="text-sm" style={{ color: tokens.inkSoft }}>
-                        We'll prepare a file with your books, profile and other available data. You'll receive a download link via email.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => setRequested(true)}
-                    disabled={requested}
-                    className="flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-6 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)] active:scale-[0.98] disabled:opacity-70"
-                    style={{ backgroundColor: tokens.purple }}
-                >
-                    {requested && <Check size={16} />}
-                    {requested ? "Request sent" : "Request Data Export"}
-                </button>
-            </div>
-        </AccordionCard>
-    );
-}
 
 function DeleteAccountCard() {
     const [confirming, setConfirming] = useState(false);
@@ -881,7 +846,7 @@ function HelpAboutPanel() {
             {/* FAQ + About */}
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
                 <Card className="p-3! sm:p-4!">
-                    <div className="flex items-center justify-between rounded-xl bg-[var(--tint)] px-3 py-3">
+                    <div className="flex items-center justify-between rounded-xl bg-(--tint) px-3 py-3">
                         <div className="flex items-center gap-3">
                             <IconTile icon={HelpCircle} bg={tokens.purple} color="var(--surface)" size={22} className="h-10 w-10 rounded-full" />
                             <p className="text-base font-extrabold sm:text-lg" style={{ color: tokens.purple }}>
@@ -980,7 +945,7 @@ function SettingsBreadcrumb({ activeId, onSelect }) {
                 onClick={() => setOpen((o) => !o)}
                 aria-haspopup="menu"
                 aria-expanded={open}
-                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 transition ${open ? "bg-[var(--tint)]" : "hover:bg-[var(--tint)]"
+                className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 transition ${open ? "bg-(--tint)" : "hover:bg-(--tint)"
                     }`}
                 style={{ color: tokens.purpleDeep }}
             >
@@ -993,7 +958,7 @@ function SettingsBreadcrumb({ activeId, onSelect }) {
 
             <ChevronRight size={17} className="text-[#a9a2c0]" />
 
-            <span className="text-[var(--accent)]">{active.title}</span>
+            <span className="text-(--accent)">{active.title}</span>
 
             {open && (
                 <div
@@ -1013,11 +978,11 @@ function SettingsBreadcrumb({ activeId, onSelect }) {
                                     setOpen(false);
                                 }}
                                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${isActive
-                                        ? "bg-[var(--tint)] text-[var(--accent)]"
-                                        : "text-[var(--ink)] hover:bg-[var(--tint)]"
+                                        ? "bg-(--tint) text-(--accent)"
+                                        : "text-(--ink) hover:bg-(--tint)"
                                     }`}
                             >
-                                <cat.icon size={18} className={isActive ? "text-[var(--accent)]" : "text-[#5B5372]"} />
+                                <cat.icon size={18} className={isActive ? "text-(--accent)" : "text-[#5B5372]"} />
                                 {cat.title}
                             </button>
                         );

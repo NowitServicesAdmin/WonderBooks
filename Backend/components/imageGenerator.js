@@ -4,7 +4,7 @@ import { toFile } from "openai/uploads";
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1-mini";
-const QUALITY = process.env.OPENAI_IMAGE_QUALITY || "high"; // low | medium | high
+const QUALITY = process.env.OPENAI_IMAGE_QUALITY || "medium"; // low | medium | high
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

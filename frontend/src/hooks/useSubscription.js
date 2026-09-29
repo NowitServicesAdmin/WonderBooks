@@ -34,6 +34,7 @@ export const useSubscription = (user, { enabled = true } = {}) => {
     const { openCheckout } = useRazorpayCheckout();
 
     const [subscription, setSubscription] = useState(null);
+    const [bookAccess, setBookAccess] = useState(null);
     const [loading, setLoading] = useState(enabled);
     const [busyPlanId, setBusyPlanId] = useState(null);
     const [error, setError] = useState("");
@@ -43,6 +44,7 @@ export const useSubscription = (user, { enabled = true } = {}) => {
         try {
             const { data } = await getMySubscription();
             setSubscription(data.subscription);
+            setBookAccess(data.bookAccess || null);
         } catch (err) {
             console.error("Failed to load subscription:", err);
         } finally {
@@ -153,6 +155,7 @@ export const useSubscription = (user, { enabled = true } = {}) => {
 
     return {
         subscription,
+        bookAccess,
         loading,
         busyPlanId,
         error,

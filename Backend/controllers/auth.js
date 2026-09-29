@@ -10,6 +10,7 @@ import {
     MAX_OTP_ATTEMPTS,
 } from "../services/otpService.js";
 import { signToken } from "../services/tokenService.js";
+import { normalizeS3Url } from "../services/s3Service.js";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OTP_LENGTH = 6;
@@ -19,7 +20,7 @@ const sanitizeUser = (user) => ({
     name: user.name || "",
     email: user.email,
     isVerified: Boolean(user.isVerified),
-    avatarUrl: user.avatarUrl || null,
+    avatarUrl: normalizeS3Url(user.avatarUrl) || null,
     role: user.role || "user",
     isSubscribed: Boolean(user.isSubscribed),
     subscriptionPlan: user.subscriptionPlan || "",
@@ -352,6 +353,92 @@ export const verifyOtp = async (req, res) => {
             success: false,
             message:
                 "Something went wrong while verifying the verification code",
+        });
+    }
+};
+
+export const googleAuth = async (req, res) => {
+    try {
+        const { accessToken } = req.body;
+
+        if (!accessToken) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing Google access token",
+            });
+        }
+
+        let payload;
+        try {
+            const googleRes = await fetch(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                { headers: { Authorization: `Bearer ${accessToken}` } }
+            );
+
+            if (!googleRes.ok) {
+                throw new Error(`Google userinfo responded with ${googleRes.status}`);
+            }
+
+            payload = await googleRes.json();
+        } catch (verifyError) {
+            console.error("Google token verification error:", verifyError);
+            return res.status(401).json({
+                success: false,
+                message: "We couldn't verify that Google account. Please try again.",
+            });
+        }
+
+        if (!payload?.email) {
+            return res.status(400).json({
+                success: false,
+                message: "Your Google account has no email address to sign in with",
+            });
+        }
+
+        if (!payload.email_verified) {
+            return res.status(400).json({
+                success: false,
+                message: "Please use a Google account with a verified email address",
+            });
+        }
+
+        const normalizedEmail = normalizeEmail(payload.email);
+
+        let user = await User.findOne({ email: normalizedEmail });
+
+        if (!user) {
+            user = new User({
+                email: normalizedEmail,
+                name: payload.name || "",
+                avatarUrl: payload.picture || null,
+                isVerified: true,
+            });
+        } else if (!user.isVerified) {
+            user.isVerified = true;
+            if (!user.name && payload.name) {
+                user.name = payload.name;
+            }
+            if (!user.avatarUrl && payload.picture) {
+                user.avatarUrl = payload.picture;
+            }
+        }
+
+        await user.save();
+
+        const token = signToken({ userId: user._id.toString() });
+
+        return res.status(200).json({
+            success: true,
+            message: "Signed in with Google successfully",
+            token,
+            user: sanitizeUser(user),
+        });
+    } catch (error) {
+        console.error("Google auth error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Something went wrong while signing in with Google",
         });
     }
 };

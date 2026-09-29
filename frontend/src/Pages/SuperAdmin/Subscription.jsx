@@ -20,6 +20,10 @@ const iconOptions = [
 
 const iconByKey = Object.fromEntries(iconOptions.map(({ key, icon }) => [key, icon]));
 
+// Must match MIN_BOOK_LIMIT / MAX_BOOK_LIMIT in Backend/config/subscriptionLimits.js
+const MIN_BOOK_LIMIT = 1;
+const MAX_BOOK_LIMIT = 10;
+
 const emptyDraft = {
     name: "",
     monthlyPrice: "",
@@ -28,6 +32,7 @@ const emptyDraft = {
     button: "blue",
     popular: false,
     active: true,
+    bookLimit: "",
     features: "",
 };
 
@@ -47,6 +52,7 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
                   button: plan.button || "blue",
                   popular: !!plan.popular,
                   active: plan.active !== false,
+                  bookLimit: plan.limits?.book ?? "",
                   features: plan.features.join("\n"),
               }
             : emptyDraft
@@ -63,6 +69,17 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
             return;
         }
 
+        const bookLimit = Number(draft.bookLimit);
+        if (
+            draft.bookLimit === "" ||
+            !Number.isInteger(bookLimit) ||
+            bookLimit < MIN_BOOK_LIMIT ||
+            bookLimit > MAX_BOOK_LIMIT
+        ) {
+            setError(`Book limit is required — enter a whole number from ${MIN_BOOK_LIMIT} to ${MAX_BOOK_LIMIT}.`);
+            return;
+        }
+
         onSave({
             name: draft.name.trim(),
             monthlyPrice: Number(draft.monthlyPrice),
@@ -71,6 +88,7 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
             button: draft.button,
             popular: draft.popular,
             active: draft.active,
+            bookLimit,
             features: draft.features
                 .split("\n")
                 .map((f) => f.trim())
@@ -144,6 +162,25 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
                                 <option value="orange">Orange</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">
+                            Book limit <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="number"
+                            min={MIN_BOOK_LIMIT}
+                            max={MAX_BOOK_LIMIT}
+                            step="1"
+                            value={draft.bookLimit}
+                            onChange={(e) => setDraft((d) => ({ ...d, bookLimit: e.target.value }))}
+                            placeholder={`${MIN_BOOK_LIMIT} to ${MAX_BOOK_LIMIT}`}
+                            className="w-full rounded-lg border border-[var(--tint)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
+                        />
+                        <p className="mt-1 text-xs text-[#a39cc0]">
+                            Books a user can create on this plan (Basic 1, Gold 5, Premium 10). Maximum {MAX_BOOK_LIMIT}.
+                        </p>
                     </div>
 
                     <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { useGoogleLogin } from "@react-oauth/google";
 import {
     Mail,
     ShieldCheck,
@@ -10,7 +11,7 @@ import {
     // Heart,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { sendOtp, verifyOtp } from "../../services/authService";
+import { sendOtp, verifyOtp, googleAuth } from "../../services/authService";
 
 import heroIllustrationImg from "../../assets/wonder-books/hero-illustration.png";
 import storiesDoodleImg from "../../assets/wonder-books/stories-doodle.png";
@@ -62,6 +63,28 @@ export const Auth = () => {
     const [devOtp, setDevOtp] = useState(null);
 
     const otpRefs = useRef([]);
+
+    const handleGoogleSuccess = async (tokenResponse) => {
+        setError("");
+        setSubmitting(true);
+        try {
+            const data = await googleAuth({ accessToken: tokenResponse.access_token });
+            login({ token: data.token, user: data.user });
+            navigate(data.user?.role === "super admin" ? "/superadmin" : "/home", { replace: true });
+        } catch (err) {
+            setError(
+                err.response?.data?.message ||
+                "Couldn't sign in with Google. Please try again."
+            );
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const googleLogin = useGoogleLogin({
+        onSuccess: handleGoogleSuccess,
+        onError: () => setError("Couldn't sign in with Google. Please try again."),
+    });
 
     useEffect(() => {
         if (cooldown <= 0) return;
@@ -408,7 +431,9 @@ export const Auth = () => {
                                 <div className="grid grid-cols-2 gap-3">
                                     <button
                                         type="button"
-                                        className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#ece5ff] bg-white text-[13.5px] font-semibold text-[#4a4362] transition hover:bg-[#faf9ff]"
+                                        onClick={() => googleLogin()}
+                                        disabled={submitting}
+                                        className="flex h-11 items-center justify-center gap-2 rounded-2xl border border-[#ece5ff] bg-white text-[13.5px] font-semibold text-[#4a4362] transition hover:bg-[#faf9ff] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         <GoogleIcon />
                                         Google

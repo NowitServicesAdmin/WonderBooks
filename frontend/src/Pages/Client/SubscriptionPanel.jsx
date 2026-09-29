@@ -43,6 +43,8 @@ const SubscriptionPanel = () => {
 
     const {
         subscription: mySubscription,
+        bookAccess,
+        refresh: refreshSubscription,
         loading: subLoading,
         busyPlanId,
         error,
@@ -52,6 +54,10 @@ const SubscriptionPanel = () => {
         cancelPlan,
         restorePlan,
     } = useSubscriptionContext();
+
+    useEffect(() => {
+        refreshSubscription?.();
+    }, [refreshSubscription]);
 
     const {
         plans: rawPlans,
@@ -231,6 +237,14 @@ const SubscriptionPanel = () => {
                                 ({mySubscription.billingCycle}) — valid until{" "}
                                 <span className="font-semibold">{formatDate(mySubscription.endDate)}</span>
                             </>
+                        )}
+                        {bookAccess && bookAccess.limit !== 0 && (
+                            <div className="mt-1 text-xs font-semibold">
+                                Books created:{" "}
+                                {bookAccess.limit === -1
+                                    ? `${bookAccess.currentUsage} (unlimited)`
+                                    : `${bookAccess.currentUsage} of ${bookAccess.limit}`}
+                            </div>
                         )}
                     </div>
 

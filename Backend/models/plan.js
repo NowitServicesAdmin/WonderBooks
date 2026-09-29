@@ -75,6 +75,13 @@ const planSchema = new mongoose.Schema(
             default: [],
         },
 
+        // Optional per-plan usage limits set by super admin. null = fall
+        // back to the defaults in config/subscriptionLimits.js
+        // (basic 1 / gold 5 / premium 10). -1 = unlimited.
+        limits: {
+            book: { type: Number, default: null, min: -1 },
+        },
+
         // Soft-delete flag. Kept (not hard-deleted) so historical
         // Subscription documents that reference this plan still resolve to
         // something sensible; inactive plans just stop showing up in the

@@ -1,6 +1,7 @@
 import Plan from "../models/plan.js";
 import PlanSettings, { getSettings } from "../models/planSettings.js";
 import Subscription from "../models/subscription.js";
+import { MIN_BOOK_LIMIT, MAX_BOOK_LIMIT } from "../config/subscriptionLimits.js";
 
 const MAX_PLANS = 6;
 
@@ -29,6 +30,16 @@ const uniqueSlug = async (base) => {
     }
 };
 
+// A whole number from MIN_BOOK_LIMIT to MAX_BOOK_LIMIT, otherwise null
+// (= invalid). Super admin must always choose a value in this range.
+const parseBookLimit = (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    const n = Number(value);
+    return Number.isInteger(n) && n >= MIN_BOOK_LIMIT && n <= MAX_BOOK_LIMIT ? n : null;
+};
+
+const BOOK_LIMIT_MESSAGE = `Book limit is required and must be a whole number from ${MIN_BOOK_LIMIT} to ${MAX_BOOK_LIMIT}.`;
+
 // -------------------------------------------------------------------------
 // GET /api/admin/plans
 // Every plan (active + inactive) plus the current yearly-saving %, for the
@@ -54,13 +65,17 @@ export const getAllPlans = async (req, res) => {
 // -------------------------------------------------------------------------
 export const createPlan = async (req, res) => {
     try {
-        const { name, iconKey, monthlyPrice, ribbon, button, popular, features } = req.body;
+        const { name, iconKey, monthlyPrice, ribbon, button, popular, features, bookLimit } = req.body;
 
         if (!name || !name.trim()) {
             return res.status(400).json({ success: false, message: "Plan name is required" });
         }
         if (monthlyPrice === undefined || monthlyPrice === null || monthlyPrice < 0) {
             return res.status(400).json({ success: false, message: "A valid monthly price is required" });
+        }
+
+        if (parseBookLimit(bookLimit) === null) {
+            return res.status(400).json({ success: false, message: BOOK_LIMIT_MESSAGE });
         }
 
         const count = await Plan.countDocuments();
@@ -82,6 +97,7 @@ export const createPlan = async (req, res) => {
             button: button || "blue",
             popular: !!popular,
             features: Array.isArray(features) ? features.filter(Boolean) : [],
+            limits: { book: parseBookLimit(bookLimit) },
             order: (lastOrder?.order ?? -1) + 1,
             updatedBy: req.user._id,
         });
@@ -102,7 +118,7 @@ export const createPlan = async (req, res) => {
 // -------------------------------------------------------------------------
 export const updatePlan = async (req, res) => {
     try {
-        const { name, iconKey, monthlyPrice, ribbon, button, popular, features, active } = req.body;
+        const { name, iconKey, monthlyPrice, ribbon, button, popular, features, active, bookLimit } = req.body;
 
         const plan = await Plan.findById(req.params.id);
         if (!plan) {
@@ -127,6 +143,13 @@ export const updatePlan = async (req, res) => {
         if (popular !== undefined) plan.popular = !!popular;
         if (features !== undefined) plan.features = Array.isArray(features) ? features.filter(Boolean) : [];
         if (active !== undefined) plan.active = !!active;
+        if (bookLimit !== undefined) {
+            const parsed = parseBookLimit(bookLimit);
+            if (parsed === null) {
+                return res.status(400).json({ success: false, message: BOOK_LIMIT_MESSAGE });
+            }
+            plan.set("limits.book", parsed);
+        }
 
         plan.updatedBy = req.user._id;
         await plan.save();

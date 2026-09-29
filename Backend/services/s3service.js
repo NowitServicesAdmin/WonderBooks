@@ -1,6 +1,13 @@
 import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, s3Config } from "../config/awss3.js";
 
+
+const joinUrl = (base, key) =>
+    `${String(base || "").replace(/\/+$/, "")}/${String(key || "").replace(/^\/+/, "")}`;
+
+export const normalizeS3Url = (url) =>
+    typeof url === "string" ? url.replace(/^(https?:\/\/[^/]+)\/{2,}/, "$1/") : url;
+
 export const uploadToS3 = async ({ key, buffer, contentType }) => {
     await s3Client.send(new PutObjectCommand({
         Bucket: s3Config.bucketName,
@@ -12,7 +19,7 @@ export const uploadToS3 = async ({ key, buffer, contentType }) => {
     return {
         provider: "s3",
         key,
-        url: `${s3Config.publicUrl}/${key}`
+        url: joinUrl(s3Config.publicUrl, key)
     };
 };
 

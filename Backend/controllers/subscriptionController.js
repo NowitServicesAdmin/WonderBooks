@@ -4,6 +4,7 @@ import Subscription from "../models/subscription.js";
 import { User } from "../models/user.js";
 import Plan from "../models/plan.js";
 import { getPlanConfig, getPlanPrice } from "../config/subscriptionPlans.js";
+import { canAccessFeature } from "../config/subscriptionLimits.js";
 
 // -------------------------------------------------------------------------
 // Helpers
@@ -66,7 +67,10 @@ export const getMySubscription = async (req, res) => {
             subscription.canRestore = !!subscription.cancelRequested && isCurrentlyActive;
         }
 
-        res.json({ success: true, subscription: subscription || null });
+        // Books used / allowed on the current plan, for the "2 of 5 books" UI.
+        const bookAccess = await canAccessFeature({ userId: req.user._id, component: "book" });
+
+        res.json({ success: true, subscription: subscription || null, bookAccess });
     } catch (err) {
         res.status(500).json({ success: false, message: "Failed to fetch subscription", error: err.message });
     }

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { chatBook, createBook } from "../services/bookService";
+import { PlanLimitAlert, getPlanLimitError } from "./PlanLimitAlert";
 // NOTE: requires `export` added to `const STORY_OPTIONS = {...}` in ManualMode.jsx
 import { STORY_OPTIONS } from "./ManualMode";
 
@@ -302,6 +303,7 @@ const CustomizePanel = ({ storySettings, onChange }) => {
 
 export const AiBookCreation = ({ initialIdea = "" }) => {
     const navigate = useNavigate();
+    const [limitInfo, setLimitInfo] = useState(null);
 
     const [storyIdea, setStoryIdea] = useState("");
     const [messages, setMessages] = useState([]);
@@ -572,9 +574,17 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
             creatingRef.current = false;
             setBusy(false);
             setReady(true);
+
+            // Plan limit -> Wonder "upgrade" alert instead of a chat line.
+            const limit = getPlanLimitError(error);
+            if (limit) {
+                setLimitInfo(limit);
+                return;
+            }
+
             setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: `Something went wrong: ${error.message || "please try again"}.` },
+                { role: "assistant", content: `Something went wrong: ${error?.response?.data?.message || error.message || "please try again"}.` },
             ]);
         }
     };
@@ -995,6 +1005,8 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                     </p>
                 </div>
             </div>
+
+            <PlanLimitAlert info={limitInfo} onClose={() => setLimitInfo(null)} />
         </div>
     );
 };
