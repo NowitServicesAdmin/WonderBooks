@@ -7,15 +7,15 @@ import { getStoryFontFamily } from "../utils/storyFonts";
 
 const THUMBS_VISIBLE = 6;
 const PAGE_W = 600;
-const PAGE_H = 800; 
-const FRAME_V = 48; 
+const PAGE_H = 800;
+const FRAME_V = 48;
 const BOOK_MAX_W = 900;
-const THUMB_SLOT = 85; 
+const THUMB_SLOT = 85;
 const PORTRAIT_BELOW = 600;
-const TEXT_MAX = 32; 
+const TEXT_MAX = 32;
 const TEXT_MIN = 11;
 
-export const BookViewer = ({ pages, badge = "", onExit, renderInfoPage, font }) => {
+export const BookViewer = ({ pages, badge = "", onExit, renderInfoPage, font, onPageChange }) => {
     const bookRef = useRef(null);
     const [leafIndex, setLeafIndex] = useState(0);
     const pageIndex = Math.floor(leafIndex / 2);
@@ -34,6 +34,10 @@ export const BookViewer = ({ pages, badge = "", onExit, renderInfoPage, font }) 
         observer.observe(el);
         return () => observer.disconnect();
     }, []);
+    // tell the parent which story page is showing (0 = cover), so Read Aloud reads the right text
+    useEffect(() => {
+        onPageChange?.(pageIndex);
+    }, [pageIndex]);
 
     const portrait = stage.w > 0 && stage.w < PORTRAIT_BELOW;
     const fitW = portrait
@@ -141,93 +145,93 @@ export const BookViewer = ({ pages, badge = "", onExit, renderInfoPage, font }) 
             <div className="relative flex h-full w-full items-center justify-center overflow-hidden px-2 pt-2 pb-8 sm:px-4 sm:pb-9">
                 <div className="relative flex h-full w-full max-w-400 items-center justify-center gap-4">
                     <div ref={stageRef} className="relative flex h-full min-w-0 flex-1 items-center justify-center">
-                    {/* wb-keep-light: the book is a paper object, it stays light in dark mode */}
-                    <div className="wb-keep-light relative flex shrink-0 items-center justify-center" style={{ width: frameW, height: frameH }}>
-                        <div className="pointer-events-none absolute bottom-2 left-[1.4%] right-[1.4%] top-2.5 z-0 rounded-[29px] bg-[#163971] shadow-[0_24px_38px_rgba(22,57,113,0.28)]" />
-                        <div className="pointer-events-none absolute bottom-3.75 left-[1.8%] right-[1.8%] top-3.75 z-1 rounded-[27px] bg-[#163971]" />
+                        {/* wb-keep-light: the book is a paper object, it stays light in dark mode */}
+                        <div className="wb-keep-light relative flex shrink-0 items-center justify-center" style={{ width: frameW, height: frameH }}>
+                            <div className="pointer-events-none absolute bottom-2 left-[1.4%] right-[1.4%] top-2.5 z-0 rounded-[29px] bg-[#163971] shadow-[0_24px_38px_rgba(22,57,113,0.28)]" />
+                            <div className="pointer-events-none absolute bottom-3.75 left-[1.8%] right-[1.8%] top-3.75 z-1 rounded-[27px] bg-[#163971]" />
 
-                        <div className="pointer-events-none absolute bottom-6.5 left-[2.25%] right-[2.25%] top-4.25 z-2 rounded-[25px] bg-[#e9e7e1] shadow-[0_2px_4px_rgba(45,42,35,0.14)]" />
-                        <div className="pointer-events-none absolute bottom-7 left-[2.1%] right-[2.1%] top-3.75 z-3 rounded-3xl bg-[#efede8]" />
-                        <div className="pointer-events-none absolute bottom-7.5 left-[1.95%] right-[1.95%] top-3.25 z-4 rounded-[23px] bg-[#f4f2ed]" />
-                        <div className="pointer-events-none absolute bottom-8 left-[1.8%] right-[1.8%] top-2.75 z-5 rounded-[22px] bg-[#f8f7f3]" />
+                            <div className="pointer-events-none absolute bottom-6.5 left-[2.25%] right-[2.25%] top-4.25 z-2 rounded-[25px] bg-[#e9e7e1] shadow-[0_2px_4px_rgba(45,42,35,0.14)]" />
+                            <div className="pointer-events-none absolute bottom-7 left-[2.1%] right-[2.1%] top-3.75 z-3 rounded-3xl bg-[#efede8]" />
+                            <div className="pointer-events-none absolute bottom-7.5 left-[1.95%] right-[1.95%] top-3.25 z-4 rounded-[23px] bg-[#f4f2ed]" />
+                            <div className="pointer-events-none absolute bottom-8 left-[1.8%] right-[1.8%] top-2.75 z-5 rounded-[22px] bg-[#f8f7f3]" />
 
-                        <div className="pointer-events-none absolute bottom-9.5 left-[1.95%] top-5.75 z-8 w-0.5 rounded-l-full bg-[#dedbd4]" />
-                        <div className="pointer-events-none absolute bottom-10.25 left-[2.18%] top-5 z-8 w-px rounded-l-full bg-[#ebe9e4]" />
-                        <div className="pointer-events-none absolute bottom-11 left-[2.38%] top-4.25 z-8 w-px rounded-l-full bg-[#d8d5ce]" />
-                        <div className="pointer-events-none absolute bottom-11.75 left-[2.57%] top-3.5 z-8 w-px rounded-l-full bg-[#f0eee9]" />
+                            <div className="pointer-events-none absolute bottom-9.5 left-[1.95%] top-5.75 z-8 w-0.5 rounded-l-full bg-[#dedbd4]" />
+                            <div className="pointer-events-none absolute bottom-10.25 left-[2.18%] top-5 z-8 w-px rounded-l-full bg-[#ebe9e4]" />
+                            <div className="pointer-events-none absolute bottom-11 left-[2.38%] top-4.25 z-8 w-px rounded-l-full bg-[#d8d5ce]" />
+                            <div className="pointer-events-none absolute bottom-11.75 left-[2.57%] top-3.5 z-8 w-px rounded-l-full bg-[#f0eee9]" />
 
-                        <div className="pointer-events-none absolute bottom-9.5 right-[1.95%] top-5.75 z-8 w-0.5 rounded-r-full bg-[#dedbd4]" />
-                        <div className="pointer-events-none absolute bottom-10.25 right-[2.18%] top-5 z-8 w-px rounded-r-full bg-[#ebe9e4]" />
-                        <div className="pointer-events-none absolute bottom-11 right-[2.38%] top-4.25 z-8 w-px rounded-r-full bg-[#d8d5ce]" />
-                        <div className="pointer-events-none absolute bottom-11.75 right-[2.57%] top-3.5 z-8 w-px rounded-r-full bg-[#f0eee9]" />
+                            <div className="pointer-events-none absolute bottom-9.5 right-[1.95%] top-5.75 z-8 w-0.5 rounded-r-full bg-[#dedbd4]" />
+                            <div className="pointer-events-none absolute bottom-10.25 right-[2.18%] top-5 z-8 w-px rounded-r-full bg-[#ebe9e4]" />
+                            <div className="pointer-events-none absolute bottom-11 right-[2.38%] top-4.25 z-8 w-px rounded-r-full bg-[#d8d5ce]" />
+                            <div className="pointer-events-none absolute bottom-11.75 right-[2.57%] top-3.5 z-8 w-px rounded-r-full bg-[#f0eee9]" />
 
-                        <div className="pointer-events-none absolute bottom-6.25 left-[4.2%] right-[4.2%] z-7 h-2.5 rounded-b-[45%] bg-[#dedbd5]" />
-                        <div className="pointer-events-none absolute bottom-7 left-[4.35%] right-[4.35%] z-8 h-1.75 rounded-b-[45%] bg-[#ebe9e4]" />
-                        <div className="pointer-events-none absolute bottom-7.75 left-[4.5%] right-[4.5%] z-9 h-1.25 rounded-b-[45%] bg-[#f4f2ed]" />
-                        <div className="pointer-events-none absolute bottom-8.5 left-[4.65%] right-[4.65%] z-10 h-0.75 rounded-b-[45%] bg-[#faf9f6]" />
+                            <div className="pointer-events-none absolute bottom-6.25 left-[4.2%] right-[4.2%] z-7 h-2.5 rounded-b-[45%] bg-[#dedbd5]" />
+                            <div className="pointer-events-none absolute bottom-7 left-[4.35%] right-[4.35%] z-8 h-1.75 rounded-b-[45%] bg-[#ebe9e4]" />
+                            <div className="pointer-events-none absolute bottom-7.75 left-[4.5%] right-[4.5%] z-9 h-1.25 rounded-b-[45%] bg-[#f4f2ed]" />
+                            <div className="pointer-events-none absolute bottom-8.5 left-[4.65%] right-[4.65%] z-10 h-0.75 rounded-b-[45%] bg-[#faf9f6]" />
 
-                        <div className="relative z-20 overflow-hidden rounded-[22px] bg-white shadow-[0_9px_24px_rgba(35,35,70,0.14)]" style={{ width: bookW, height: bookH }}>
-                            {stage.w > 0 && (
-<HTMLFlipBook key={portrait ? `portrait-${bookW}` : "spread"} ref={bookRef} width={PAGE_W} height={PAGE_H} size="stretch" minWidth={flipMinWidth} maxWidth={2000} minHeight={50} maxHeight={3000} showCover={false} usePortrait={portrait} mobileScrollSupport={false} drawShadow={true} maxShadowOpacity={0.28} flippingTime={650} startPage={leafIndex} onFlip={handleFlip} className="story-book h-full w-full" style={{ margin: 0 }}>
-                                {leaves.map((leaf, index) => (
-                                    <div key={index} className="relative h-full w-full overflow-hidden bg-white">
-                                        <ScaledPage fallbackScale={pageScale}>
-                                        {leaf.type === "image" ? (
-                                            <div className="relative h-full w-full overflow-hidden bg-white">
-                                                <PageImage src={leaf.page.image} />
-                                                <span className="absolute left-6 top-5 inline-flex items-center gap-1 rounded-full bg-white/95 px-3.5 py-1.5 text-[11px] font-bold text-[#5d2bc5] shadow-sm">
-                                                    <Star size={11} fill="currentColor" />
-                                                    {badge}
-                                                </span>
-                                                {leaf.page.kind === "cover" && (
-                                                    <span className="absolute bottom-5 left-5 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3.5 py-1.5 text-[11px] font-semibold text-white backdrop-blur-sm">
-                                                        <WandSparkles size={11} />
-                                                        AI Generated
-                                                    </span>
-                                                )}
+                            <div className="relative z-20 overflow-hidden rounded-[22px] bg-white shadow-[0_9px_24px_rgba(35,35,70,0.14)]" style={{ width: bookW, height: bookH }}>
+                                {stage.w > 0 && (
+                                    <HTMLFlipBook key={portrait ? `portrait-${bookW}` : "spread"} ref={bookRef} width={PAGE_W} height={PAGE_H} size="stretch" minWidth={flipMinWidth} maxWidth={2000} minHeight={50} maxHeight={3000} showCover={false} usePortrait={portrait} mobileScrollSupport={false} drawShadow={true} maxShadowOpacity={0.28} flippingTime={650} startPage={leafIndex} onFlip={handleFlip} className="story-book h-full w-full" style={{ margin: 0 }}>
+                                        {leaves.map((leaf, index) => (
+                                            <div key={index} className="relative h-full w-full overflow-hidden bg-white">
+                                                <ScaledPage fallbackScale={pageScale}>
+                                                    {leaf.type === "image" ? (
+                                                        <div className="relative h-full w-full overflow-hidden bg-white">
+                                                            <PageImage src={leaf.page.image} />
+                                                            <span className="absolute left-6 top-5 inline-flex items-center gap-1 rounded-full bg-white/95 px-3.5 py-1.5 text-[11px] font-bold text-[#5d2bc5] shadow-sm">
+                                                                <Star size={11} fill="currentColor" />
+                                                                {badge}
+                                                            </span>
+                                                            {leaf.page.kind === "cover" && (
+                                                                <span className="absolute bottom-5 left-5 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3.5 py-1.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+                                                                    <WandSparkles size={11} />
+                                                                    AI Generated
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : leaf.page.kind === "story" ? (
+                                                        <div className="h-full w-full bg-white px-14 py-16">
+                                                            <FitText text={leaf.page.text} font={font} />
+                                                        </div>
+                                                    ) : leaf.page.kind === "cover" && renderInfoPage ? (
+                                                        renderInfoPage(leaf.page)
+                                                    ) : (
+                                                        <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 bg-white px-12 text-center">
+                                                            <span className="pointer-events-none absolute left-7 top-7 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-[#dfcf9d]" />
+                                                            <span className="pointer-events-none absolute right-7 top-7 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-[#dfcf9d]" />
+                                                            <span className="pointer-events-none absolute bottom-7 left-7 h-8 w-8 rounded-bl-lg border-b-2 border-l-2 border-[#dfcf9d]" />
+                                                            <span className="pointer-events-none absolute bottom-7 right-7 h-8 w-8 rounded-br-lg border-b-2 border-r-2 border-[#dfcf9d]" />
+                                                            <h3 className="max-w-130 font-serif text-[40px] font-bold leading-tight text-[#29254d]">
+                                                                {leaf.page.heading}
+                                                            </h3>
+                                                            <p className="text-sm font-semibold text-[#9893a8]">
+                                                                {leaf.page.sub}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </ScaledPage>
                                             </div>
-                                        ) : leaf.page.kind === "story" ? (
-                                            <div className="h-full w-full bg-white px-14 py-16">
-                                                <FitText text={leaf.page.text} font={font} />
-                                            </div>
-                                        ) : leaf.page.kind === "cover" && renderInfoPage ? (
-                                            renderInfoPage(leaf.page)
-) : (
-                                            <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 bg-white px-12 text-center">
-                                                <span className="pointer-events-none absolute left-7 top-7 h-8 w-8 rounded-tl-lg border-l-2 border-t-2 border-[#dfcf9d]" />
-                                                <span className="pointer-events-none absolute right-7 top-7 h-8 w-8 rounded-tr-lg border-r-2 border-t-2 border-[#dfcf9d]" />
-                                                <span className="pointer-events-none absolute bottom-7 left-7 h-8 w-8 rounded-bl-lg border-b-2 border-l-2 border-[#dfcf9d]" />
-                                                <span className="pointer-events-none absolute bottom-7 right-7 h-8 w-8 rounded-br-lg border-b-2 border-r-2 border-[#dfcf9d]" />
-                                                <h3 className="max-w-130 font-serif text-[40px] font-bold leading-tight text-[#29254d]">
-                                                    {leaf.page.heading}
-                                                </h3>
-                                                <p className="text-sm font-semibold text-[#9893a8]">
-                                                    {leaf.page.sub}
-                                                </p>
-                                            </div>
-                                        )}
-                                        </ScaledPage>
-                                    </div>
-                                ))}
-                            </HTMLFlipBook>
-                            )}
-                            {!portrait && (
-                                <>
-                                    <div className="pointer-events-none absolute inset-y-0 left-1/2 z-50 w-13 -translate-x-1/2 bg-linear-to-r from-transparent via-[#38334b]/10 to-transparent" />
-                                    <div className="pointer-events-none absolute inset-y-0 left-1/2 z-51 w-0.5 -translate-x-1/2 bg-linear-to-b from-transparent via-[#4b4656]/10 to-transparent" />
-                                </>
-                            )}
-                            <button type="button" onClick={goPrevPage} disabled={isFirstPage} aria-label="Previous page" className="absolute left-2 top-1/2 z-100 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full sm:left-5 sm:h-12 sm:w-12 bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20">
-                                <ChevronLeft size={25} />
-                            </button>
+                                        ))}
+                                    </HTMLFlipBook>
+                                )}
+                                {!portrait && (
+                                    <>
+                                        <div className="pointer-events-none absolute inset-y-0 left-1/2 z-50 w-13 -translate-x-1/2 bg-linear-to-r from-transparent via-[#38334b]/10 to-transparent" />
+                                        <div className="pointer-events-none absolute inset-y-0 left-1/2 z-51 w-0.5 -translate-x-1/2 bg-linear-to-b from-transparent via-[#4b4656]/10 to-transparent" />
+                                    </>
+                                )}
+                                <button type="button" onClick={goPrevPage} disabled={isFirstPage} aria-label="Previous page" className="absolute left-2 top-1/2 z-100 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full sm:left-5 sm:h-12 sm:w-12 bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20">
+                                    <ChevronLeft size={25} />
+                                </button>
 
-                            <button type="button" onClick={goNextPage} disabled={isLastPage} aria-label="Next page" className="absolute right-2 top-1/2 z-100 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full sm:right-5 sm:h-12 sm:w-12 bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20">
-                                <ChevronRight size={25} />
-                            </button>
+                                <button type="button" onClick={goNextPage} disabled={isLastPage} aria-label="Next page" className="absolute right-2 top-1/2 z-100 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full sm:right-5 sm:h-12 sm:w-12 bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20">
+                                    <ChevronRight size={25} />
+                                </button>
+                            </div>
+                            <div className="pointer-events-none absolute bottom-2 left-[4%] right-[4%] z-16 h-2.5 rounded-b-[18px] bg-[#163971]" />
+                            <div className="pointer-events-none absolute -bottom-6 left-1/2 z-[-1] h-7 w-[78%] -translate-x-1/2 rounded-full bg-[#535064]/25 blur-2xl" />
                         </div>
-                        <div className="pointer-events-none absolute bottom-2 left-[4%] right-[4%] z-16 h-2.5 rounded-b-[18px] bg-[#163971]" />
-                        <div className="pointer-events-none absolute -bottom-6 left-1/2 z-[-1] h-7 w-[78%] -translate-x-1/2 rounded-full bg-[#535064]/25 blur-2xl" />
-                    </div>
                     </div>
 
                     <aside className="relative z-30 hidden h-full w-19.5 shrink-0 flex-col items-center justify-center bg-transparent sm:flex">

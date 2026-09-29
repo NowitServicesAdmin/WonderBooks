@@ -33,6 +33,7 @@ export const BookReader = () => {
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
 
   // Load the book, and keep polling while the backend is still generating it.
   useEffect(() => {
@@ -147,28 +148,31 @@ export const BookReader = () => {
           <ArrowLeft size={18} />
         </button>
         <div className="min-w-0 flex-1">
-          <BookActions book={book} pages={pages} />
+          <BookActions book={book} pages={pages} currentPageIndex={currentPageIndex} />
+
+
         </div>
       </div>
       <div className="min-h-0 flex-1">
         <BookViewer
-          pages={pages}
-          badge={sd.theme || "Story"}
-          font={sd.font}
-          onExit={goBack}
-          renderInfoPage={(page) => (
-            <BookInfoPage
-              title={page.heading}
-              ageLabel={ageLabel}
-              description={description}
-              readingTime={readingTime}
-              theme={sd.theme || "Story"}
-              bestFor={ageOnly ? `Kids ${ageOnly}` : "All kids"}
-              inputLabel={sd.storyIdea ? "Your Story Input" : "Central Message"}
-              inputText={inputText !== description ? inputText : ""}
-            />
-          )}
-        />
+  pages={pages}
+  badge={sd.theme || "Story"}
+  font={sd.font}
+  onExit={goBack}
+  onPageChange={setCurrentPageIndex}
+  renderInfoPage={(page) => (
+    <BookInfoPage
+      title={page.heading}
+      ageLabel={ageLabel}
+      description={description}
+      readingTime={readingTime}
+      theme={sd.theme || "Story"}
+      bestFor={ageOnly ? `Kids ${ageOnly}` : "All kids"}
+      inputLabel={sd.storyIdea ? "Your Story Input" : "Central Message"}
+      inputText={inputText !== description ? inputText : ""}
+    />
+  )}
+/>
       </div>
     </div>
   );
