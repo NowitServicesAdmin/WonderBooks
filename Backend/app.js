@@ -35,7 +35,7 @@ app.use("/audio", express.static(path.join(process.cwd(), "uploads", "audio")));
 const audioMemoryCache = new Map(); // key -> Buffer
 const MAX_CACHE_ENTRIES = 200;
 
-app.post("/api/tts", requireAuth, async (req, res) => {
+app.post("/tts", requireAuth, async (req, res) => {
   try {
     const { bookId, pageId, text, voiceId } = req.body;
     if (!bookId || pageId === undefined || pageId === null || !text || !voiceId) {

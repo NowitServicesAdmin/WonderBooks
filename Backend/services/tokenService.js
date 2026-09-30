@@ -10,3 +10,15 @@ export const signToken = (payload) => {
 export const verifyToken = (token) => {
     return jwt.verify(token, JWT_SECRET);
 };
+
+// Short-lived proof that an email / mobile number was verified during signup.
+// Signed with a different secret so it can never be used as a login token.
+const VERIFY_SECRET = `${JWT_SECRET}:signup-verify`;
+
+export const signVerificationToken = (payload) => {
+    return jwt.sign({ ...payload, purpose: "signup-verify" }, VERIFY_SECRET, { expiresIn: "30m" });
+};
+
+export const verifyVerificationToken = (token) => {
+    return jwt.verify(token, VERIFY_SECRET);
+};
