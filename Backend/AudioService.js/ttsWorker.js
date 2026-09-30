@@ -30,13 +30,23 @@
 //   return `${PUBLIC_BASE_URL}/audio/${cacheKey}`;
 // }
 // AudioService.js/ttsWorker.js
-const TTS_ENGINE_URL = process.env.TTS_ENGINE_URL || "http://13.235.1.156:8020/generate";
+// const TTS_ENGINE_URL = process.env.TTS_ENGINE_URL || "http://3.229.24.45:8020/generate";
+const TTS_ENGINE_URL = process.env.TTS_ENGINE_URL || "http://127.0.0.1:8020/generate";
 
-export async function generateAudio({ text, voiceId }) {
+// Matches the `id` values from your language picker exactly (lowercase)
+const SUPPORTED_LANGS = new Set([
+  "english", "spanish", "french", "german", "italian",
+  "portuguese", "dutch", "hindi", "arabic", "chinese",
+  // "japanese" and "korean" have no Piper voice yet - falls back to English on the server
+]);
+
+export async function generateAudio({ text, voiceId, language }) {
+  const lang = SUPPORTED_LANGS.has((language || "").toLowerCase()) ? language.toLowerCase() : "english";
+
   const res = await fetch(TTS_ENGINE_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, voice: voiceId }),
+    body: JSON.stringify({ text, voice: voiceId, lang }),
     signal: AbortSignal.timeout(120000),
   });
 
@@ -45,5 +55,5 @@ export async function generateAudio({ text, voiceId }) {
     throw new Error(`TTS engine failed (${res.status}): ${detail}`);
   }
 
-  return Buffer.from(await res.arrayBuffer()); // MP3 bytes, nothing written to disk
+  return Buffer.from(await res.arrayBuffer()); // MP3 bytes
 }

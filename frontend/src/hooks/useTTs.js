@@ -96,7 +96,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_URL|| "http://localhost:5000";
 
 export const useTTS = () => {
     const audioRef = useRef(null);
@@ -138,7 +138,7 @@ export const useTTS = () => {
                 if (!url) {
                     const controller = new AbortController();
                     abortRef.current = controller;
-                    const res = await fetch(`${API_BASE}/api/tts`, {
+                    const res = await fetch(`${API_BASE}/tts`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ bookId, pageId, text, voiceId: vid }),
@@ -165,6 +165,7 @@ export const useTTS = () => {
                 await audio.play();
                 if (myReq === reqIdRef.current) setStatus("playing");
             } catch (err) {
+                console.log(err,"error@jesus")
                 if (err.name === "AbortError" || myReq !== reqIdRef.current) return;
                 setError(err.message || "Something went wrong with the voice.");
                 setStatus("idle");

@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import mongoose from "mongoose";
 import book from "../models/book.js";
@@ -10,6 +9,7 @@ import { generateImagePrompt } from "../components/generateImagePrompt.js";
 import { generateImage } from "../components/imageGenerator.js";
 import { uploadToS3 } from "../services/s3Service.js";
 // import { uploadImage, getFromR2 } from "../services/storageService.js";
+import { notify } from "../services/alertService.js";
 import {
     uploadImage,
     getStorageImage
@@ -550,12 +550,12 @@ const generateBookInBackground = async ({
 
 export const createBook = async (req, res) => {
     let bookId;
-
     try {
         // Plan limit (basic 1 / gold 5 / premium 10 books). Checked before
         // anything is created so a blocked request costs nothing.
         const access = await canAccessFeature({ userId: req.userId, component: "book" });
         if (!access.allowed) {
+            notify.planLimitReached(req.userId, access);// for alert
             return res.status(403).json({
                 success: false,
                 code: access.reason,

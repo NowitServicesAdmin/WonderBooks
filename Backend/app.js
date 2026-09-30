@@ -32,13 +32,13 @@ app.use("/audio", express.static(path.join(process.cwd(), "uploads", "audio")));
 const audioMemoryCache = new Map(); // key -> Buffer
 const MAX_CACHE_ENTRIES = 200;
 
-app.post("/tts", async (req, res) => {
+app.post("/api/tts", async (req, res) => {
   try {
+    console.log("Triggering @god", req.body)
     const { bookId, pageId, text, voiceId } = req.body;
     if (!bookId || pageId === undefined || pageId === null || !text || !voiceId) {
       return res.status(400).json({ error: "bookId, pageId, text and voiceId are required" });
     }
-
     const cacheKey = `${bookId}:${pageId}:${voiceId}`;
 
     let audioBuffer = audioMemoryCache.get(cacheKey);
@@ -58,7 +58,7 @@ app.post("/tts", async (req, res) => {
     });
     res.send(audioBuffer); // sent directly, nothing left on disk
   } catch (err) {
-    console.error("TTS error:", err.message);
+    console.log("TTS error:", err.message, err.cause?.code || err.cause);
     res.status(500).json({ error: "Failed to generate speech" });
   }
 });
