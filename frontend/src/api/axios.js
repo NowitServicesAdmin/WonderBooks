@@ -25,7 +25,11 @@ api.interceptors.response.use(
         const status = error.response?.status;
         const code = error.response?.data?.code;
 
-        if (status === 401 && SESSION_INVALID_CODES.has(code)) {
+        const sessionInvalid =
+            (status === 401 && SESSION_INVALID_CODES.has(code)) ||
+            (status === 403 && code === "ACCOUNT_BLOCKED");
+
+        if (sessionInvalid) {
             localStorage.removeItem("wb_token");
             localStorage.removeItem("wb_user");
             if (window.location.pathname !== "/auth") {

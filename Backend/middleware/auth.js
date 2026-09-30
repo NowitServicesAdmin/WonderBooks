@@ -1,7 +1,7 @@
 import { verifyToken } from "../services/tokenService.js";
 import { User } from "../models/user.js";
 
-export const requireAuth = (req, res, next) => {
+export const requireAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
@@ -16,12 +16,38 @@ export const requireAuth = (req, res, next) => {
   try {
     const decoded = verifyToken(token);
     req.userId = decoded.userId;
-    next();
   } catch (error) {
     return res.status(401).json({
       success: false,
       code: "TOKEN_INVALID",
       message: "Your session has expired, please log in again",
+    });
+  }
+
+  try {
+    const account = await User.findById(req.userId).select("isBlocked").lean();
+
+    if (!account) {
+      return res.status(401).json({
+        success: false,
+        code: "ACCOUNT_NOT_FOUND",
+        message: "Account not found",
+      });
+    }
+
+    if (account.isBlocked) {
+      return res.status(403).json({
+        success: false,
+        code: "ACCOUNT_BLOCKED",
+        message: "Your account has been blocked. Please contact support.",
+      });
+    }
+
+    next();
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to verify account",
     });
   }
 };

@@ -1,10 +1,17 @@
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
+import {
+  isModerationBlock,
+  sanitizeImagePrompt,
+  MAX_SAFETY_LEVEL,
+} from "./promptSafety.js";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1-mini";
 const QUALITY = process.env.OPENAI_IMAGE_QUALITY || "medium"; // low | medium | high
+// "low" = less restrictive automatic filtering (supported by images.generate).
+const MODERATION = process.env.OPENAI_IMAGE_MODERATION || "low"; // auto | low
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -136,49 +143,57 @@ export const generateImage = async ({
             )
         );
 
-        const finalPrompt = buildPromptWithReferenceInstruction(
-            prompt,
-            validReferences
-        );
-
     console.log(
-      `Generating OpenAI image (${MODEL}, quality: ${QUALITY}) with ${imageFiles.length} reference image(s), size ${size}...`,
+      `Generating OpenAI image (${MODEL}, quality: ${QUALITY}) with ${validReferences.length} reference image(s), size ${size}...`,
     );
 
     let lastError;
+    let safetyLevel = 0; // raised each time the output moderation blocks us
+    let attempt = 0;
 
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    while (attempt <= maxRetries) {
       try {
+        // Level 2 = last resort: drop the reference photos as well.
+        const useReferences = safetyLevel < MAX_SAFETY_LEVEL && imageFiles.length > 0;
+
+        const safePrompt = sanitizeImagePrompt(prompt, safetyLevel);
+        const finalPrompt = buildPromptWithReferenceInstruction(
+          safePrompt,
+          useReferences ? validReferences : []
+        );
+
         let response;
 
-                if (imageFiles.length > 0) {
-                    response = await client.images.edit({
-                        model: MODEL,
-                        image: imageFiles,
-                        prompt: finalPrompt,
-                        size,
-                        quality: QUALITY
-                    });
-                } else {
-                    response = await client.images.generate({
-                        model: MODEL,
-                        prompt: finalPrompt,
-                        size,
-                        quality: QUALITY
-                    });
-                }
+        if (useReferences) {
+          response = await client.images.edit({
+            model: MODEL,
+            image: imageFiles,
+            prompt: finalPrompt,
+            size,
+            quality: QUALITY,
+          });
+        } else {
+          response = await client.images.generate({
+            model: MODEL,
+            prompt: finalPrompt,
+            size,
+            quality: QUALITY,
+            moderation: MODERATION,
+          });
+        }
 
         const b64 = response?.data?.[0]?.b64_json;
 
-                if (!b64) {
-                    throw new Error("OpenAI did not return image data.");
-                }
+        if (!b64) {
+          throw new Error("OpenAI did not return image data.");
+        }
 
         const imageBuffer = Buffer.from(b64, "base64");
 
         console.log(
           "OpenAI generated image size:",
           imageBuffer.length,
+          `| safety level: ${safetyLevel}`,
           "| usage:",
           response?.usage,
         );
@@ -187,9 +202,16 @@ export const generateImage = async ({
       } catch (error) {
         lastError = error;
 
-        const retryable = isRetryableError(error);
+        // Output moderation block: retry with safer wording (no wait needed).
+        if (isModerationBlock(error) && safetyLevel < MAX_SAFETY_LEVEL) {
+          safetyLevel += 1;
+          console.warn(
+            `OpenAI moderation blocked the image (request ${error?.requestID}). Retrying with safety level ${safetyLevel}...`,
+          );
+          continue; // does not use up a normal retry
+        }
 
-        if (!retryable || attempt === maxRetries) {
+        if (!isRetryableError(error) || attempt === maxRetries) {
           break;
         }
 
@@ -201,6 +223,7 @@ export const generateImage = async ({
         );
 
         await sleep(delay);
+        attempt += 1;
       }
     }
 

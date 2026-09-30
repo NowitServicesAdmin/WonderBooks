@@ -56,8 +56,12 @@ const getActiveSubscription = (userId) =>
         .sort({ createdAt: -1 })
         .lean();
 
-export const getBookUsage = (userId) =>
-    book.countDocuments({ user: userId, status: { $ne: "failed" } });
+export const getBookUsage = (userId, since) =>
+    book.countDocuments({
+        user: userId,
+        status: { $ne: "failed" },
+        ...(since ? { createdAt: { $gte: new Date(since) } } : {}),
+    });
 
 const result = (allowed, reason, extra) => ({
     allowed,
@@ -68,22 +72,24 @@ const result = (allowed, reason, extra) => ({
     limit: 0,
     currentUsage: 0,
     remaining: 0,
+    startDate: null,
     message: "",
     ...extra,
 });
 
 export const canAccessFeature = async ({ userId, component = "book" }) => {
-    const currentUsage = component === "book" ? await getBookUsage(userId) : 0;
-
     const subscription = await getActiveSubscription(userId);
 
     if (!subscription) {
         return result(false, "SUBSCRIPTION_REQUIRED", {
             component,
-            currentUsage,
+            currentUsage: 0,
             message: "Choose a plan to start creating books.",
         });
     }
+
+    const currentUsage =
+        component === "book" ? await getBookUsage(userId, subscription.startDate) : 0;
 
     const plan = await Plan.findOne({ planId: subscription.planName }).lean();
     const limit = getFeatureLimit({ plan, subscription, component });
@@ -93,20 +99,13 @@ export const canAccessFeature = async ({ userId, component = "book" }) => {
         component,
         limit,
         currentUsage,
+        startDate: subscription.startDate,
     };
 
     if (limit === 0) {
         return result(false, "FEATURE_NOT_INCLUDED", {
             ...base,
             message: "This feature is not included in your plan.",
-        });
-    }
-
-    if (limit === -1) {
-        return result(true, "ALLOWED", {
-            ...base,
-            remaining: -1,
-            message: "Unlimited access.",
         });
     }
 

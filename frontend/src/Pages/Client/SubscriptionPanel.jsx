@@ -49,6 +49,7 @@ const SubscriptionPanel = () => {
         busyPlanId,
         error,
         isCurrentPlan: isCurrentPlanId,
+        hasLivePlan,
         lockOtherPlans,
         buyPlan,
         cancelPlan,
@@ -80,11 +81,15 @@ const SubscriptionPanel = () => {
         };
     }, [mySubscription]);
 
+    // Cheapest plan first (low -> high), regardless of the order the API returns them in.
+    // Sorting on monthlyPrice keeps the same order for the yearly view too.
     const plans = useMemo(() => {
-        return rawPlans.map((plan) => ({
-            ...plan,
-            price: billing === "monthly" ? plan.monthlyPrice : getYearlyPrice(plan.monthlyPrice),
-        }));
+        return [...rawPlans]
+            .sort((a, b) => (a.monthlyPrice ?? 0) - (b.monthlyPrice ?? 0))
+            .map((plan) => ({
+                ...plan,
+                price: billing === "monthly" ? plan.monthlyPrice : getYearlyPrice(plan.monthlyPrice),
+            }));
     }, [rawPlans, billing, getYearlyPrice]);
 
     const isCurrentPlan = (plan) => isCurrentPlanId(plan.planId);
@@ -130,7 +135,7 @@ const SubscriptionPanel = () => {
             {plansLoading ? (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {[0, 1, 2].map((i) => (
-                        <div key={i} className="h-70 animate-pulse rounded-2xl bg-[var(--tint)]" />
+                        <div key={i} className="h-70 animate-pulse rounded-2xl bg-(--tint)" />
                     ))}
                 </div>
             ) : plans.length === 0 ? (
@@ -144,13 +149,17 @@ const SubscriptionPanel = () => {
                         const isFree = plan.monthlyPrice === 0;
                         const owned = isCurrentPlan(plan);
                         const isBusy = busyPlanId === plan.planId;
-                        const lockedByOtherPlan = !owned && lockOtherPlans;
+                        const lockedByOtherPlan = !isFree && !owned && lockOtherPlans;
+                        // The free plan can only be (re)started once nothing else is running.
+                        const lockedFree = isFree && !owned && hasLivePlan;
+                        const locked = lockedByOtherPlan || lockedFree;
 
                         let buttonLabel = "Buy now";
-                        if (isFree) buttonLabel = owned || !mySubscription ? "Current Plan" : "Switch to Free";
-                        else if (owned) buttonLabel = "Current Plan";
+                        if (owned) buttonLabel = "Current Plan";
                         else if (isBusy) buttonLabel = "Processing…";
+                        else if (lockedFree) buttonLabel = "Available after your plan ends";
                         else if (lockedByOtherPlan) buttonLabel = "Cancel current plan first";
+                        else if (isFree) buttonLabel = "Start free";
 
                         return (
                             <div
@@ -203,8 +212,14 @@ const SubscriptionPanel = () => {
                                 <button
                                     type="button"
                                     onClick={() => handleBuy(plan)}
-                                    disabled={owned || isBusy || subLoading || lockedByOtherPlan}
-                                    title={lockedByOtherPlan ? "Cancel your current plan to switch" : undefined}
+                                    disabled={owned || isBusy || subLoading || locked}
+                                    title={
+                                        lockedByOtherPlan
+                                            ? "Cancel your current plan to switch"
+                                            : lockedFree
+                                              ? "You can switch to the free plan once your current plan ends"
+                                              : undefined
+                                    }
                                     className="h-10 w-full rounded-xl text-sm font-bold text-white shadow-sm transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                                     style={{ background: owned ? tokens.inkSoft : buttonBg[plan.button] || buttonBg.blue }}
                                 >
@@ -217,7 +232,7 @@ const SubscriptionPanel = () => {
             )}
 
             {/* Current plan status */}
-            {mySubscription && mySubscription.status === "active" && (
+            {mySubscription && hasLivePlan && (
                 <div
                     className="mt-5 flex flex-col gap-2 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between"
                     style={{ borderColor: tokens.line, background: tokens.purpleTint }}
@@ -241,9 +256,7 @@ const SubscriptionPanel = () => {
                         {bookAccess && bookAccess.limit !== 0 && (
                             <div className="mt-1 text-xs font-semibold">
                                 Books created:{" "}
-                                {bookAccess.limit === -1
-                                    ? `${bookAccess.currentUsage} (unlimited)`
-                                    : `${bookAccess.currentUsage} of ${bookAccess.limit}`}
+                                {bookAccess.currentUsage} of {bookAccess.limit}
                             </div>
                         )}
                     </div>
@@ -285,7 +298,7 @@ const SubscriptionPanel = () => {
                     Payment history
                 </h3>
                 {paymentsLoading ? (
-                    <div className="h-16 animate-pulse rounded-xl bg-[var(--tint)]" />
+                    <div className="h-16 animate-pulse rounded-xl bg-(--tint)" />
                 ) : payments.length === 0 ? (
                     <div
                         className="flex items-center gap-2 rounded-xl border border-dashed p-4 text-sm"

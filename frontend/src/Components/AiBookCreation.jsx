@@ -395,9 +395,16 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
         } catch (error) {
             console.error("Chat error:", error);
             s.history.pop();
+            // Unsafe idea -> show the real reason instead of a generic error.
+            const notAllowed = error?.response?.data?.code === "CONTENT_NOT_ALLOWED";
             setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: "Sorry, I lost my train of thought. Could you say that again?" },
+                {
+                    role: "assistant",
+                    content: notAllowed
+                        ? error.response.data.message
+                        : "Sorry, I lost my train of thought. Could you say that again?",
+                },
             ]);
             setStoryIdea(message);
         } finally {
@@ -557,7 +564,13 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                 avatarUrl: files[c.id] ? null : defaultAvatarUrl(c.name || c.id),
             }));
 
-            const data = await createBook({ storySettings: storySettingsPayload, characters, files });
+            const data = await createBook({
+                mode: "ai",
+                storySettings: storySettingsPayload,
+                characters,
+                files,
+                message: state.storySettings.idea
+            });
             const bookId = data?.bookId || data?.book?.id;
 
             // The server answers as soon as the book is registered and keeps
@@ -584,7 +597,13 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
 
             setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: `Something went wrong: ${error?.response?.data?.message || error.message || "please try again"}.` },
+                {
+                    role: "assistant",
+                    content:
+                        error?.response?.data?.code === "CONTENT_NOT_ALLOWED"
+                            ? error.response.data.message
+                            : `Something went wrong: ${error?.response?.data?.message || error.message || "please try again"}.`,
+                },
             ]);
         }
     };

@@ -4,9 +4,9 @@ import {
   Sparkles,
   Pencil,
   ShieldCheck,
-  Info,
   WandSparkles,
 } from "lucide-react";
+import { InfoTip } from "../../Components/InfoTip";
 
 const AI_CREATION_IMAGE =
   "https://res.cloudinary.com/djdct0pxu/image/upload/v1788436524/Screenshot_2026-09-03_172334_r8ny2y.png";
@@ -17,28 +17,26 @@ const MANUAL_CREATION_IMAGE =
 export const CreateBook = () => {
   const navigate = useNavigate();
   const handleCreateAI = () => {
-    console.log("Create with AI clicked");
-    navigate("bookcreation");
+    navigate("bookcreation", { state: { mode: "ai" } });
     // Navigate to AI creation flow
   };
 
   const handleCreateManual = () => {
-    console.log("Create manually clicked");
-    navigate("bookcreation");
+    navigate("bookcreation", { state: { mode: "manual" } });
     // Navigate to Manual creation flow
   };
 
 
 
   return (
-    <div className="max-h-full w-full overflow-hidden bg-[#fffff]">
-      <main className="mx-auto flex max-w-280 flex-col items-center">
+    <div className="w-full px-4 pb-10 sm:px-6">
+      <main className="mx-auto flex w-full max-w-280 flex-col items-center justify-start">
         <section className="mt-4 grid w-full grid-cols-1 gap-10 md:grid-cols-2">
 
           {/* AI Creation Card */}
           <div
             className="
-      relative flex h-122.5 flex-col overflow-hidden
+      relative flex min-h-122.5 w-full flex-col overflow-hidden
       rounded-[30px] border-[1.5px] border-[#d9c9f5]
       bg-white/60 px-7 pb-7 pt-5
       shadow-[0_18px_45px_rgba(83,55,160,0.10)]
@@ -67,7 +65,7 @@ export const CreateBook = () => {
 
             {/* Content */}
             <div className="flex flex-1 flex-col text-center">
-              <h2 className="flex items-center justify-center gap-2 text-[30px] font-bold tracking-[-0.5px] text-[#332985]">
+              <h2 className="flex items-center justify-center gap-2 text-[27px] font-bold tracking-[-0.5px] text-[#332985]">
                 AI Creation
 
                 <Sparkles
@@ -80,7 +78,7 @@ export const CreateBook = () => {
               <p className="mx-auto mt-2 max-w-82.5 text-[15px] leading-[1.55] text-[#505979]">
                 Tell us your ideas and
                 <br />
-                AI will create the whole book for you.
+                AI will create the book for you.
               </p>
 
               {/* CTA */}
@@ -106,11 +104,17 @@ export const CreateBook = () => {
               </button>
 
               {/* Bottom Info */}
-              <div className="mt-5 flex h-5.5 items-center justify-center gap-3 text-[14px] text-[#5a5792]">
-                <Info size={18} className="text-[#5636c7]" />
-
-                <span>Quick, easy and magical!</span>
-              </div>
+              <InfoTip
+                label="Quick, easy and magical!"
+                title="How AI Creation works"
+                steps={[
+                  "Tell the AI your story idea in the chat.",
+                  "Answer a few quick questions about characters and style.",
+                  "AI writes the story and creates the illustrations.",
+                  "Review your book and edit anything you like.",
+                ]}
+                note="Tip: the more detail you give, the better your story."
+              />
             </div>
           </div>
 
@@ -118,7 +122,7 @@ export const CreateBook = () => {
           {/* Manual Creation Card */}
           <div
             className="
-      relative flex h-122.5 flex-col overflow-hidden
+      relative flex min-h-122.5 w-full flex-col overflow-hidden
       rounded-[30px] border-[1.5px] border-[#d9c9f5]
       bg-white/60 px-7 pb-7 pt-5
       shadow-[0_18px_45px_rgba(83,55,160,0.10)]
@@ -142,7 +146,7 @@ export const CreateBook = () => {
 
             {/* Content */}
             <div className="flex flex-1 flex-col text-center">
-              <h2 className="flex items-center justify-center gap-2 text-[30px] font-bold tracking-[-0.5px] text-[#332985]">
+              <h2 className="flex items-center justify-center gap-2 text-[27px] font-bold tracking-[-0.5px] text-[#332985]">
                 Create Manually
 
                 <Pencil
@@ -182,11 +186,17 @@ export const CreateBook = () => {
               </button>
 
               {/* Bottom Info */}
-              <div className="mt-5 flex h-5.5 items-center justify-center gap-3 text-[14px] text-[#5a5792]">
-                <Info size={18} className="text-[#5636c7]" />
-
-                <span>Step by step, just the way you like!</span>
-              </div>
+              <InfoTip
+                label="Step by step, just the way you like!"
+                title="How Manual Creation works"
+                steps={[
+                  "Choose the age group and theme.",
+                  "Pick a subject and the central message.",
+                  "Select an image style for your illustrations.",
+                  "Create your main character, then build your book.",
+                ]}
+                note="You stay in control of every choice along the way."
+              />
             </div>
           </div>
 

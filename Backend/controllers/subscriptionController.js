@@ -36,6 +36,145 @@ const syncUserFromSubscription = async (userId, subscription) => {
     });
 };
 
+const isLive = (sub) =>
+    Boolean(
+        sub &&
+            sub.status === "active" &&
+            sub.endDate &&
+            new Date(sub.endDate).getTime() > Date.now()
+    );
+
+const formatDate = (date) =>
+    new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
+// Flips one subscription to "expired" if its endDate has passed.
+const expireIfNeeded = async (subscription) => {
+    if (
+        subscription &&
+        subscription.status === "active" &&
+        subscription.endDate &&
+        new Date(subscription.endDate).getTime() <= Date.now()
+    ) {
+        subscription.status = "expired";
+        await subscription.save();
+        await syncUserFromSubscription(subscription.userId, subscription);
+    }
+};
+
+const getPurchaseBlock = (existing, planName, isFreePlan) => {
+    if (!isLive(existing)) return null;
+
+    if (isFreePlan) {
+        return {
+            code: "PLAN_STILL_ACTIVE",
+            message: `You already have an active plan until ${formatDate(existing.endDate)}. You can switch to the free plan after it ends.`,
+        };
+    }
+
+    const isPaidPlan = existing.amount > 0;
+
+    if (existing.planName === planName && isPaidPlan) {
+        return {
+            code: "ALREADY_SUBSCRIBED",
+            message: existing.cancelRequested
+                ? `This plan is still active until ${formatDate(existing.endDate)}. Restore it instead of buying again.`
+                : "You're already on this plan.",
+        };
+    }
+
+    if (isPaidPlan && !existing.cancelRequested) {
+        return {
+            code: "ALREADY_SUBSCRIBED",
+            message: "You already have an active plan. Cancel it first to switch to a different one.",
+        };
+    }
+
+    return null;
+};
+
+const userLocks = new Map();
+const withUserLock = async (userId, fn) => {
+    const key = String(userId);
+    const previous = userLocks.get(key) || Promise.resolve();
+    let release;
+    const gate = new Promise((resolve) => (release = resolve));
+    const chain = previous.then(() => gate);
+    userLocks.set(key, chain);
+
+    await previous;
+    try {
+        return await fn();
+    } finally {
+        release();
+        if (userLocks.get(key) === chain) userLocks.delete(key);
+    }
+};
+
+const applySubscription = ({ userId, planName, billingCycle, amount, orderId = null, paymentId = null }) =>
+    withUserLock(userId, async () => {
+        const plan = await Plan.findOne({ planId: planName }).lean();
+
+        const startDate = new Date();
+        const endDate = computeEndDate(startDate, billingCycle);
+
+        const fields = {
+            planName,
+            planDisplayName: plan?.name || planName,
+            billingCycle,
+            status: "active",
+            amount,
+            currency: "INR",
+            startDate,
+            endDate,
+            cancelRequested: false,
+            cancelledAt: null,
+            cancelReason: "",
+        };
+
+        const historyEntry = {
+            orderId,
+            paymentId,
+            amount,
+            currency: "INR",
+            status: "paid",
+            planName,
+            billingCycle,
+            startDate,
+            endDate,
+            paidAt: startDate,
+            createdAt: startDate,
+            updatedAt: startDate,
+        };
+
+        // Atomic: matches only if this payment isn't already in the history.
+        const filter = { userId };
+        if (paymentId) filter["paymentHistory.paymentId"] = { $ne: paymentId };
+
+        let subscription = await Subscription.findOneAndUpdate(
+            filter,
+            { $set: fields, $push: { paymentHistory: historyEntry } },
+            { new: true }
+        );
+
+        if (!subscription) {
+            const existing = await Subscription.findOne({ userId });
+            if (existing) {
+                // The doc exists, so the only reason the update didn't match
+                // is that this payment was already recorded.
+                return { subscription: existing, alreadyApplied: true };
+            }
+
+            subscription = await Subscription.create({
+                userId,
+                ...fields,
+                paymentHistory: [historyEntry],
+            });
+        }
+
+        await syncUserFromSubscription(userId, subscription);
+        return { subscription, alreadyApplied: false };
+    });
+
 // -------------------------------------------------------------------------
 // GET /api/subscriptions/plans
 // Public plan catalog - used to render the pricing cards.
@@ -55,14 +194,16 @@ export const getPlans = async (req, res) => {
 // -------------------------------------------------------------------------
 export const getMySubscription = async (req, res) => {
     try {
-        const subscription = await Subscription.findOne({ userId: req.user._id }).lean();
+        const doc = await Subscription.findOne({ userId: req.user._id });
+
+        // Lazy expiry: a plan whose endDate has passed is marked expired the
+        // moment its owner looks at it, without waiting for the hourly job.
+        if (doc) await expireIfNeeded(doc);
+
+        const subscription = doc ? doc.toObject() : null;
 
         if (subscription) {
-            const isCurrentlyActive =
-                subscription.status === "active" &&
-                subscription.endDate &&
-                new Date(subscription.endDate).getTime() > Date.now();
-
+            const isCurrentlyActive = isLive(subscription);
             subscription.isCurrentlyActive = isCurrentlyActive;
             subscription.canRestore = !!subscription.cancelRequested && isCurrentlyActive;
         }
@@ -70,7 +211,7 @@ export const getMySubscription = async (req, res) => {
         // Books used / allowed on the current plan, for the "2 of 5 books" UI.
         const bookAccess = await canAccessFeature({ userId: req.user._id, component: "book" });
 
-        res.json({ success: true, subscription: subscription || null, bookAccess });
+        res.json({ success: true, subscription, bookAccess });
     } catch (err) {
         res.status(500).json({ success: false, message: "Failed to fetch subscription", error: err.message });
     }
@@ -110,11 +251,11 @@ export const getMyPaymentHistory = async (req, res) => {
             .flatMap((sub) =>
                 (sub.paymentHistory || []).map((p) => ({
                     ...p,
-                    planName: sub.planName,
-                    billingCycle: sub.billingCycle,
+                    planName: p.planName || sub.planName,
+                    billingCycle: p.billingCycle || sub.billingCycle,
                 }))
             )
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            .sort((a, b) => new Date(b.paidAt || b.createdAt) - new Date(a.paidAt || a.createdAt));
 
         res.json({ success: true, payments });
     } catch (err) {
@@ -132,6 +273,10 @@ export const getMyPaymentHistory = async (req, res) => {
 // can open Checkout. No Subscription/payment row is written yet - that
 // only happens once the signature is verified in /activate, so an
 // abandoned checkout never leaves a stray "pending" record behind.
+//
+// Refuses (409) when the user isn't allowed to start this plan right now -
+// see getPurchaseBlock. This is what guarantees nobody pays for something
+// they can't have.
 // -------------------------------------------------------------------------
 export const initiateSubscription = async (req, res) => {
     try {
@@ -150,6 +295,12 @@ export const initiateSubscription = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid plan" });
         }
 
+        const existing = await Subscription.findOne({ userId: req.user._id }).lean();
+        const block = getPurchaseBlock(existing, planName, amount === 0);
+        if (block) {
+            return res.status(409).json({ success: false, ...block });
+        }
+
         // FREE PLAN - no payment needed
         if (amount === 0) {
             return res.status(200).json({ success: true, requiresPayment: false });
@@ -157,7 +308,7 @@ export const initiateSubscription = async (req, res) => {
 
         // PAID PLAN - create a Razorpay order only
         const order = await razorpay.orders.create({
-            amount: amount * 100, // paise
+            amount: Math.round(amount * 100), // paise
             currency: "INR",
             receipt: `subscription_${req.user._id}_${Date.now()}`,
             notes: {
@@ -189,6 +340,10 @@ export const initiateSubscription = async (req, res) => {
 //
 // Free plan: body = { planName, billingCycle } only (no razorpay_* fields)
 // - activates immediately, no signature to check.
+//
+// Safe to call more than once for the same payment: the second call finds
+// the payment already recorded and just returns the existing subscription
+// (no new period, no book-count reset).
 // -------------------------------------------------------------------------
 export const activateSubscription = async (req, res) => {
     try {
@@ -211,7 +366,7 @@ export const activateSubscription = async (req, res) => {
         if (isFreeActivation) {
             // -------------------- FREE PLAN --------------------
             planName = freePlanName;
-            billingCycle = freeBillingCycle || "monthly";
+            billingCycle = freeBillingCycle === "yearly" ? "yearly" : "monthly";
 
             if (!planName) {
                 return res.status(400).json({ success: false, message: "planName is required" });
@@ -224,6 +379,12 @@ export const activateSubscription = async (req, res) => {
             }
             if (amount !== 0) {
                 return res.status(400).json({ success: false, message: "This plan requires payment - call /initiate first" });
+            }
+
+            const existing = await Subscription.findOne({ userId: req.user._id }).lean();
+            const block = getPurchaseBlock(existing, planName, true);
+            if (block) {
+                return res.status(409).json({ success: false, ...block });
             }
         } else {
             // -------------------- PAID PLAN --------------------
@@ -243,7 +404,7 @@ export const activateSubscription = async (req, res) => {
             const razorpayOrder = await razorpay.orders.fetch(razorpay_order_id);
 
             planName = razorpayOrder.notes?.planName;
-            billingCycle = razorpayOrder.notes?.billingCycle || "monthly";
+            billingCycle = razorpayOrder.notes?.billingCycle === "yearly" ? "yearly" : "monthly";
             const orderUserId = razorpayOrder.notes?.userId;
 
             if (!planName) {
@@ -253,69 +414,38 @@ export const activateSubscription = async (req, res) => {
                 return res.status(403).json({ success: false, message: "Payment does not belong to this user" });
             }
 
-            amount = await getPlanPrice(planName, billingCycle);
-            if (amount === null || amount === 0) {
+            // The order was created by /initiate with a server-side price, so
+            // what Razorpay actually charged is the truth - even if admin
+            // changed the plan price while the checkout was open.
+            amount = Number(razorpayOrder.amount) / 100;
+            if (!Number.isFinite(amount) || amount <= 0) {
                 return res.status(400).json({ success: false, message: "Invalid paid subscription plan" });
+            }
+
+            const plan = await Plan.findOne({ planId: planName }).lean();
+            if (!plan) {
+                return res.status(400).json({
+                    success: false,
+                    message: "This plan no longer exists. Your payment was received - please contact support.",
+                });
             }
 
             orderId = razorpay_order_id;
             paymentId = razorpay_payment_id;
         }
 
-        const plan = await Plan.findOne({ planId: planName }).lean();
-
-        let subscription = await Subscription.findOne({ userId: req.user._id });
-
-        const startDate = new Date();
-        const endDate = computeEndDate(startDate, billingCycle);
-
-        if (!subscription) {
-            subscription = new Subscription({
-                userId: req.user._id,
-                planName,
-                planDisplayName: plan?.name || planName,
-                billingCycle,
-                status: "active",
-                amount,
-                currency: "INR",
-                startDate,
-                endDate,
-                cancelRequested: false,
-                paymentHistory: [],
-            });
-        } else {
-            subscription.planName = planName;
-            subscription.planDisplayName = plan?.name || planName;
-            subscription.billingCycle = billingCycle;
-            subscription.status = "active";
-            subscription.amount = amount;
-            subscription.currency = "INR";
-            subscription.startDate = startDate;
-            subscription.endDate = endDate;
-            subscription.cancelRequested = false;
-            subscription.cancelledAt = null;
-            subscription.cancelReason = "";
-        }
-
-        subscription.paymentHistory.push({
-            orderId,
-            paymentId,
-            amount,
-            currency: "INR",
-            status: "paid",
+        const { subscription, alreadyApplied } = await applySubscription({
+            userId: req.user._id,
             planName,
             billingCycle,
-            startDate,
-            endDate,
-            paidAt: new Date(),
+            amount,
+            orderId,
+            paymentId,
         });
-
-        await subscription.save();
-        await syncUserFromSubscription(req.user._id, subscription);
 
         return res.status(200).json({
             success: true,
-            message: "Subscription activated successfully",
+            message: alreadyApplied ? "Subscription already activated" : "Subscription activated successfully",
             subscription,
         });
     } catch (error) {
@@ -342,8 +472,11 @@ export const cancelSubscription = async (req, res) => {
         if (!subscription) {
             return res.status(404).json({ success: false, message: "No subscription found" });
         }
-        if (subscription.status !== "active") {
+        if (!subscription.isCurrentlyActive()) {
             return res.status(400).json({ success: false, message: "Subscription is not active" });
+        }
+        if (!(subscription.amount > 0)) {
+            return res.status(400).json({ success: false, message: "The free plan can't be cancelled" });
         }
         if (subscription.cancelRequested) {
             return res.status(400).json({ success: false, message: "Subscription is already cancelled" });
@@ -402,9 +535,10 @@ export const restoreSubscription = async (req, res) => {
 };
 
 // -------------------------------------------------------------------------
-// Not a route - wire this into a daily cron (e.g. node-cron) to flip
-// subscriptions whose endDate has passed to "expired". Optional for an
-// initial launch; nothing else in this feature depends on it running.
+// Not a route - app.js runs this on boot and then hourly to flip
+// subscriptions whose endDate has passed to "expired". Book limits don't
+// depend on it (they check endDate directly); it keeps user.isSubscribed and
+// the admin lists accurate.
 // -------------------------------------------------------------------------
 export const expireOutdatedSubscriptions = async () => {
     const now = new Date();

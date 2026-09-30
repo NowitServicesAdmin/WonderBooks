@@ -101,23 +101,23 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
             <div className="absolute inset-0 bg-black/30" onClick={onClose} />
 
             <div className="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col bg-white shadow-2xl">
-                <div className="flex items-center justify-between border-b border-[var(--tint)] px-6 py-5">
+                <div className="flex items-center justify-between border-b border-(--tint) px-6 py-5">
                     <h2 className="text-lg font-bold">{mode === "edit" ? "Edit Plan" : "Add Plan"}</h2>
-                    <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--ink)]">
+                    <button onClick={onClose} className="text-(--text-muted) hover:text-(--ink)">
                         <X size={20} />
                     </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-6 py-5">
-                    <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">Plan name</label>
+                    <label className="mb-1 block text-sm font-semibold text-(--text-heading)">Plan name</label>
                     <input
                         value={draft.name}
                         onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
                         placeholder="e.g. Family Plan"
-                        className="mb-4 w-full rounded-lg border border-[var(--tint)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
+                        className="mb-4 w-full rounded-lg border border-(--tint) px-3 py-2 text-sm focus:border-(--accent) focus:outline-none"
                     />
 
-                    <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">Icon</label>
+                    <label className="mb-1 block text-sm font-semibold text-(--text-heading)">Icon</label>
                     <div className="mb-4 flex gap-2">
                         {iconOptions.map(({ key, icon: OptionIcon }) => (
                             <button
@@ -126,8 +126,8 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
                                 onClick={() => setDraft((d) => ({ ...d, iconKey: key }))}
                                 className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
                                     draft.iconKey === key
-                                        ? "border-[var(--accent)] bg-[var(--tint)] text-[var(--accent)]"
-                                        : "border-[var(--tint)] text-[var(--text-muted)] hover:bg-[var(--tint)]"
+                                        ? "border-(--accent) bg-(--tint) text-(--accent)"
+                                        : "border-(--tint) text-(--text-muted) hover:bg-(--tint)"
                                 }`}
                             >
                                 <OptionIcon size={18} />
@@ -137,25 +137,25 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
 
                     <div className="mb-4 flex gap-3">
                         <div className="flex-1">
-                            <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">Monthly price (₹)</label>
+                            <label className="mb-1 block text-sm font-semibold text-(--text-heading)">Monthly price (₹)</label>
                             <input
                                 type="number"
                                 min="0"
                                 value={draft.monthlyPrice}
                                 onChange={(e) => setDraft((d) => ({ ...d, monthlyPrice: e.target.value }))}
                                 placeholder="9.99"
-                                className="w-full rounded-lg border border-[var(--tint)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
+                                className="w-full rounded-lg border border-(--tint) px-3 py-2 text-sm focus:border-(--accent) focus:outline-none"
                             />
                             <p className="mt-1 text-xs text-[#a39cc0]">
                                 Yearly price is auto-calculated from the yearly saving % below.
                             </p>
                         </div>
                         <div className="flex-1">
-                            <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">Card color</label>
+                            <label className="mb-1 block text-sm font-semibold text-(--text-heading)">Card color</label>
                             <select
                                 value={draft.ribbon}
                                 onChange={(e) => setDraft((d) => ({ ...d, ribbon: e.target.value, button: e.target.value }))}
-                                className="w-full rounded-lg border border-[var(--tint)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
+                                className="w-full rounded-lg border border-(--tint) px-3 py-2 text-sm focus:border-(--accent) focus:outline-none"
                             >
                                 <option value="blue">Blue</option>
                                 <option value="purple">Purple</option>
@@ -165,7 +165,7 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
                     </div>
 
                     <div className="mb-4">
-                        <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">
+                        <label className="mb-1 block text-sm font-semibold text-(--text-heading)">
                             Book limit <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -176,40 +176,40 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
                             value={draft.bookLimit}
                             onChange={(e) => setDraft((d) => ({ ...d, bookLimit: e.target.value }))}
                             placeholder={`${MIN_BOOK_LIMIT} to ${MAX_BOOK_LIMIT}`}
-                            className="w-full rounded-lg border border-[var(--tint)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
+                            className="w-full rounded-lg border border-(--tint) px-3 py-2 text-sm focus:border-(--accent) focus:outline-none"
                         />
                         <p className="mt-1 text-xs text-[#a39cc0]">
                             Books a user can create on this plan (Basic 1, Gold 5, Premium 10). Maximum {MAX_BOOK_LIMIT}.
                         </p>
                     </div>
 
-                    <label className="mb-1 block text-sm font-semibold text-[var(--text-heading)]">
-                        Features <span className="font-normal text-[var(--text-muted)]">(one per line)</span>
+                    <label className="mb-1 block text-sm font-semibold text-(--text-heading)">
+                        Features <span className="font-normal text-(--text-muted)">(one per line)</span>
                     </label>
                     <textarea
                         value={draft.features}
                         onChange={(e) => setDraft((d) => ({ ...d, features: e.target.value }))}
                         rows={5}
                         placeholder={"10 books download\n5 prints per month"}
-                        className="mb-4 w-full resize-none rounded-lg border border-[var(--tint)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
+                        className="mb-4 w-full resize-none rounded-lg border border-(--tint) px-3 py-2 text-sm focus:border-(--accent) focus:outline-none"
                     />
 
-                    <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--text-heading)]">
+                    <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-(--text-heading)">
                         <input
                             type="checkbox"
                             checked={draft.popular}
                             onChange={(e) => setDraft((d) => ({ ...d, popular: e.target.checked }))}
-                            className="h-4 w-4 rounded border-[var(--tint)] accent-[var(--accent)]"
+                            className="h-4 w-4 rounded border-(--tint) accent-(--accent)"
                         />
                         Mark as popular
                     </label>
 
-                    <label className="flex items-center gap-2 text-sm font-semibold text-[var(--text-heading)]">
+                    <label className="flex items-center gap-2 text-sm font-semibold text-(--text-heading)">
                         <input
                             type="checkbox"
                             checked={draft.active}
                             onChange={(e) => setDraft((d) => ({ ...d, active: e.target.checked }))}
-                            className="h-4 w-4 rounded border-[var(--tint)] accent-[var(--accent)]"
+                            className="h-4 w-4 rounded border-(--tint) accent-(--accent)"
                         />
                         Visible to users
                     </label>
@@ -217,17 +217,17 @@ const PlanFormDrawer = ({ mode, plan, onClose, onSave, saving }) => {
                     {error && <p className="mt-3 text-sm font-medium text-red-600">{error}</p>}
                 </div>
 
-                <div className="flex items-center justify-end gap-2 border-t border-[var(--tint)] px-6 py-4">
+                <div className="flex items-center justify-end gap-2 border-t border-(--tint) px-6 py-4">
                     <button
                         onClick={onClose}
-                        className="rounded-lg border border-[var(--tint)] px-4 py-2 text-sm font-semibold hover:bg-[var(--tint)]"
+                        className="rounded-lg border border-(--tint) px-4 py-2 text-sm font-semibold hover:bg-(--tint)"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)] disabled:opacity-60"
+                        className="rounded-lg bg-(--accent) px-4 py-2 text-sm font-semibold text-white hover:bg-(--accent-hover) disabled:opacity-60"
                     >
                         {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Create plan"}
                     </button>
@@ -319,21 +319,21 @@ const PlansTab = () => {
     return (
         <div>
             <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-2 rounded-xl border border-[var(--tint)] bg-white px-3 py-2">
-                    <label className="text-sm font-semibold text-[var(--text-heading)]">Yearly saving</label>
+                <div className="flex items-center gap-2 rounded-xl border border-(--tint) bg-white px-3 py-2">
+                    <label className="text-sm font-semibold text-(--text-heading)">Yearly saving</label>
                     <input
                         type="number"
                         min="0"
                         max="90"
                         value={savingInput}
                         onChange={(e) => setSavingInput(e.target.value)}
-                        className="w-16 rounded-lg border border-[var(--tint)] px-2 py-1 text-sm focus:border-[var(--accent)] focus:outline-none"
+                        className="w-16 rounded-lg border border-(--tint) px-2 py-1 text-sm focus:border-(--accent) focus:outline-none"
                     />
-                    <span className="text-sm text-[var(--text-muted)]">%</span>
+                    <span className="text-sm text-(--text-muted)">%</span>
                     {Number(savingInput) !== yearlySaving && (
                         <button
                             onClick={handleSaveYearlySaving}
-                            className="rounded-lg bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-white hover:bg-[var(--accent-hover)]"
+                            className="rounded-lg bg-(--accent) px-3 py-1 text-xs font-semibold text-white hover:bg-(--accent-hover)"
                         >
                             Save
                         </button>
@@ -342,7 +342,7 @@ const PlansTab = () => {
 
                 <button
                     onClick={() => setIsAddOpen(true)}
-                    className="flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]"
+                    className="flex items-center gap-2 rounded-lg bg-(--accent) px-4 py-2.5 text-sm font-semibold text-white hover:bg-(--accent-hover)"
                 >
                     <Plus size={16} /> Add Plan
                 </button>
@@ -357,11 +357,11 @@ const PlansTab = () => {
             {loading ? (
                 <div className="grid grid-cols-3 gap-5">
                     {[0, 1, 2].map((i) => (
-                        <div key={i} className="h-65 animate-pulse rounded-2xl bg-[var(--tint)]" />
+                        <div key={i} className="h-65 animate-pulse rounded-2xl bg-(--tint)" />
                     ))}
                 </div>
             ) : plans.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[var(--tint)] p-10 text-center text-sm text-[var(--text-muted)]">
+                <div className="rounded-2xl border border-dashed border-(--tint) p-10 text-center text-sm text-(--text-muted)">
                     No plans yet. Click "Add Plan" to create the first one.
                 </div>
             ) : (
@@ -378,24 +378,24 @@ const PlansTab = () => {
                                 style={{ borderColor: "var(--tint)" }}
                             >
                                 {plan.popular && (
-                                    <span className="absolute right-4 top-4 rounded-full bg-[var(--tint)] px-2.5 py-1 text-xs font-bold text-[var(--accent)]">
+                                    <span className="absolute right-4 top-4 rounded-full bg-(--tint) px-2.5 py-1 text-xs font-bold text-(--accent)">
                                         Popular
                                     </span>
                                 )}
-                                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--tint)] text-[var(--accent)]">
+                                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-(--tint) text-(--accent)">
                                     <Icon size={18} />
                                 </div>
                                 <div className="font-bold">{plan.name}</div>
                                 <div className="mb-3 text-xl font-extrabold">
-                                    ₹{plan.monthlyPrice} <span className="text-sm font-medium text-[var(--text-muted)]">/ month</span>
+                                    ₹{plan.monthlyPrice} <span className="text-sm font-medium text-(--text-muted)">/ month</span>
                                 </div>
-                                <ul className="mb-4 flex flex-col gap-1 text-sm text-[var(--text-muted)]">
+                                <ul className="mb-4 flex flex-col gap-1 text-sm text-(--text-muted)">
                                     {plan.features.map((f) => (
                                         <li key={f}>• {f}</li>
                                     ))}
                                 </ul>
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs font-semibold text-[var(--text-muted)]">
+                                    <span className="text-xs font-semibold text-(--text-muted)">
                                         {plan.active === false ? "Hidden" : "Visible"}
                                     </span>
                                     <div className="flex items-center gap-2">
@@ -404,7 +404,7 @@ const PlansTab = () => {
                                                 e.stopPropagation();
                                                 setEditingPlan(plan);
                                             }}
-                                            className="rounded-lg border border-[var(--tint)] px-3 py-1.5 text-xs font-semibold hover:bg-[var(--tint)]"
+                                            className="rounded-lg border border-(--tint) px-3 py-1.5 text-xs font-semibold hover:bg-(--tint)"
                                         >
                                             Edit
                                         </button>
@@ -414,14 +414,14 @@ const PlansTab = () => {
                                                     e.stopPropagation();
                                                     setOpenMenuId(openMenuId === plan._id ? null : plan._id);
                                                 }}
-                                                className="text-[var(--text-muted)] hover:text-[var(--accent)]"
+                                                className="text-(--text-muted) hover:text-(--accent)"
                                             >
                                                 <MoreVertical size={16} />
                                             </button>
                                             {openMenuId === plan._id && (
                                                 <div
                                                     onClick={(e) => e.stopPropagation()}
-                                                    className="absolute right-0 top-6 z-10 w-32 rounded-lg border border-[var(--tint)] bg-white py-1 shadow-lg"
+                                                    className="absolute right-0 top-6 z-10 w-32 rounded-lg border border-(--tint) bg-white py-1 shadow-lg"
                                                 >
                                                     <button
                                                         onClick={() => {
@@ -509,8 +509,8 @@ const SubscribersTab = () => {
         <div>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <form onSubmit={handleSearch} className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 rounded-lg border border-[var(--tint)] bg-white px-3 py-2">
-                        <Search size={15} className="text-[var(--text-muted)]" />
+                    <div className="flex items-center gap-2 rounded-lg border border-(--tint) bg-white px-3 py-2">
+                        <Search size={15} className="text-(--text-muted)" />
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -518,7 +518,7 @@ const SubscribersTab = () => {
                             className="w-56 text-sm outline-none"
                         />
                     </div>
-                    <button type="submit" className="rounded-lg bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-hover)]">
+                    <button type="submit" className="rounded-lg bg-(--accent) px-3 py-2 text-sm font-semibold text-white hover:bg-(--accent-hover)">
                         Search
                     </button>
                 </form>
@@ -529,7 +529,7 @@ const SubscribersTab = () => {
                         setStatus(e.target.value);
                         setPage(1);
                     }}
-                    className="rounded-lg border border-[var(--tint)] px-3 py-2 text-sm"
+                    className="rounded-lg border border-(--tint) px-3 py-2 text-sm"
                 >
                     <option value="">All statuses</option>
                     <option value="active">Active</option>
@@ -540,10 +540,10 @@ const SubscribersTab = () => {
                 </select>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-[var(--tint)] bg-white">
+            <div className="overflow-x-auto rounded-2xl border border-(--tint) bg-white">
                 <table className="w-full text-left text-sm">
                     <thead>
-                        <tr className="bg-[var(--tint)] text-[var(--accent)]">
+                        <tr className="bg-(--tint) text-(--accent)">
                             <th className="px-4 py-3 font-semibold">User</th>
                             <th className="px-4 py-3 font-semibold">Plan</th>
                             <th className="px-4 py-3 font-semibold">Billing</th>
@@ -557,22 +557,22 @@ const SubscribersTab = () => {
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={8} className="px-4 py-8 text-center text-[var(--text-muted)]">
+                                <td colSpan={8} className="px-4 py-8 text-center text-(--text-muted)">
                                     Loading…
                                 </td>
                             </tr>
                         ) : subscriptions.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="px-4 py-8 text-center text-[var(--text-muted)]">
+                                <td colSpan={8} className="px-4 py-8 text-center text-(--text-muted)">
                                     No subscriptions found.
                                 </td>
                             </tr>
                         ) : (
                             subscriptions.map((sub) => (
-                                <tr key={sub._id} className="border-t border-[var(--tint)]">
+                                <tr key={sub._id} className="border-t border-(--tint)">
                                     <td className="px-4 py-3">
-                                        <div className="font-semibold text-[var(--ink)]">{sub.userId?.name || "—"}</div>
-                                        <div className="text-xs text-[var(--text-muted)]">{sub.userId?.email}</div>
+                                        <div className="font-semibold text-(--ink)">{sub.userId?.name || "—"}</div>
+                                        <div className="text-xs text-(--text-muted)">{sub.userId?.email}</div>
                                     </td>
                                     <td className="px-4 py-3 capitalize">{sub.planDisplayName || sub.planName}</td>
                                     <td className="px-4 py-3 capitalize">{sub.billingCycle}</td>
@@ -583,9 +583,9 @@ const SubscribersTab = () => {
                                             {sub.cancelRequested ? " · cancelling" : ""}
                                         </span>
                                     </td>
-                                    <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{formatDate(sub.startDate)}</td>
-                                    <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{formatDate(sub.endDate)}</td>
-                                    <td className="px-4 py-3 text-xs text-[var(--text-muted)]">{sub.paymentHistory?.length || 0}</td>
+                                    <td className="px-4 py-3 text-xs text-(--text-muted)">{formatDate(sub.startDate)}</td>
+                                    <td className="px-4 py-3 text-xs text-(--text-muted)">{formatDate(sub.endDate)}</td>
+                                    <td className="px-4 py-3 text-xs text-(--text-muted)">{sub.paymentHistory?.length || 0}</td>
                                 </tr>
                             ))
                         )}
@@ -593,13 +593,13 @@ const SubscribersTab = () => {
                 </table>
             </div>
 
-            <div className="mt-4 flex items-center justify-between text-sm text-[var(--text-muted)]">
+            <div className="mt-4 flex items-center justify-between text-sm text-(--text-muted)">
                 <span>{total} subscriptions</span>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         disabled={page <= 1}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--tint)] disabled:opacity-40"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-(--tint) disabled:opacity-40"
                     >
                         <ChevronLeft size={16} />
                     </button>
@@ -609,7 +609,7 @@ const SubscribersTab = () => {
                     <button
                         onClick={() => setPage((p) => Math.min(pages, p + 1))}
                         disabled={page >= pages}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--tint)] disabled:opacity-40"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg border border-(--tint) disabled:opacity-40"
                     >
                         <ChevronRight size={16} />
                     </button>
@@ -629,14 +629,14 @@ export const SuperAdminSubscriptions = () => {
         <div className="p-8">
             <div className="mb-6">
                 <h1 className="text-2xl font-extrabold">Subscriptions</h1>
-                <p className="text-sm text-[var(--text-muted)]">Manage subscription plans and see who's subscribed</p>
+                <p className="text-sm text-(--text-muted)">Manage subscription plans and see who's subscribed</p>
             </div>
 
-            <div className="mb-6 flex gap-2 border-b border-[var(--tint)]">
+            <div className="mb-6 flex gap-2 border-b border-(--tint)">
                 <button
                     onClick={() => setTab("plans")}
                     className={`px-4 py-2 text-sm font-semibold ${
-                        tab === "plans" ? "border-b-2 border-[var(--accent)] text-[var(--accent)]" : "text-[var(--text-muted)]"
+                        tab === "plans" ? "border-b-2 border-(--accent) text-(--accent)" : "text-(--text-muted)"
                     }`}
                 >
                     Plans
@@ -644,7 +644,7 @@ export const SuperAdminSubscriptions = () => {
                 <button
                     onClick={() => setTab("subscribers")}
                     className={`px-4 py-2 text-sm font-semibold ${
-                        tab === "subscribers" ? "border-b-2 border-[var(--accent)] text-[var(--accent)]" : "text-[var(--text-muted)]"
+                        tab === "subscribers" ? "border-b-2 border-(--accent) text-(--accent)" : "text-(--text-muted)"
                     }`}
                 >
                     Subscribers

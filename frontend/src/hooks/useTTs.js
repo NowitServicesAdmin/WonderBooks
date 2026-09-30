@@ -140,7 +140,10 @@ export const useTTS = () => {
                     abortRef.current = controller;
                     const res = await fetch(`${API_BASE}/api/tts`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${localStorage.getItem("wb_token") || ""}`,
+                        },
                         body: JSON.stringify({ bookId, pageId, text, voiceId: vid }),
                         signal: controller.signal,
                     });

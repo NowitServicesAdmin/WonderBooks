@@ -38,6 +38,13 @@ const parseBookLimit = (value) => {
     return Number.isInteger(n) && n >= MIN_BOOK_LIMIT && n <= MAX_BOOK_LIMIT ? n : null;
 };
 
+// A finite, non-negative price with at most 2 decimals, otherwise null.
+const parsePrice = (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
+};
+
 const BOOK_LIMIT_MESSAGE = `Book limit is required and must be a whole number from ${MIN_BOOK_LIMIT} to ${MAX_BOOK_LIMIT}.`;
 
 // -------------------------------------------------------------------------
@@ -70,7 +77,8 @@ export const createPlan = async (req, res) => {
         if (!name || !name.trim()) {
             return res.status(400).json({ success: false, message: "Plan name is required" });
         }
-        if (monthlyPrice === undefined || monthlyPrice === null || monthlyPrice < 0) {
+        const price = parsePrice(monthlyPrice);
+        if (price === null) {
             return res.status(400).json({ success: false, message: "A valid monthly price is required" });
         }
 
@@ -92,7 +100,7 @@ export const createPlan = async (req, res) => {
             planId,
             name: name.trim(),
             iconKey: iconKey || "star",
-            monthlyPrice,
+            monthlyPrice: price,
             ribbon: ribbon || "blue",
             button: button || "blue",
             popular: !!popular,
@@ -133,10 +141,11 @@ export const updatePlan = async (req, res) => {
         }
         if (iconKey !== undefined) plan.iconKey = iconKey;
         if (monthlyPrice !== undefined) {
-            if (monthlyPrice < 0) {
-                return res.status(400).json({ success: false, message: "Monthly price can't be negative" });
+            const price = parsePrice(monthlyPrice);
+            if (price === null) {
+                return res.status(400).json({ success: false, message: "Monthly price must be a number that isn't negative" });
             }
-            plan.monthlyPrice = monthlyPrice;
+            plan.monthlyPrice = price;
         }
         if (ribbon !== undefined) plan.ribbon = ribbon;
         if (button !== undefined) plan.button = button;
@@ -169,10 +178,24 @@ export const updatePlan = async (req, res) => {
 // -------------------------------------------------------------------------
 export const deletePlan = async (req, res) => {
     try {
-        const deleted = await Plan.findByIdAndDelete(req.params.id);
-        if (!deleted) {
+        const plan = await Plan.findById(req.params.id);
+        if (!plan) {
             return res.status(404).json({ success: false, message: "Plan not found" });
         }
+
+        const inUse = await Subscription.countDocuments({
+            planName: plan.planId,
+            status: "active",
+            endDate: { $gt: new Date() },
+        });
+        if (inUse > 0) {
+            return res.status(409).json({
+                success: false,
+                message: `${inUse} user${inUse === 1 ? " is" : "s are"} currently on this plan. Deactivate it instead so they keep access until their plan ends.`,
+            });
+        }
+
+        await plan.deleteOne();
         res.json({ success: true, message: "Plan deleted" });
     } catch (err) {
         res.status(500).json({ success: false, message: "Failed to delete plan", error: err.message });

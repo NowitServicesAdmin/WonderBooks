@@ -30,6 +30,17 @@ import { useRazorpayCheckout } from "./useRazorpayCheckout";
   | to buy) to skip the fetch entirely - subscription stays null and
   | loading stays false.
 */
+// Still inside the period the user paid for. `status` alone isn't enough - it
+// only flips to "expired" when the backend job (or a fresh fetch) gets to it,
+// so a plan that just ran out would otherwise keep every buy button locked.
+const isLive = (sub) =>
+    Boolean(
+        sub &&
+            sub.status === "active" &&
+            sub.endDate &&
+            new Date(sub.endDate).getTime() > Date.now()
+    );
+
 export const useSubscription = (user, { enabled = true } = {}) => {
     const { openCheckout } = useRazorpayCheckout();
 
@@ -56,17 +67,21 @@ export const useSubscription = (user, { enabled = true } = {}) => {
         if (enabled) refresh();
     }, [refresh, enabled]);
 
+    const hasLivePlan = isLive(subscription);
+
     const isCurrentPlan = useCallback(
-        (planId) => subscription?.status === "active" && subscription?.planName === planId,
+        (planId) => isLive(subscription) && subscription?.planName === planId,
         [subscription]
     );
 
-    // True whenever there's a paid-for, non-cancelled active plan - used to
-    // lock every OTHER plan's Buy button. Clears the moment the user
+    // True whenever there's a paid-for, non-cancelled, still-running plan -
+    // used to lock every OTHER plan's Buy button. Clears the moment the user
     // cancels, so they're free to pick something else even though the
     // cancelled plan is still technically valid until its endDate.
+    // A running FREE plan never locks anything: it has no cancel button, so
+    // locking would trap the user on it until it runs out.
     const lockOtherPlans = Boolean(
-        subscription?.status === "active" && !subscription?.cancelRequested
+        hasLivePlan && !subscription?.cancelRequested && subscription?.amount > 0
     );
 
     const buyPlan = useCallback(
@@ -108,7 +123,14 @@ export const useSubscription = (user, { enabled = true } = {}) => {
 
                             await refresh();
                         } catch (err) {
-                            setError(err.response?.data?.message || "Payment verification failed");
+                            // The money has already left the account. The server
+                            // also hears about the payment straight from Razorpay,
+                            // so the plan normally switches on within moments.
+                            setError(
+                                err.response?.data?.message ||
+                                    "Your payment went through, but we couldn't activate the plan yet. Please don't pay again - refresh in a minute, or contact support if it still isn't active."
+                            );
+                            refresh();
                         } finally {
                             setBusyPlanId(null);
                         }
@@ -122,6 +144,9 @@ export const useSubscription = (user, { enabled = true } = {}) => {
             } catch (err) {
                 setError(err.response?.data?.message || err.message || "Couldn't start checkout");
                 setBusyPlanId(null);
+                // A 409 means what's on screen is out of date (plan changed in
+                // another tab, or just expired) - resync so the buttons are right.
+                if (err.response?.status === 409) refresh();
             }
         },
         [openCheckout, refresh, user]
@@ -160,6 +185,7 @@ export const useSubscription = (user, { enabled = true } = {}) => {
         busyPlanId,
         error,
         isCurrentPlan,
+        hasLivePlan,
         lockOtherPlans,
         buyPlan,
         cancelPlan,

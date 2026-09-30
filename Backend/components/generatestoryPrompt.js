@@ -1,45 +1,62 @@
 // Buckets any age-group string (however it's phrased across the different
 // creation flows, e.g. "0–3 years", "4-7 years", "9-12 years", "18+ years")
 // into the five bands the product defines, and returns the exact
+const CONTENT_BY_BAND = {
+    "0-3 years": "Very gentle only. No conflict, villains, danger or fear. Warm, simple everyday moments.",
+    "4-7 years": "Gentle. A villain or problem may appear but is solved by cleverness, kindness or friendship. Do not show fighting. Nothing frightening.",
+    "8-13 years": "Adventure and action are welcome. The hero may face monsters and villains and win a real showdown through courage, magic, skill and teamwork. Keep it non-graphic: no blood, gore, gruesome injury or death.",
+    "13-17 years": "Epic fantasy is welcome. Real stakes, serious battles, sacrifice, loss and darker themes are fine when handled non-graphically.",
+    "18+ years": "Mature storytelling is welcome. Dark fantasy, war, tragedy and morally complex villains are fine when handled non-graphically.",
+};
+
+const contentRuleFor = (band) => CONTENT_BY_BAND[band] || CONTENT_BY_BAND["8-13 years"];
+
+// Each page is written as flowing paragraph(s) - never as separate lines or
+// points. Length is measured in how many lines of text the page fills. A short
+// page (few lines) is a single paragraph; a longer page (many lines) is split
+// into 2-3 paragraphs separated by a blank line.
+const LENGTH_SPECS = {
+    "0-3 years": { minLines: 3, maxLines: 4, minWords: 12, maxWords: 20, paras: "ONE paragraph" },
+    "4-7 years": { minLines: 4, maxLines: 6, minWords: 25, maxWords: 40, paras: "ONE paragraph" },
+    "8-13 years": { minLines: 8, maxLines: 9, minWords: 60, maxWords: 75, paras: "1 or 2 short paragraphs" },
+    "13-17 years": { minLines: 10, maxLines: 14, minWords: 120, maxWords: 180, paras: "2 paragraphs" },
+    "18+ years": { minLines: 20, maxLines: 28, minWords: 250, maxWords: 350, paras: "2 to 3 paragraphs" },
+};
+
+const buildLengthRule = (band) => {
+    const spec = LENGTH_SPECS[band];
+    return {
+        band,
+        ...spec,
+        rule:
+            `Each page's content MUST fill about ${spec.minLines} to ${spec.maxLines} lines of text ` +
+            `(roughly ${spec.minWords}-${spec.maxWords} words), written as ${spec.paras} ` +
+            `of natural flowing prose. Do not break it into separate lines or points.`
+    };
+};
+
 const getAgeLengthRule = (age) => {
     const raw = String(age || "").toLowerCase();
     const isAdult = /18\s*\+|18\s*plus|\badult/.test(raw);
     const numbers = (raw.match(/\d+/g) || []).map(Number);
     const min = numbers.length ? Math.min(...numbers) : 5;
 
-    if (isAdult || min >= 18) {
-        return {
-            band: "18+ years",
-            rule: "Each page's content MUST be roughly 20-28 lines of text (approximately 250-350 words total), each line separated by a line break (\\n). Use rich, fully developed prose, broken into natural lines rather than one solid block."
-        };
-    }
-
-    if (min >= 13) {
-        return {
-            band: "13-17 years",
-            rule: "Each page's content MUST be roughly 10-14 lines of text (approximately 120-180 words total), each line separated by a line break (\\n)."
-        };
-    }
-
-    if (min >= 8) {
-        return {
-            band: "8-13 years",
-            rule: "Each page's content MUST be exactly 8 to 9 lines, each line separated by a line break (\\n). Not fewer than 8, not more than 9."
-        };
-    }
-
-    if (min >= 4) {
-        return {
-            band: "4-7 years",
-            rule: "Each page's content MUST be exactly 4 to 6 short lines, each line separated by a line break (\\n). Not fewer than 4, not more than 6."
-        };
-    }
-
-    return {
-        band: "0-3 years",
-        rule: "Each page's content MUST be exactly 3 to 4 very short, simple lines, each line separated by a line break (\\n). Not fewer than 3, not more than 4."
-    };
+    if (isAdult || min >= 18) return buildLengthRule("18+ years");
+    if (min >= 13) return buildLengthRule("13-17 years");
+    if (min >= 8) return buildLengthRule("8-13 years");
+    if (min >= 4) return buildLengthRule("4-7 years");
+    return buildLengthRule("0-3 years");
 };
+
+// Safety net used after generation: keep real paragraph breaks (blank line)
+// but merge any single line breaks the model added into normal spaces.
+export const normalizePageLines = (content) =>
+    String(content || "")
+        .replace(/\r/g, "")
+        .split(/\n\s*\n/)
+        .map((para) => para.split("\n").map((l) => l.trim()).filter(Boolean).join(" "))
+        .filter(Boolean)
+        .join("\n\n");
 
 export const generateStoryPrompt = (storyData) => {
     const pageCount = Number(storyData.pageCount) || 10;
@@ -57,7 +74,10 @@ STORY INFORMATION:
 Target Age Group:
 ${storyData.age}
 
-Theme:
+${storyData.storyIdea ? `Story Idea (the user's own premise - build the story around this):
+${storyData.storyIdea}
+
+` : ""}Theme:
 ${storyData.theme}
 
 Subject / Adventure:
@@ -201,14 +221,22 @@ PAGE LENGTH (STRICT — target age band: ${ageLength.band}):
 
 ${ageLength.rule}
 
-This length rule applies to EVERY page, not just the first or last.
-Do not let any page fall noticeably short of or exceed this range.
-Count LINES, not sentences, as you write each page - a single
-sentence that wraps across two written lines still only counts as
-one line for this rule. Insert an actual "\\n" line break between
-each line in the JSON "content" string, the way text is broken into
-lines on a printed picture-book page, and adjust the line count
-before moving to the next page.
+This applies to EVERY page, not just the first or last.
+
+IMPORTANT - PARAGRAPHS, NOT POINTS:
+- Write each page as smooth, connected paragraph(s) of normal storybook prose.
+- Use complete, natural sentences and END EVERY SENTENCE WITH PROPER PUNCTUATION
+  (a full stop "." or "?" or "!"). Keep the full stops.
+- Do NOT write fragments, poetry, rhyming verse, or short chopped phrases.
+- Do NOT put each sentence on its own line, and do NOT use bullet points or lists.
+- The length is measured in LINES OF TEXT on the page (${ageLength.minLines}-${ageLength.maxLines} lines,
+  about ${ageLength.minWords}-${ageLength.maxWords} words), NOT in number of sentences.
+  Use as many or as few sentences as needed to fill that space naturally.
+- Number of paragraphs for this age group: ${ageLength.paras}.
+  A page with only a few lines is a single paragraph. Only longer pages are split into
+  more paragraphs. When a page has more than one paragraph, separate the paragraphs with
+  a blank line (two line breaks, "\\n\\n") inside the "content" string. Never use a single
+  line break inside a paragraph.
 
 ILLUSTRATION-FRIENDLY REQUIREMENTS:
 
@@ -241,6 +269,16 @@ Use exactly this structure:
     ]
 }
 
+CONTENT RULES FOR THIS AGE GROUP (${ageLength.band}) (mandatory):
+
+${contentRuleFor(ageLength.band)}
+
+Keep the user's premise and characters. Only adjust the intensity to the
+age group above. Never add more mature content than the age group allows,
+and never water the story down below what the age group allows.
+
+At every age, leave out: sexual content, graphic gore or torture, and hate.
+
 Rules:
 
 1. The title must be original.
@@ -252,8 +290,8 @@ Rules:
 7. Generate exactly ${pageCount} pages.
 8. Page numbers must be 1 through ${pageCount}.
 9. Each page must contain meaningful story content.
-9a. Each page's "content" must follow the PAGE LENGTH rule above (${ageLength.band}: ${ageLength.rule})
-9b. Within the "content" string, separate each line with a literal "\n" character - do not return the whole page as one unbroken paragraph.
+9a. Each page's "content" must follow the PAGE LENGTH rule above (${ageLength.band}: about ${ageLength.minLines}-${ageLength.maxLines} lines of text, ${ageLength.minWords}-${ageLength.maxWords} words, ${ageLength.paras})
+9b. Each page's "content" must be flowing paragraph(s) with normal sentence punctuation (full stops kept) - no bullet points, no lists, no one-sentence-per-line. Use "\\n\\n" only to separate paragraphs, and only when this age group allows more than one paragraph.
 10. Return valid JSON only.
 11. Do not use markdown.
 12. Do not wrap the JSON in code fences.

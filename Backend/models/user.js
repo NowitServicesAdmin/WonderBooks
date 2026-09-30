@@ -23,6 +23,15 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        isBlocked: {
+            type: Boolean,
+            default: false,
+            index: true,
+        },
+        blockedAt: {
+            type: Date,
+            default: null,
+        },
         otpHash: {
             type: String,
             select: false,

@@ -1,11 +1,12 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Clock, Search, Sparkles } from "lucide-react";
-import { getMyBooks } from "../../services/bookService";
+import { getMyBookList, acknowledgeBookFailures } from "../../services/bookService";
+import WonderAlertModal from "../../Components/WonderAlertModal";
 
 const AnimatedSearch = ({ search, setSearch, placeholder }) => (
-  <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--tint)] px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-[var(--surface)] focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
-    <Search size={18} strokeWidth={2} className="shrink-0 text-[var(--text-muted)]" />
+  <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-(--border) bg-(--tint) px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-(--surface) focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
+    <Search size={18} strokeWidth={2} className="shrink-0 text-(--text-muted)" />
     <input
       type="text"
       value={search}
@@ -103,6 +104,11 @@ export const Books = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Books that failed to generate. The book itself is never listed; the user
+  // gets an alert with the reason instead, one at a time.
+  const [failureQueue, setFailureQueue] = useState([]);
+  const seenFailureIds = useRef(new Set());
+
   useEffect(() => {
     let cancelled = false;
     let timeoutId;
@@ -125,12 +131,20 @@ export const Books = () => {
 
     const load = async (isFirstLoad = false) => {
       try {
-        const data = await getMyBooks();
+        const { books: data, failures } = await getMyBookList();
         if (cancelled) return;
 
         const mapped = data.map(toBook);
         setBooks(mapped);
         setError("");
+
+        const newFailures = failures.filter(
+          (f) => !seenFailureIds.current.has(f._id)
+        );
+        if (newFailures.length > 0) {
+          newFailures.forEach((f) => seenFailureIds.current.add(f._id));
+          setFailureQueue((queue) => [...queue, ...newFailures]);
+        }
 
         // Keep refreshing until every book has finished generating.
         if (mapped.some((book) => book.status === "Generating")) {
@@ -199,16 +213,25 @@ export const Books = () => {
 
   const handleBookClick = (id) => navigate(`/books/${id}`);
 
+  const currentFailure = failureQueue[0] ?? null;
+
+  // Close the alert: mark it as seen on the server, then show the next one.
+  const dismissFailure = () => {
+    if (!currentFailure) return;
+    acknowledgeBookFailures([currentFailure._id]).catch(() => {});
+    setFailureQueue((queue) => queue.slice(1));
+  };
+
   return (
     <section className="w-full overflow-hidden rounded-2xl bg-transparent">
       <div className="p-3">
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight text-[var(--text-heading)] sm:text-3xl">
+            <h2 className="text-2xl font-extrabold tracking-tight text-(--text-heading) sm:text-3xl">
               Your Books
             </h2>
-            <p className="mt-1.5 text-sm text-[var(--text-muted)]">
+            <p className="mt-1.5 text-sm text-(--text-muted)">
               All the stories you've created.
             </p>
           </div>
@@ -223,7 +246,7 @@ export const Books = () => {
         {/* Grid */}
 
         {loading && (
-          <p className="py-16 text-center text-sm font-medium text-[var(--text-muted)]">
+          <p className="py-16 text-center text-sm font-medium text-(--text-muted)">
             Loading your books...
           </p>
         )}
@@ -235,7 +258,7 @@ export const Books = () => {
         )}
 
         {!loading && !error && filteredBooks.length === 0 && (
-          <p className="py-16 text-center text-sm font-medium text-[var(--text-muted)]">
+          <p className="py-16 text-center text-sm font-medium text-(--text-muted)">
             {books.length === 0
               ? "No books yet. Create your first story!"
               : "No books match your search."}
@@ -659,11 +682,30 @@ export const Books = () => {
           <div className="flex min-h-75 items-center justify-center">
             <div className="text-center">
               <p className="text-base font-semibold text-[#4a4665]">No books found</p>
-              <p className="mt-1.5 text-sm text-[var(--text-muted)]">Try another search.</p>
+              <p className="mt-1.5 text-sm text-(--text-muted)">Try another search.</p>
             </div>
           </div>
         )}
       </div>
+
+      <WonderAlertModal
+        isOpen={Boolean(currentFailure)}
+        onClose={dismissFailure}
+        type="error"
+        title="We couldn't create your book"
+        message={
+          !currentFailure
+            ? ""
+            : currentFailure.title && currentFailure.title !== "Untitled Story"
+              ? `"${currentFailure.title}"\n${currentFailure.reason}`
+              : currentFailure.reason
+        }
+        primaryText="Try Again"
+        onPrimary={() => {
+          dismissFailure();
+          navigate("/create");
+        }}
+      />
     </section>
   );
 };

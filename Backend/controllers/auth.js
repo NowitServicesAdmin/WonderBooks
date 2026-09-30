@@ -92,6 +92,14 @@ export const sendOtp = async (req, res) => {
             });
         }
 
+        if (user?.isBlocked) {
+            return res.status(403).json({
+                success: false,
+                message: "Your account has been blocked. Please contact support.",
+                code: "ACCOUNT_BLOCKED",
+            });
+        }
+
         let currentUser = user;
 
         if (mode === "signup") {
@@ -320,6 +328,14 @@ export const verifyOtp = async (req, res) => {
             });
         }
 
+        if (user?.isBlocked) {
+            return res.status(403).json({
+                success: false,
+                message: "Your account has been blocked. Please contact support.",
+                code: "ACCOUNT_BLOCKED",
+            });
+        }
+
         user.otpHash = undefined;
         user.otpExpiresAt = undefined;
         user.otpAttempts = 0;
@@ -406,6 +422,14 @@ export const googleAuth = async (req, res) => {
 
         let user = await User.findOne({ email: normalizedEmail });
 
+        if (user?.isBlocked) {
+            return res.status(403).json({
+                success: false,
+                message: "Your account has been blocked. Please contact support.",
+                code: "ACCOUNT_BLOCKED",
+            });
+        }
+
         if (!user) {
             user = new User({
                 email: normalizedEmail,
@@ -459,6 +483,14 @@ export const getMe = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message: "User account not found",
+            });
+        }
+
+        if (user?.isBlocked) {
+            return res.status(403).json({
+                success: false,
+                message: "Your account has been blocked. Please contact support.",
+                code: "ACCOUNT_BLOCKED",
             });
         }
 

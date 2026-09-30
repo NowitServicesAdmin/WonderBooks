@@ -3,9 +3,10 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import mongoose from "mongoose";
 import book from "../models/book.js";
-import { canAccessFeature } from "../config/subscriptionLimits.js";
-import { analyzeStory } from "../components/storyAnalyzer.js";
+import { canAccessFeature, getBookUsage } from "../config/subscriptionLimits.js";
 import { generateStory } from "../components/generateStory.js";
+import { normalizePageLines } from "../components/generatestoryPrompt.js";
+import { STORY_OPTION_LABELS as OPTS } from "../config/storyOptions.js";
 import { generateImagePrompt } from "../components/generateImagePrompt.js";
 import { generateImage } from "../components/imageGenerator.js";
 import { uploadToS3 } from "../services/s3Service.js";
@@ -16,53 +17,27 @@ import {
 } from "../services/storageService.js";
 import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
 import { generateCharacterBible } from "../components/characterBible.js";
+import {
+    checkStoryText,
+    findHardBlock,
+    findSoftLabels,
+    collectUserText,
+    softenStrings,
+    softenSelections,
+    softenText,
+    buildBlockMessage,
+    changeNote,
+    ageBand,
+    policyFor
+} from "../components/contentSafety.js";
 import { generateCharacterReferences } from "../services/characterReferenceService.js";
 
-const test_story = {
-    title: "Cherry's Jungle Adventure",
-    pages: [
-        {
-            pageNumber: 1,
-            content: 'Cherry sits by the edge of the jungle. He draws a blue waterfall on his paper. Puppy curls up at his feet. The red Car sits ready on the grass.'
-        },
-        {
-            pageNumber: 2,
-            content: `Cherry holds up his picture. "Let's find this!" he says. Puppy wags and bounces. The red Car waits to be pushed.`
-        },
-        {
-            pageNumber: 3,
-            content: 'They walk into the jungle. Big green leaves brush their heads. Little birds sing. The path is soft under their feet.'
-        },
-        {
-            pageNumber: 4,
-            content: 'A small stream runs across the path. The red Car gets stuck in the mud. Cherry looks at the water and feels unsure. Puppy splashes and tries to pull.'
-        },
-        {
-            pageNumber: 5,
-            content: 'Cherry finds shiny stones on the ground. He draws a little arrow on his paper. The stones make a bright path. They follow the sparkling trail.'
-        },
-        {
-            pageNumber: 6,
-            content: 'Rain falls hard. Drops drum on leaves. A big log falls and blocks the way. The red Car is trapped behind the log. Puppy hides close to Cherry.'
-        },
-        {
-            pageNumber: 7,
-            content: 'They work together. Puppy digs with his paws. Cherry pushes the red Car with all his hands. Cherry uses a stick and Pry, and the log moves. They cheer together.'
-        },
-        {
-            pageNumber: 8,
-            content: 'A loud roar fills the air. The waterfall is near. A dark cave stands before them. Cherry holds his drawing tight. He takes a small brave breath.'
-        },
-        {
-            pageNumber: 9,
-            content: 'Cherry steps into the cave first. Puppy stays very close. The red Car rolls beside them. Water sparkles ahead. They walk out and see the bright waterfall.'
-        },
-        {
-            pageNumber: 10,
-            content: 'They sit on a warm rock and share pizza. Cherry draws the waterfall again, smiling. Puppy licks his hand. The red Car shines in the sun. They go home feeling proud and close.'
-        }
-    ]
-};
+// Pages per book. Override with BOOK_PAGE_COUNT in .env for quick test runs
+// (e.g. BOOK_PAGE_COUNT=2) without touching code.
+const BOOK_PAGE_COUNT = Number(process.env.BOOK_PAGE_COUNT) || 10;
+
+const GENERIC_FAILURE =
+    "Something went wrong while creating your book. Please try again - this one wasn't counted against your plan.";
 
 const buildStoryDataFromSelections = (selections = {}, characters = []) => {
     const pick = (key) => selections?.[key]?.label ?? null;
@@ -75,6 +50,8 @@ const buildStoryDataFromSelections = (selections = {}, characters = []) => {
         imageStyle: pick("imageStyle"),
         language: pick("language") || "English",
         font: pick("font") || "Rounded & Playful",
+        // AI mode: the (enriched) story premise the user chatted about.
+        storyIdea: pick("idea") || "",
         characters: (characters || []).map((character) => ({
             id: character.id,
             type: character.type,
@@ -165,6 +142,74 @@ const getCharacterReferenceImages = async (
     return references.slice(0, 4);
 };
 
+// Generates, uploads and saves the illustration for ONE page. Throws on
+// failure so the caller can retry.
+const generatePageImage = async ({ bookId, storyData, imageData }) => {
+    const { pageNumber, prompt } = imageData;
+
+    await book.updateOne(
+        { _id: bookId, "pages.pageNumber": pageNumber },
+        {
+            $set: {
+                "pages.$.status": "generating",
+                "pages.$.imagePrompt": prompt
+            }
+        }
+    );
+
+    console.log(`Generating image for page ${pageNumber}...`);
+
+    let pageReferenceImages = await getCharacterReferenceImages(
+        storyData.characters,
+        imageData.characters || []
+    );
+
+    if (!pageReferenceImages.length) {
+        pageReferenceImages = await getCharacterPhotoReferenceImages(
+            storyData.characters
+        );
+    }
+
+    console.log(
+        `Loaded ${pageReferenceImages.length} character reference image(s) for page ${pageNumber}.`
+    );
+
+    const imageBuffer = await generateImage({
+        prompt,
+        referenceImages: pageReferenceImages,
+        width: 768,
+        height: 1024
+    });
+
+    if (!imageBuffer || !imageBuffer.length) {
+        throw new Error(`No image generated for page ${pageNumber}`);
+    }
+
+    const uploadedImage = await uploadImage({
+        key: `books/${bookId}/page-${pageNumber}.png`,
+        buffer: imageBuffer,
+        contentType: "image/png"
+    });
+
+    const result = await book.updateOne(
+        { _id: bookId, "pages.pageNumber": pageNumber },
+        {
+            $set: {
+                "pages.$.imageUrl": uploadedImage.url,
+                "pages.$.storageProvider": uploadedImage.provider,
+                "pages.$.storageKey": uploadedImage.key,
+                "pages.$.status": "completed"
+            }
+        }
+    );
+
+    if (!result.matchedCount) {
+        throw new Error(`Page ${pageNumber} was not found on the book`);
+    }
+
+    console.log(`Page ${pageNumber} completed using ${uploadedImage.provider}`);
+};
+
 // Runs the whole (slow) generation pipeline AFTER the HTTP response has already
 // been sent. The book document (status: "generating") exists before this starts,
 // so the "My Books" page can show a loading skeleton and poll until it finishes.
@@ -177,18 +222,18 @@ const generateBookInBackground = async ({
     files
 }) => {
     try {
-        let storyData;
+        // Manual and AI mode both arrive as chosen settings (AI mode's chat
+        // has already worked out age/theme/style/etc. and the story idea), so
+        // they share one builder. `mode` only decides how the book is labelled.
+        const storyData = buildStoryDataFromSelections(storySettings, characters);
 
-        if (mode === "manual") {
-            storyData = buildStoryDataFromSelections(storySettings, characters);
-        } else {
-            storyData = await analyzeStory(message);
+        // AI mode: make sure the idea is on the story even if the settings
+        // didn't carry it (the request `message` mirrors it).
+        if (!storyData.storyIdea && typeof message === "string") {
             storyData.storyIdea = message.trim();
         }
 
-        // TEST MODE: run a short 2-page story instead of the full flow.
-        // Remove this block once you're ready to generate real books.
-        storyData.pageCount = 2;
+        storyData.pageCount = BOOK_PAGE_COUNT;
 
         const generatedStory = await generateStory(storyData);
 
@@ -211,8 +256,8 @@ const generateBookInBackground = async ({
                     storyData,
                     pages: generatedStory.pages.map((page, index) => ({
                         position: index + 1,
-                        pageNumber: page.pageNumber || index + 1,
-                        content: page.content || "",
+                        pageNumber: index + 1, // generateStory already renumbers 1..N
+                        content: normalizePageLines(page.content),
                         imageUrl: null,
                         storageProvider: null,
                         storageKey: null,
@@ -385,6 +430,7 @@ const generateBookInBackground = async ({
         // -----------------------------------------------------------
         console.log("Generating cover image...");
 
+        for (let coverAttempt = 1; coverAttempt <= 2; coverAttempt += 1) {
         try {
             let coverReferenceImages = await getCharacterReferenceImages(
                 storyData.characters,
@@ -431,88 +477,51 @@ const generateBookInBackground = async ({
             );
 
             console.log("Cover completed:", uploadedCover.url);
+            break;
         } catch (coverError) {
-            console.error("Cover generation failed:", coverError);
+            console.error(`Cover generation failed (attempt ${coverAttempt}/2):`, coverError);
+        }
         }
 
         // -----------------------------------------------------------
         // Generate page images (same reference photo(s) reused)
         // Generate page images (same reference photo(s) reused)
         // -----------------------------------------------------------
-        for (const imageData of imagePrompts.images) {
-            const pageNumber = imageData.pageNumber;
-            const prompt = imageData.prompt;
+        const failedPages = [];
 
-            if (!pageNumber || !prompt) {
+        for (const imageData of imagePrompts.images) {
+            if (!imageData?.pageNumber || !imageData?.prompt) {
                 console.warn("Skipping invalid image prompt:", imageData);
                 continue;
             }
 
             try {
-                await book.updateOne(
-                    { _id: bookId, "pages.pageNumber": pageNumber },
-                    {
-                        $set: {
-                            "pages.$.status": "generating",
-                            "pages.$.imagePrompt": prompt
-                        }
-                    }
-                );
-
-                console.log(`Generating image for page ${pageNumber}...`);
-
-                let pageReferenceImages = await getCharacterReferenceImages(
-                    storyData.characters,
-                    imageData.characters || []
-                );
-
-                if (!pageReferenceImages.length) {
-                    pageReferenceImages = await getCharacterPhotoReferenceImages(
-                        storyData.characters
-                    );
-                }
-
-                console.log(
-                    `Loaded ${pageReferenceImages.length} character reference image(s) for page ${pageNumber}.`
-                );
-
-                const imageBuffer = await generateImage({
-                    prompt,
-                    referenceImages: pageReferenceImages,
-                    width: 768,
-                    height: 1024
-                });
-
-                if (!imageBuffer || !imageBuffer.length) {
-                    throw new Error(`No image generated for page ${pageNumber}`);
-                }
-
-                const key = `books/${bookId}/page-${pageNumber}.png`;
-
-                const uploadedImage = await uploadImage({
-                    key,
-                    buffer: imageBuffer,
-                    contentType: "image/png"
-                });
-
-                await book.updateOne(
-                    { _id: bookId, "pages.pageNumber": pageNumber },
-                    {
-                        $set: {
-                            "pages.$.imageUrl": uploadedImage.url,
-                            "pages.$.storageProvider": uploadedImage.provider,
-                            "pages.$.storageKey": uploadedImage.key,
-                            "pages.$.status": "completed"
-                        }
-                    }
-                );
-
-                console.log(`Page ${pageNumber} completed using ${uploadedImage.provider}`);
+                await generatePageImage({ bookId, storyData, imageData });
             } catch (pageError) {
-                console.error(`Page ${pageNumber} image generation failed:`, pageError);
+                console.error(
+                    `Page ${imageData.pageNumber} image generation failed:`,
+                    pageError
+                );
+                failedPages.push(imageData);
+            }
+        }
+
+        // Second chance for any page that failed (moderation block, timeout,
+        // rate limit). A 10-page book has many more chances to hit one of
+        // these, and one bad page shouldn't cost the user the whole book.
+        for (const imageData of failedPages) {
+            console.log(`Retrying image for page ${imageData.pageNumber}...`);
+
+            try {
+                await generatePageImage({ bookId, storyData, imageData });
+            } catch (retryError) {
+                console.error(
+                    `Page ${imageData.pageNumber} failed again:`,
+                    retryError
+                );
 
                 await book.updateOne(
-                    { _id: bookId, "pages.pageNumber": pageNumber },
+                    { _id: bookId, "pages.pageNumber": imageData.pageNumber },
                     { $set: { "pages.$.status": "failed" } }
                 );
             }
@@ -520,17 +529,21 @@ const generateBookInBackground = async ({
 
         const completedBook = await book.findById(bookId).lean();
 
-        const allPagesCompleted =
-            completedBook?.pages?.length > 0 &&
-            completedBook.pages.every((page) => page.status === "completed");
+        const totalPages = completedBook?.pages?.length || 0;
+        const unfinishedPages = (completedBook?.pages || []).filter(
+            (page) => page.status !== "completed"
+        ).length;
+        const allPagesCompleted = totalPages > 0 && unfinishedPages === 0;
 
         await book.updateOne(
             { _id: bookId },
             {
-                $set: {
-                    status: allPagesCompleted ? "completed" : "failed",
-                    ...(allPagesCompleted ? { completedAt: new Date() } : {})
-                }
+                $set: allPagesCompleted
+                    ? { status: "completed", completedAt: new Date(), failureReason: null }
+                    : {
+                        status: "failed",
+                        failureReason: `${unfinishedPages} of ${totalPages} page illustrations couldn't be created. Please try again - this one wasn't counted against your plan.`
+                    }
             }
         );
 
@@ -541,7 +554,10 @@ const generateBookInBackground = async ({
 
         // Never leave the book stuck on "generating" (= endless skeleton).
         await book
-            .updateOne({ _id: bookId }, { $set: { status: "failed" } })
+            .updateOne(
+                { _id: bookId },
+                { $set: { status: "failed", failureReason: GENERIC_FAILURE } }
+            )
             .catch((updateError) =>
                 console.error("Could not mark book as failed:", updateError)
             );
@@ -569,6 +585,13 @@ export const createBook = async (req, res) => {
         const mode = req.body.mode;
         const message = req.body.message;
 
+        if (mode !== "manual" && mode !== "ai") {
+            return res.status(400).json({
+                success: false,
+                message: 'Mode must be "manual" or "ai"'
+            });
+        }
+
         const storySettings =
             typeof req.body.storySettings === "string"
                 ? JSON.parse(req.body.storySettings)
@@ -579,17 +602,40 @@ export const createBook = async (req, res) => {
                 ? JSON.parse(req.body.characters)
                 : req.body.characters || [];
 
-        if (mode === "manual") {
-            if (!storySettings || Object.keys(storySettings).length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Story settings are required for manual mode"
-                });
-            }
-        } else if (!message?.trim()) {
+        if (!storySettings || Object.keys(storySettings).length === 0) {
             return res.status(400).json({
                 success: false,
-                message: "Story idea is required"
+                message: `Story settings are required for ${mode} mode`
+            });
+        }
+
+        // AI mode: the chat has already produced the full settings; the story
+        // idea lives in storySettings.idea (a bare `message` isn't enough).
+        if (mode === "ai") {
+            const idea = storySettings.idea?.label ?? storySettings.idea;
+
+            if (typeof idea !== "string" || !idea.trim()) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Story idea is required"
+                });
+            }
+        }
+
+        // Content safety net (the AI chat already checks every message).
+        // Runs BEFORE the placeholder exists, so a blocked request never
+        // uses up one of the user's plan books.
+        const createAge = storySettings?.age?.label || storySettings?.age || null;
+        const createSafety = await checkStoryText(
+            collectUserText({ message, storySettings, characters }),
+            { age: createAge }
+        );
+
+        if (createSafety.verdict === "block") {
+            return res.status(422).json({
+                success: false,
+                code: "CONTENT_NOT_ALLOWED",
+                message: createSafety.message
             });
         }
 
@@ -598,10 +644,23 @@ export const createBook = async (req, res) => {
         const placeholder = await book.create({
             user: req.userId,
             title: "Untitled Story",
-            mode: mode === "manual" ? "manual" : "ai",
+            mode,
             status: "generating",
             pages: []
         });
+
+        const usageNow = await getBookUsage(req.userId, access.startDate);
+        if (usageNow > access.limit) {
+            await book.deleteOne({ _id: placeholder._id });
+            return res.status(403).json({
+                success: false,
+                code: "LIMIT_REACHED",
+                message: `You've used all ${access.limit} book${access.limit === 1 ? "" : "s"} in your plan. Upgrade to create more.`,
+                limit: access.limit,
+                currentUsage: access.limit,
+                remaining: 0
+            });
+        }
 
         bookId = placeholder._id.toString();
 
@@ -616,9 +675,9 @@ export const createBook = async (req, res) => {
         generateBookInBackground({
             bookId,
             mode,
-            message,
-            storySettings,
-            characters,
+            message: typeof message === "string" ? softenText(message, createAge) : message,
+            storySettings: softenSelections(storySettings, createAge),
+            characters: (characters || []).map((c) => softenStrings(c, createAge)),
             files: req.files || []
         });
     } catch (error) {
@@ -645,8 +704,23 @@ export const getMyBooks = async (req, res) => {
                 status: "generating",
                 createdAt: { $lt: new Date(Date.now() - STALE_MS) }
             },
-            { $set: { status: "failed" } }
+            {
+                $set: {
+                    status: "failed",
+                    failureReason:
+                        "Creating this book took too long and was stopped. Please try again - this one wasn't counted against your plan."
+                }
+            }
         );
+
+        // Failed books are never listed. Instead the user is told once, via
+        // an alert, why it failed (`failures` below); the client then calls
+        // acknowledgeFailures so the alert isn't shown again.
+        const failedBooks = await book
+            .find({ user: req.userId, status: "failed", failureAcknowledged: false })
+            .select("title failureReason")
+            .sort({ createdAt: 1 })
+            .lean();
 
         const books = await book
             .find({ user: req.userId, status: { $ne: "failed" } })
@@ -656,6 +730,11 @@ export const getMyBooks = async (req, res) => {
 
         return res.json({
             success: true,
+            failures: failedBooks.map((b) => ({
+                _id: b._id,
+                title: b.title,
+                reason: b.failureReason || GENERIC_FAILURE
+            })),
             books: books.map((b) => {
                 const pages = b.pages || [];
                 return {
@@ -680,6 +759,30 @@ export const getMyBooks = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Failed to fetch books"
+        });
+    }
+};
+
+// The user has seen the failure alert for these books - don't show it again.
+export const acknowledgeFailures = async (req, res) => {
+    try {
+        const ids = (Array.isArray(req.body?.ids) ? req.body.ids : [])
+            .filter((id) => mongoose.isValidObjectId(id));
+
+        if (ids.length > 0) {
+            await book.updateMany(
+                { _id: { $in: ids }, user: req.userId, status: "failed" },
+                { $set: { failureAcknowledged: true } }
+            );
+        }
+
+        return res.json({ success: true });
+    } catch (error) {
+        console.error("Acknowledge failures error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update"
         });
     }
 };
@@ -731,7 +834,7 @@ export const getBookById = async (req, res) => {
                     .map((p) => ({
                         _id: p._id,
                         pageNumber: p.pageNumber,
-                        content: p.content,
+                        content: normalizePageLines(p.content),
                         imageUrl: p.imageUrl,
                         status: p.status
                     })),
@@ -801,22 +904,26 @@ const callLLM = async ({ system, messages }) => {
 /* ------------------------------------------------------------------ */
 
 const ALLOWED = {
-    age: ["0-2 years", "3-5 years", "6-8 years", "9-12 years"],
-    imageStyle: ["Watercolor", "Cartoon", "3D animated", "Pencil sketch", "Flat vector"],
-    language: ["English", "Hindi", "Spanish", "French", "German"],
-    font: ["Rounded & Playful", "Classic Storybook", "Clean & Simple", "Handwritten"],
-    characterType: ["Child", "Parent", "Grandparent", "Sibling", "Friend", "Pet"]
+    age: OPTS.age,
+    theme: OPTS.theme,
+    imageStyle: OPTS.imageStyle,
+    language: OPTS.language,
+    font: OPTS.font,
+    characterType: ["Child", "Parent", "Grandparent", "Sibling", "Friend", "Pet", "Object"]
 };
 
 const DEFAULTS = {
-    age: "3-5 years",
+    age: "4–7 years",
     theme: "Adventure",
-    subject: "Family",
-    centralmsg: "Be kind",
-    imageStyle: "Watercolor",
+    imageStyle: OPTS.imageStyle[1], // Watercolour
     language: "English",
     font: "Rounded & Playful"
 };
+
+// subject and central message are picked from the chosen theme's own list,
+// exactly like Manual mode.
+const subjectsFor = (theme) => OPTS.subjectByTheme[theme] || [];
+const messagesFor = (theme) => OPTS.centralmsgByTheme[theme] || [];
 
 const MAX_QUESTIONS = 2;
 
@@ -824,7 +931,7 @@ const MAX_QUESTIONS = 2;
 /* Prompt                                                              */
 /* ------------------------------------------------------------------ */
 
-const buildSystemPrompt = ({ state, questionsAsked }) => `
+const buildSystemPrompt = ({ state, questionsAsked, safetyNotice = "" }) => `
 You are Bookie, a warm, playful assistant inside a children's picture-book app.
 People type rough, casual ideas like "we are going on a road trip". Turn that into a complete story brief
 silently, and talk like a friendly person, not a form.
@@ -833,9 +940,12 @@ WHAT TO DO
 1. From the user's words, infer and fill: idea, theme, subject, centralmsg, imageStyle, language, font, age, characters.
    - "idea": enrich their rough input into a charming 2-3 sentence story premise (settings, mood, a small
      problem or surprise). Keep their facts (names, places, who is travelling).
-   - theme / subject / centralmsg: short free-text labels (1-4 words), e.g. "Adventure", "Family road trip", "Togetherness".
+   - theme: EXACTLY one of the allowed themes below (pick the closest fit, e.g. a road trip -> "Family").
+   - subject: EXACTLY one of the subjects listed under the chosen theme. centralmsg: EXACTLY one of the central
+     messages listed under the chosen theme. Pick the closest fit to the user's idea.
    - imageStyle, language, font, age must be EXACTLY one of the allowed values below, or null if unknown.
    - language: the language the user writes in if supported, else "English".
+   - If the user names a drawing look ("watercolour", "3D", "sketch"), a language or a lettering style, use it.
    - Extra people or pets they mention (mom, dog, grandma) become characters.
 2. Never ask for something you can reasonably infer or choose yourself.
 3. The ONLY things you may ask about, and only if missing: who the story is for (age group) and the hero's name.
@@ -849,9 +959,23 @@ WHAT TO DO
 8. Reply style: 1-3 short sentences, warm, no lists, no headings. Never mention fields, settings, JSON or forms.
    Reply in the user's language.
 9. "chips": 0-3 short tappable suggestions ONLY when you ask a question (e.g. age groups). Otherwise [].
+10. CONTENT BY AGE. Keep the user's premise. Do NOT water it down. Only adjust what the age below requires:
+   - 0–3 years: ${policyFor("0-3")}
+   - 4–7 years: ${policyFor("4-7")}
+   - 8–13 years: ${policyFor("8-13")}
+   - 13–17 years: ${policyFor("13-17")}
+   - 18+ years: ${policyFor("18+")}
+   A hero fighting a demon lord to bring peace is a normal fantasy premise: keep it for 8+ and just describe it
+   without blood or gore. Only for 0–7 turn it into outwitting or befriending. If the age is not known yet, keep the
+   premise as the user wrote it and ask the age question. Never say you "made it gentle" unless you really removed something.
+   Always leave out, at every age: sexual content, graphic gore or torture, hate.
+${safetyNotice}
 
 ALLOWED VALUES
 age: ${JSON.stringify(ALLOWED.age)}
+theme: ${JSON.stringify(ALLOWED.theme)}
+subject (by theme): ${JSON.stringify(OPTS.subjectByTheme)}
+centralmsg (by theme): ${JSON.stringify(OPTS.centralmsgByTheme)}
 imageStyle: ${JSON.stringify(ALLOWED.imageStyle)}
 language: ${JSON.stringify(ALLOWED.language)}
 font: ${JSON.stringify(ALLOWED.font)}
@@ -952,16 +1076,19 @@ const sanitizeCharacters = (list, previous = []) => {
         });
 };
 
-const sanitizeSettings = (s = {}) => ({
-    idea: str(s.idea, 1200),
-    theme: str(s.theme, 60),
-    subject: str(s.subject, 80),
-    centralmsg: str(s.centralmsg, 80),
-    imageStyle: oneOf(s.imageStyle, ALLOWED.imageStyle),
-    language: oneOf(s.language, ALLOWED.language),
-    font: oneOf(s.font, ALLOWED.font),
-    age: oneOf(s.age, ALLOWED.age)
-});
+const sanitizeSettings = (s = {}) => {
+    const theme = oneOf(s.theme, ALLOWED.theme);
+    return {
+        idea: str(s.idea, 1200),
+        theme,
+        subject: oneOf(s.subject, subjectsFor(theme)),
+        centralmsg: oneOf(s.centralmsg, messagesFor(theme)),
+        imageStyle: oneOf(s.imageStyle, ALLOWED.imageStyle),
+        language: oneOf(s.language, ALLOWED.language),
+        font: oneOf(s.font, ALLOWED.font),
+        age: oneOf(s.age, ALLOWED.age)
+    };
+};
 
 export const chatBook = async (req, res) => {
     try {
@@ -975,6 +1102,34 @@ export const chatBook = async (req, res) => {
         }
 
         const prevSettings = sanitizeSettings(req.body?.state?.storySettings);
+
+        // ---- content safety (AI mode) -------------------------------------
+        // Latest message: full check (local rules + OpenAI moderation).
+        // Earlier messages: cheap local re-check only.
+        const userTexts = messages.filter((m) => m.role === "user").map((m) => m.content);
+        const latestText = userTexts[userTexts.length - 1];
+        const knownAge = prevSettings.age;
+        const earlierHardBlock = userTexts
+            .slice(0, -1)
+            .map((t) => findHardBlock(t, knownAge))
+            .find(Boolean);
+        const safety = await checkStoryText(latestText, { age: knownAge });
+
+        if (safety.verdict === "block" || earlierHardBlock) {
+            return res.status(422).json({
+                success: false,
+                code: "CONTENT_NOT_ALLOWED",
+                message: safety.message || buildBlockMessage(earlierHardBlock)
+            });
+        }
+
+        const softLabels = [
+            ...new Set([...userTexts.flatMap((t) => findSoftLabels(t, knownAge)), ...safety.softLabels])
+        ];
+        const safetyNotice = softLabels.length
+            ? `\nSAFETY NOTICE: the user's messages mention ${softLabels.join(", ")}, which is not suitable for this reader's age. Keep only that OUT of idea, theme, subject, centralmsg, characters and your recap, and swap it for a friendlier alternative. Keep everything else the user asked for.`
+            : `\nAGE POLICY IN FORCE: ${knownAge ? policyFor(ageBand(knownAge)) : "age not chosen yet, keep the premise as written."}`;
+
         const prevCharacters = sanitizeCharacters(req.body?.state?.characters);
 
         const questionsAsked = messages.filter(
@@ -984,7 +1139,8 @@ export const chatBook = async (req, res) => {
         const raw = await callLLM({
             system: buildSystemPrompt({
                 state: { storySettings: prevSettings, characters: prevCharacters },
-                questionsAsked
+                questionsAsked,
+                safetyNotice
             }),
             messages
         });
@@ -1003,7 +1159,15 @@ export const chatBook = async (req, res) => {
         }
 
         const storySettings = sanitizeSettings(parsed.storySettings);
-        const characters = sanitizeCharacters(parsed.characters, prevCharacters);
+        const finalAge = storySettings.age || prevSettings.age;
+        for (const key of Object.keys(storySettings)) {
+            if (typeof storySettings[key] === "string") {
+                storySettings[key] = softenText(storySettings[key], finalAge);
+            }
+        }
+        const characters = sanitizeCharacters(parsed.characters, prevCharacters).map((c) =>
+            softenStrings(c, finalAge)
+        );
 
         // keep earlier values when the model returns null
         for (const key of Object.keys(storySettings)) {
@@ -1014,8 +1178,13 @@ export const chatBook = async (req, res) => {
 
         // fill the things we never ask the user about
         storySettings.theme ||= DEFAULTS.theme;
-        storySettings.subject ||= DEFAULTS.subject;
-        storySettings.centralmsg ||= DEFAULTS.centralmsg;
+        // subject / central message must belong to the chosen theme
+        if (!subjectsFor(storySettings.theme).includes(storySettings.subject)) {
+            storySettings.subject = subjectsFor(storySettings.theme)[0] || "";
+        }
+        if (!messagesFor(storySettings.theme).includes(storySettings.centralmsg)) {
+            storySettings.centralmsg = messagesFor(storySettings.theme)[0] || "";
+        }
         storySettings.imageStyle ||= DEFAULTS.imageStyle;
         storySettings.language ||= DEFAULTS.language;
         storySettings.font ||= DEFAULTS.font;
@@ -1049,9 +1218,16 @@ export const chatBook = async (req, res) => {
             .filter(Boolean)
             .slice(0, 3);
 
+        let replyText = softenText(str(parsed.reply, 900), finalAge) || "Tell me more about your story!";
+
+        // Tell the user, once, when something in their latest message was swapped out.
+        if (safety.softLabels.length) {
+            replyText = `${changeNote(safety.softLabels)} ${replyText}`;
+        }
+
         return res.json({
             success: true,
-            reply: str(parsed.reply, 900) || "Tell me more about your story!",
+            reply: replyText,
             state: { storySettings, characters },
             ready,
             chips: ready ? [] : chips

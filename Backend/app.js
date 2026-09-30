@@ -13,8 +13,11 @@ import bookRoutes from "./routes/books.js";
 import authRoutes from "./routes/auth.js";
 import subscriptionRoutes from "./routes/subscriptions.js";
 import adminPlanRoutes from "./routes/adminPlans.js";
+import adminRoutes from "./routes/admin.js";
 import settingsRoutes from "./routes/settings.js";
 import orderRoutes from "./routes/orders.js";
+import { requireAuth } from "./middleware/auth.js";
+import { expireOutdatedSubscriptions } from "./controllers/subscriptionController.js";
 import OpenAI from "openai";
 import AudioCache from "./models/AudioCache.js";
 
@@ -32,7 +35,7 @@ app.use("/audio", express.static(path.join(process.cwd(), "uploads", "audio")));
 const audioMemoryCache = new Map(); // key -> Buffer
 const MAX_CACHE_ENTRIES = 200;
 
-app.post("/api/tts", async (req, res) => {
+app.post("/api/tts", requireAuth, async (req, res) => {
   try {
     const { bookId, pageId, text, voiceId } = req.body;
     if (!bookId || pageId === undefined || pageId === null || !text || !voiceId) {
@@ -68,12 +71,20 @@ app.use("/api/auth", authRoutes);
 app.use("/api/book", bookRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/admin", adminPlanRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/orders", orderRoutes);
 
 const startServer = async () => {
   try {
     await connectDB();
+    const runExpiry = () =>
+      expireOutdatedSubscriptions()
+        .then((n) => n && console.log(`Expired ${n} subscription(s)`))
+        .catch((e) => console.error("Subscription expiry job failed:", e.message));
+    runExpiry();
+    setInterval(runExpiry, 60 * 60 * 1000).unref();
+
     app.listen(PORT, () => {
       console.log(`WonderBook backend running on http://localhost:${PORT}`);
     });
