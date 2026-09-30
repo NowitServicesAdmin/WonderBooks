@@ -20,7 +20,7 @@ export const PlanLimitAlert = ({ info, onClose }) => {
 
     const goToPlans = () => {
         onClose?.();
-        navigate("/settings");
+        navigate("/settings?tab=subscription");
     };
 
     return (

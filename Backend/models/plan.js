@@ -1,23 +1,5 @@
 import mongoose from "mongoose";
 
-/*
-  |--------------------------------------------------------------------------
-  | PLAN
-  |--------------------------------------------------------------------------
-  | Managed entirely by super admin (see controllers/adminPlanController.js).
-  | Users only ever READ this collection (GET /api/subscriptions/plans) -
-  | nothing user-facing is allowed to write here, which is what keeps
-  | pricing trustworthy: initiateSubscription() re-reads the price from
-  | this collection server-side rather than trusting anything the client
-  | sends.
-  |
-  | WonderBook only has one paid audience ("user"), so unlike a multi-role
-  | product this is a flat list of plans - no per-role grouping needed.
-  |
-  | iconKey/ribbon/button are purely cosmetic and map 1:1 to the choices
-  | already used in the SuperAdmin plan UI (see Pages/SuperAdmin/Subscription.jsx
-  | and Client Settings' subscription panel).
-*/
 const planSchema = new mongoose.Schema(
     {
         // URL/DB-safe identifier, derived from `name` the first time a plan
@@ -75,11 +57,8 @@ const planSchema = new mongoose.Schema(
             default: [],
         },
 
-        // Optional per-plan usage limits set by super admin. null = fall
-        // back to the defaults in config/subscriptionLimits.js
-        // (basic 1 / gold 5 / premium 10). -1 = unlimited.
         limits: {
-            book: { type: Number, default: null, min: -1 },
+            book: { type: Number, default: null, min: 1, max: 10 },
         },
 
         // Soft-delete flag. Kept (not hard-deleted) so historical

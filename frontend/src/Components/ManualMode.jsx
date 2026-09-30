@@ -752,7 +752,7 @@ const StepWorkspace = ({ step, selections, onSelect }) => {
         >
             <AnimationStyles />
 
-            <div className="shrink-0 border-(--tint)">
+            {/* <div className="shrink-0 border-(--tint)">
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-(--tint) text-[#6241cc]">
                         <Sparkles size={19} />
@@ -761,7 +761,7 @@ const StepWorkspace = ({ step, selections, onSelect }) => {
                         <h2 className="text-[14px] text-[#291ef5]">{step.title}</h2>
                     </div>
                 </div>
-            </div>
+            </div> */}
 
             <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pt-6">
                 <div className="space-y-5">

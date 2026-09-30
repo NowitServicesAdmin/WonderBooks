@@ -14,6 +14,16 @@ const userSchema = new mongoose.Schema(
             lowercase: true,
             trim: true,
         },
+        phone: {
+            type: String, // canonical "+91XXXXXXXXXX"
+            trim: true,
+            unique: true,
+            sparse: true, // Google / old accounts have no phone; sparse lets many docs omit it
+        },
+        isPhoneVerified: {
+            type: Boolean,
+            default: false,
+        },
         role: {
             type: String,
             enum: ["user", "super admin"],
@@ -23,11 +33,29 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
-        otpHash: {
+        isBlocked: {
+            type: Boolean,
+            default: false,
+            index: true,
+        },
+        blockedAt: {
+            type: Date,
+            default: null,
+        },
+        // OTP state (separate code per channel; one shared attempts counter)
+        emailOtpHash: {
             type: String,
             select: false,
         },
-        otpExpiresAt: {
+        emailOtpExpiresAt: {
+            type: Date,
+            select: false,
+        },
+        phoneOtpHash: {
+            type: String,
+            select: false,
+        },
+        phoneOtpExpiresAt: {
             type: Date,
             select: false,
         },

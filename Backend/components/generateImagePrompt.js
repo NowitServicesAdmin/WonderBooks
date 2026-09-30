@@ -1,10 +1,43 @@
 import gemini from "../config/gemini.js";
+import { isAnimalOrObjectCharacter } from "./promptSafety.js";
 
 const cleanJson = (text) => {
     return text
         .replace(/^```json\s*/i, "")
         .replace(/\s*```$/i, "")
         .trim();
+};
+
+const IMAGE_PROMPT_ATTEMPTS = 3;
+
+// One image prompt per story page, in page order. Prompts are matched to pages
+// by pageNumber; if the model left numbers out, fall back to position - but
+// only when the count is exactly right, otherwise position would be a guess.
+// A page with no usable prompt comes back as null (-> the attempt is retried).
+const alignImagesToPages = (images, pages) => {
+    const byNumber = new Map();
+
+    for (const image of images) {
+        const number = Number(image?.pageNumber);
+
+        if (Number.isInteger(number) && !byNumber.has(number)) {
+            byNumber.set(number, image);
+        }
+    }
+
+    const samePageCount = images.length === pages.length;
+
+    return pages.map((page, index) => {
+        const match =
+            byNumber.get(Number(page.pageNumber)) ||
+            (samePageCount ? images[index] : null);
+
+        if (!match?.prompt || !String(match.prompt).trim()) {
+            return null;
+        }
+
+        return { ...match, pageNumber: page.pageNumber };
+    });
 };
 
 const STYLE_BIBLE = {
@@ -169,6 +202,40 @@ Child-friendly visual design.
     );
 };
 
+const visualIdentityRule = (character) =>
+    isAnimalOrObjectCharacter(character)
+        ? `VISUAL IDENTITY RULE:
+This character is a recurring ${/object/i.test(character.type || "") ? "object" : "ANIMAL"} in the book.
+It must be drawn as a real ${/object/i.test(character.type || "") ? "object" : "animal"} in a friendly storybook style:
+${/object/i.test(character.type || "") ? "" : "fur or feathers, animal body proportions, animal face. NO human features, NO human hair, NO human skin, NO clothing unless the story explicitly mentions it.\nDescribe it as e.g. \"a friendly cartoon bear cub\", never as a \"young male\" or \"young female\" character.\n"}Preserve the same:
+- species / kind
+- body shape and proportions
+- fur, feather or surface color and pattern
+- eye color
+- markings
+- primary and secondary colors
+- accessories (only if the story mentions them)
+- recognizable details`
+        : `VISUAL IDENTITY RULE:
+This character is a recurring character in the book.
+
+Preserve the same:
+- face
+- facial structure
+- age
+- body proportions
+- hairstyle
+- hair color
+- eye color
+- skin appearance
+- clothing
+- clothing colors
+- accessories
+- markings
+- primary colors
+- secondary colors
+- recognizable physical details`;
+
 const buildCharacterBible = (characters = []) => {
     if (!characters.length) {
         return `
@@ -222,25 +289,7 @@ ${character.favouriteFood || "Not specified"}
 USER PHOTO AVAILABLE:
 ${character.hasPhoto ? "Yes" : "No"}
 
-VISUAL IDENTITY RULE:
-This character is a recurring character in the book.
-
-Preserve the same:
-- face
-- facial structure
-- age
-- body proportions
-- hairstyle
-- hair color
-- eye color
-- skin/fur appearance
-- clothing
-- clothing colors
-- accessories
-- markings
-- primary colors
-- secondary colors
-- recognizable physical details
+${visualIdentityRule(character)}
 
 Do not redesign this character between pages.
 
@@ -479,6 +528,34 @@ ${page.content}
     .join("\n")}
 
 ==================================================
+IMAGE SAFETY RULES (very important)
+==================================================
+
+The image model runs a strict safety check on the FINISHED
+picture. Write every prompt so the result passes it while
+still telling the story:
+
+- Animals are animals: describe them with fur/feathers and
+  animal proportions. Never use "young male/female" for an
+  animal and never give animals human hair or clothes unless
+  the story says so.
+- Conflict and battles are allowed as the story needs
+  (${storyData?.age || "age not specified"}). Show them through heroic poses,
+  magic, light, wind, sparks and dramatic composition. NEVER
+  show blood, wounds, gore, corpses, torture or nudity.
+- Villains (for example a demon lord) are stylized in the
+  selected illustration style, menacing but not horrifying.
+  For readers under 8 make them silly or only mildly spooky.
+- Show affection with calm wording such as "standing side by
+  side" or "smiling at each other". Do NOT use the words hug,
+  embrace, cuddle, kiss or carry for close body contact.
+- Any human child must be fully dressed in ordinary everyday
+  clothes, shown in a normal full-body or medium shot. No
+  bath, bed, swimming or undressing scenes.
+- Use a calm composition for readers under 8. For older
+  readers, tension and dramatic scenes are fine.
+
+==================================================
 OUTPUT REQUIREMENTS
 ==================================================
 
@@ -549,38 +626,62 @@ Rules:
 - Do not include text before or after the JSON.
 `;
 
-        const response = await gemini.models.generateContent({
-            model: "gemini-3.5-flash-lite",
-            contents: prompt
-        });
+        // Gemini occasionally returns bad JSON, a wrong number of prompts, or
+        // a transient API error. With 10 pages that happens often enough to
+        // matter, so try a few times before giving up on the whole book.
+        let lastError;
 
-        const rawText = response.text.trim();
+        for (let attempt = 1; attempt <= IMAGE_PROMPT_ATTEMPTS; attempt += 1) {
+            try {
+                const response = await gemini.models.generateContent({
+                    model: "gemini-3.5-flash-lite",
+                    contents: prompt
+                });
 
-        const cleanedText = cleanJson(rawText);
+                const rawText = response.text.trim();
 
-        console.log("Gemini image prompt response:", rawText);
+                console.log("Gemini image prompt response:", rawText);
 
-        const parsedResult = JSON.parse(cleanedText);
+                const parsedResult = JSON.parse(cleanJson(rawText));
 
-        if (!parsedResult?.cover?.prompt) {
-            throw new Error(
-                "Invalid image prompt response: cover prompt missing."
-            );
+                if (!parsedResult?.cover?.prompt) {
+                    throw new Error(
+                        "Invalid image prompt response: cover prompt missing."
+                    );
+                }
+
+                if (!Array.isArray(parsedResult.images)) {
+                    throw new Error(
+                        "Invalid image prompt response: images array missing."
+                    );
+                }
+
+                const images = alignImagesToPages(
+                    parsedResult.images,
+                    story.pages
+                );
+
+                if (images.some((image) => !image)) {
+                    throw new Error(
+                        `Expected ${story.pages.length} image prompts but received ${parsedResult.images.length}.`
+                    );
+                }
+
+                return { ...parsedResult, images };
+            } catch (attemptError) {
+                lastError = attemptError;
+                console.error(
+                    `generateImagePrompt attempt ${attempt}/${IMAGE_PROMPT_ATTEMPTS} failed:`,
+                    attemptError.message
+                );
+
+                if (attempt < IMAGE_PROMPT_ATTEMPTS) {
+                    await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+                }
+            }
         }
 
-        if (!parsedResult?.images || !Array.isArray(parsedResult.images)) {
-            throw new Error(
-                "Invalid image prompt response: images array missing."
-            );
-        }
-
-        if (parsedResult.images.length !== story.pages.length) {
-            throw new Error(
-                `Expected ${story.pages.length} image prompts but received ${parsedResult.images.length}.`
-            );
-        }
-
-        return parsedResult;
+        throw lastError;
     } catch (error) {
         console.error("generateImagePrompt error:", error);
         throw error;

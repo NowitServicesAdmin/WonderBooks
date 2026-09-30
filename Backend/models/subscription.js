@@ -93,6 +93,7 @@ const subscriptionSchema = new mongoose.Schema(
 
 subscriptionSchema.index({ userId: 1, status: 1 });
 subscriptionSchema.index({ userId: 1, createdAt: -1 });
+subscriptionSchema.index({ "paymentHistory.paymentId": 1 });
 
 subscriptionSchema.methods.isCurrentlyActive = function () {
     return (

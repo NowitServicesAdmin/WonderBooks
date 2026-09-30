@@ -11,6 +11,7 @@ import {
   // MoreVertical,
   PenLine,
   Plus,
+  RefreshCw,
   Sparkles,
   CalendarDays,
   ChevronLeft,
@@ -18,6 +19,7 @@ import {
   ShoppingBagIcon,
 } from "lucide-react";
 import { templates } from "../../Data/Templatesdata";
+import { suggestionIdeas } from "../../Data/storyIdeas";
 import { getMyBooks } from "../../services/bookService";
 import { ContinueCreating } from "../../Components/AnimatedBook";
 import { useNavigate } from "react-router-dom";
@@ -174,7 +176,7 @@ export const Dashboard = () => {
             </div>
 
             <aside className="space-y-4">
-              <QuickActions />
+              <QuickActions onAiIdeas={() => setIdeasOpen(true)} />
               <JourneyCard books={allBooks} />
               {/* <PrintBookCard /> */}
             </aside>
@@ -183,6 +185,7 @@ export const Dashboard = () => {
       </main>
 
       <IdeasDrawer open={ideasOpen} onClose={() => setIdeasOpen(false)} />
+
     </>
   );
 };
@@ -342,11 +345,11 @@ const SmallBook = ({ book }) => (
 /*                               RIGHT SIDEBAR                                */
 /* -------------------------------------------------------------------------- */
 
-const QuickActions = () => {
+const QuickActions = ({ onAiIdeas }) => {
   const navigate = useNavigate()
   const actions = [
     { title: "Create New Book", subtitle: "Start a new magical story", icon: Plus, navigation: '/create' },
-    { title: "AI Story Ideas", subtitle: "Get inspired with ideas", icon: Sparkles, navigation: '/home' },
+    { title: "AI Story Ideas", subtitle: "Get inspired with ideas", icon: Sparkles, onClick: onAiIdeas },
     { title: "Templates", subtitle: "Choose from beautiful templates", icon: FileText, navigation: '/templates' },
     { title: "MY Orders", subtitle: "View your complete orders", icon: ShoppingBagIcon, navigation: '/orders' },
   ];
@@ -362,7 +365,7 @@ const QuickActions = () => {
         {actions.map((action) => {
           const Icon = action.icon;
           return (
-            <button key={action.title} onClick={() => navigate(action.navigation)} className="flex w-full items-center gap-3 py-4 text-left first:pt-1 last:pb-1 group">
+            <button key={action.title} onClick={() => (action.onClick ? action.onClick() : navigate(action.navigation))} className="flex w-full items-center gap-3 py-4 text-left first:pt-1 last:pb-1 group">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#f0edfa] text-[#5736b1] transition group-hover:bg-[#e8e2fa]">
                 <Icon size={22} />
               </span>
@@ -608,13 +611,47 @@ const JourneyCard = ({ books = [] }) => {
 /*                                IDEAS DRAWER                                */
 /* -------------------------------------------------------------------------- */
 
+// How many story ideas the drawer shows at a time.
+const IDEAS_PER_VIEW = 5;
+
+// Fisher-Yates shuffle on a copy, so the source list is never mutated.
+const shuffleIdeas = (list) => {
+  const copy = [...list];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
 const IdeasDrawer = ({ open, onClose }) => {
-  const ideas = [
-    ["A Mysterious Signal", "Arav discovers a strange signal coming from a distant planet. Buddy insists they investigate."],
-    ["The Lost Star", "A tiny star has fallen from the sky and needs Arav and Buddy's help to find its way home."],
-    ["A Planet That Talks", "Their spaceship lands on a mysterious planet where everything can talk."],
-    ["Buddy's Robot Friend", "Buddy meets a friendly little robot who knows a secret about the universe."],
-  ];
+  const navigate = useNavigate();
+  const listRef = useRef(null);
+  const [shuffled, setShuffled] = useState(() => shuffleIdeas(suggestionIdeas));
+  const [page, setPage] = useState(0);
+
+  const pageCount = Math.ceil(shuffled.length / IDEAS_PER_VIEW);
+  const visibleIdeas = shuffled.slice(
+    page * IDEAS_PER_VIEW,
+    (page + 1) * IDEAS_PER_VIEW
+  );
+
+  // Picking an idea opens AI creation mode - same destination and state as the header search.
+  const handleSelect = (idea) => {
+    onClose();
+    navigate("/create/bookcreation", { state: { mode: "ai", idea } });
+  };
+
+  // Next group of ideas; reshuffle once every idea has been seen.
+  const handleMore = () => {
+    if (page + 1 < pageCount) {
+      setPage(page + 1);
+    } else {
+      setShuffled(shuffleIdeas(suggestionIdeas));
+      setPage(0);
+    }
+    listRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <>
@@ -631,22 +668,21 @@ const IdeasDrawer = ({ open, onClose }) => {
           <button onClick={onClose} className="rounded-full p-2 text-[#6d7186] hover:bg-[#f1eff5]"><X size={20} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div ref={listRef} className="flex-1 overflow-y-auto p-6">
           <div className="rounded-[14px] border border-[#e3ddf5] bg-(--tint) p-4">
-            <div className="flex gap-3"><Sparkles className="shrink-0 text-[#6749bf]" size={20} /><div><h3 className="font-bold text-[#454b67]">Where should the story go next?</h3><p className="mt-1 text-[12px] leading-5 text-[#777d92]">Choose an idea and use it to continue your magical adventure.</p></div></div>
+            <div className="flex gap-3"><Sparkles className="shrink-0 text-[#6749bf]" size={20} /><div><h3 className="font-bold text-[#454b67]">Where should the story go next?</h3><p className="mt-1 text-[12px] leading-5 text-[#777d92]">Pick an idea and we&apos;ll start creating it with AI.</p></div></div>
           </div>
           <div className="mt-5 space-y-3">
-            {ideas.map(([title, description], index) => (
-              <button key={title} className="w-full rounded-[14px] border border-[#e7e3ed] bg-(--surface) p-4 text-left transition hover:-translate-y-px hover:shadow-md">
-                <div className="flex items-start justify-between gap-3"><h3 className="font-bold text-[#414661]">{title}</h3><span className="text-[#6749bf]">0{index + 1}</span></div>
-                <p className="mt-2 text-[12px] leading-5 text-[#747a91]">{description}</p>
+            {visibleIdeas.map((idea, index) => (
+              <button key={idea} onClick={() => handleSelect(idea)} className="w-full rounded-[14px] border border-[#e7e3ed] bg-(--surface) p-4 text-left transition hover:-translate-y-px hover:shadow-md">
+                <div className="flex items-start justify-between gap-3"><h3 className="text-[14px] font-bold leading-5 text-[#414661]">{idea}</h3><span className="text-[#6749bf]">{String(index + 1).padStart(2, "0")}</span></div>
               </button>
             ))}
           </div>
         </div>
 
         <div className="border-t border-[#ece8f2] p-6">
-          <button className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#4e299f] py-3.5 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(78,41,159,0.2)]"><Sparkles size={16} />Generate More Ideas</button>
+          <button onClick={handleMore} className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#4e299f] py-3.5 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(78,41,159,0.2)]"><RefreshCw size={16} />Generate More Ideas</button>
         </div>
       </aside>
     </>

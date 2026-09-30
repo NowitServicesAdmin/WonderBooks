@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Sparkles, User, BookOpen, Bell, HelpCircle, ChevronRight, ChevronDown, Globe, Users, Mail, Camera, Trash2, FileText, Info, Check, Crown, Heart, MessageCircle, Lightbulb, Package, Megaphone, CalendarDays, ArrowRight, ShieldCheck, Download, TriangleAlert, Headset, CreditCard, Loader2,} from "lucide-react";
 import ReactSelect from "react-select";
 import { useAuth } from "../../context/AuthContext";
@@ -431,7 +432,7 @@ function ProfilePanel() {
             )}
 
             {/* Fields */}
-            <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-3 md:grid-cols-2">
                 <label className="block text-sm">
                     <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
                         Name
@@ -994,7 +995,13 @@ function SettingsBreadcrumb({ activeId, onSelect }) {
 }
 
 export const Settings = () => {
-    const [activeId, setActiveId] = useState("profile");
+    // The open tab lives in the URL (?tab=subscription) so other pages can deep-link
+    // straight to it, and a refresh keeps you on the same tab.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tab = searchParams.get("tab");
+    const activeId = CATEGORIES.some((c) => c.id === tab) ? tab : "profile";
+    const setActiveId = (id) =>
+        setSearchParams(id === "profile" ? {} : { tab: id }, { replace: true });
     const active = CATEGORIES.find((c) => c.id === activeId);
 
     return (

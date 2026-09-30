@@ -140,6 +140,16 @@ const BookSchema = new mongoose.Schema(
             default: "generating"
         },
 
+        failureReason: {
+            type: String,
+            default: null
+        },
+
+        failureAcknowledged: {
+            type: Boolean,
+            default: false
+        },
+
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",

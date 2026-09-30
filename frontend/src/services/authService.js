@@ -1,12 +1,22 @@
 import api from "../api/axios";
 
-export const sendOtp = async ({ email, name, mode }) => {
-    const response = await api.post("/auth/send-otp", { email, name, mode,});
+// signup: { mode: "signup", channel: "email" | "phone", email | phone }
+// login : { mode: "login", identifier }   (identifier = email OR mobile number)
+export const sendOtp = async (payload) => {
+    const response = await api.post("/auth/send-otp", payload);
     return response.data;
 };
 
-export const verifyOtp = async ({ email, otp, name, mode }) => {
-    const response = await api.post("/auth/verify-otp", { email, otp, name, mode });
+// signup: { mode: "signup", channel, email | phone, otp }  -> { verificationToken }
+// login : { mode: "login", identifier, otp }               -> { token, user }
+export const verifyOtp = async (payload) => {
+    const response = await api.post("/auth/verify-otp", payload);
+    return response.data;
+};
+
+// { name, email, phone, emailToken, phoneToken }  -> { token, user }
+export const completeSignup = async (payload) => {
+    const response = await api.post("/auth/signup", payload);
     return response.data;
 };
 

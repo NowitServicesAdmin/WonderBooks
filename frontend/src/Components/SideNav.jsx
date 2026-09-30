@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -75,7 +76,12 @@ export function SideNav({
     // them), so these all stay at their empty defaults automatically.
     const { subscription, loading: subLoading, restorePlan } = useSubscriptionContext();
 
-    const isActive = subscription?.status === "active";
+    // Also checks endDate: a plan that just ran out can still say "active"
+    // until the backend flips it, and shouldn't keep hiding the upgrade tile.
+    const isActive =
+        subscription?.status === "active" &&
+        Boolean(subscription?.endDate) &&
+        new Date(subscription.endDate).getTime() > Date.now();
     const isEndingSoon = isActive && subscription?.cancelRequested;
     const hadSubscription = Boolean(subscription);
 
@@ -89,7 +95,7 @@ export function SideNav({
 
     const goToUpgrade = () => {
         if (window.innerWidth < 768) setMobileMenuOpen(false);
-        navigate("/settings");
+        navigate("/settings?tab=subscription");
     };
 
     const expanded = mobileMenuOpen || (isDesktop ? isOpen : tabletHovered);

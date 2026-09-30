@@ -64,7 +64,7 @@ export const printBook = async ({ title, pages, language, font }) => {
       const text =
         page.kind === "cover"
           ? `<h1>${escapeHtml(page.heading)}</h1><p class="sub">${escapeHtml(page.sub)}</p>`
-          : `<p class="story">${escapeHtml(page.text)}</p>`;
+          : `<p class="story">${escapeHtml(page.text).replace(/\n\s*\n/g, "<br><br>").replace(/\n/g, " ")}</p>`;
       return (
         `<section class="sheet"><div class="art">${image}</div></section>` +
         `<section class="sheet"><div class="copy">${text}</div></section>`

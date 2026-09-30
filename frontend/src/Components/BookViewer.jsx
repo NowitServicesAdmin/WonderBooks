@@ -373,15 +373,25 @@ const FitText = ({ text = "", font }) => {
         return () => observer.disconnect();
     }, [text, font]);
 
+    // Blank line = new paragraph; any single line break is just a space.
+    const paragraphs = String(text || "")
+        .split(/\n\s*\n/)
+        .map((para) => para.replace(/\s*\n\s*/g, " ").trim())
+        .filter(Boolean);
+
     return (
         <div ref={boxRef} className="flex h-full w-full items-center justify-center overflow-hidden">
-            <p
+            <div
                 ref={textRef}
                 className="w-full text-center leading-normal text-[#3c3860]"
-                style={{ fontFamily: getStoryFontFamily(font), whiteSpace: "pre-line" }}
+                style={{ fontFamily: getStoryFontFamily(font), whiteSpace: "normal" }}
             >
-                {text}
-            </p>
+                {paragraphs.map((para, i) => (
+                    <p key={i} style={{ margin: i === 0 ? 0 : "0.8em 0 0" }}>
+                        {para}
+                    </p>
+                ))}
+            </div>
         </div>
     );
 };
