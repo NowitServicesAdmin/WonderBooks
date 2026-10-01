@@ -18,7 +18,7 @@ import {
     FaStar as Star,
     FaUsers as Users,
     FaFacebookF as Facebook,
-    FaPinterestP as Pinterest,
+    FaLinkedinIn as LinkedIn,
     FaYoutube as Youtube,
 } from "react-icons/fa";
 import heroImage from "../../assets/wonder-books/hero.png";
@@ -33,14 +33,60 @@ import shareIdeas from "../../assets/wonder-books/step-share-ideas.png";
 import aiCreates from "../../assets/wonder-books/step-ai-creates.png";
 import getBook from "../../assets/wonder-books/step-get-book.png";
 import girlBook from "../../assets/wonder-books/girl-book-clean.png";
+import logo from "../../assets/wonder-books/wonderbook-logo.png";
 import { User, Image } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const templates = [
-    { image: braveExplorer, lines: ["The Brave", "Little Explorer"], category: "Adventure", icon: Tent, text: "text-[#2d3a8c]", pill: "bg-[#e8ebff] text-[#3a3fb5]" },
-    { image: magicForest, lines: ["Mia and the", "Magic Forest"], category: "Fantasy", icon: Leaf, text: "text-[#1f7a4d]", pill: "bg-[#dff6ea] text-[#1f7a4d]" },
-    { image: specialFamily, lines: ["My Special", "Family"], category: "Family", icon: Home, text: "text-[#d9532b]", pill: "bg-[#ffeadb] text-[#d9532b]" },
-    { image: superhero, lines: ["The Kindness", "Superhero"], category: "Education", icon: Cap, text: "text-[#2d3a8c]", pill: "bg-[#e0ecff] text-[#2d4fa8]" },
-    { image: dino, lines: ["Dino", "Adventures"], category: "Animals", icon: Paw, text: "text-[#2d3a8c]", pill: "bg-[#fff0d6] text-[#b8741a]" },
+    {
+        image: braveExplorer,
+        lines: ["The Brave", "Little Explorer"],
+        category: "Adventure",
+        icon: Tent,
+        text: "text-[#2d3a8c]",
+        card: "bg-[#eef0ff]",
+        pill: "bg-[#dfe3ff] text-[#3a3fb5]",
+    },
+
+    {
+        image: magicForest,
+        lines: ["Mia and the", "Magic Forest"],
+        category: "Fantasy",
+        icon: Leaf,
+        text: "text-[#1f7a4d]",
+        card: "bg-[#e6f8ef]",
+        pill: "bg-[#d3f0df] text-[#1f7a4d]",
+    },
+
+    {
+        image: specialFamily,
+        lines: ["My Special", "Family"],
+        category: "Family",
+        icon: Home,
+        text: "text-[#d9532b]",
+        card: "bg-[#fff0e5]",
+        pill: "bg-[#ffe1d0] text-[#d9532b]",
+    },
+
+    {
+        image: superhero,
+        lines: ["The Kindness", "Superhero"],
+        category: "Education",
+        icon: Cap,
+        text: "text-[#2d3a8c]",
+        card: "bg-[#e7f0ff]",
+        pill: "bg-[#d8e7ff] text-[#2d4fa8]",
+    },
+
+    {
+        image: dino,
+        lines: ["Dino", "Adventures"],
+        category: "Animals",
+        icon: Paw,
+        text: "text-[#b8741a]",
+        card: "bg-[#fff3dc]",
+        pill: "bg-[#ffe8bd] text-[#b8741a]",
+    },
 ];
 
 const steps = [
@@ -103,8 +149,8 @@ const testimonials = [
 function Sparkles({ leftClass = "left-[3%] top-10", rightClass = "right-[3%] top-24" }) {
     return (
         <>
-            <img src={templatesStarLeft} alt="" className={`pointer-events-none absolute hidden w-[110px] select-none lg:block xl:w-[130px] ${leftClass}`} />
-            <img src={templatesStarRight} alt="" className={`pointer-events-none absolute hidden w-[90px] select-none lg:block xl:w-[110px] ${rightClass}`} />
+            <img src={templatesStarLeft} alt="" className={`pointer-events-none absolute hidden w-27.5 select-none lg:block xl:w-32.5 ${leftClass}`} />
+            <img src={templatesStarRight} alt="" className={`pointer-events-none absolute hidden w-22.5 select-none lg:block xl:w-27.5 ${rightClass}`} />
         </>
     );
 }
@@ -121,12 +167,13 @@ function SectionHeading({ eyebrow, children, sub }) {
 
 function Logo({ stacked = false, light = false }) {
     return (
-        <a href="#home" className={`flex items-center gap-2 ${stacked ? "flex-col" : ""}`}>
-            <div className="relative flex h-9 w-9 items-center justify-center">
-                <BookOpen className={`h-6 w-6 ${light ? "text-[#f6bd3d]" : "text-[#6335d8]"}`} />
-                <Magic className="absolute -right-0.5 -top-0.5 h-3 w-3 text-[#f6bd3d]" />
-            </div>
-            <span className={`text-xl font-extrabold tracking-tight ${light ? "text-white" : "text-[#3a1fb5]"}`}>WonderBooks</span>
+        <a href="#home" className={`group flex items-center gap-2 ${stacked ? "flex-col" : ""}`}>
+            <img
+                src={logo}
+                alt="WonderBooks Logo"
+                className={`shrink-0 object-contain transition duration-300 group-hover:-rotate-6 group-hover:scale-110 ${stacked ? "h-15 w-15" : "h-9 w-9"}`}
+            />
+            <span className={`text-2xl font-extrabold tracking-tight ${light ? "text-white" : "text-[#3a1fb5]"}`}>WonderBooks</span>
         </a>
     );
 }
@@ -135,6 +182,7 @@ export default function HomePage() {
     const [reviewIndex, setReviewIndex] = useState(0);
     const [isReviewPaused, setIsReviewPaused] = useState(false);
     const [reviewTransition, setReviewTransition] = useState(true);
+    const navigate = useNavigate();
 
     const reviewSlides = useMemo(() => [...testimonials, ...testimonials, ...testimonials], []);
 
@@ -157,25 +205,34 @@ export default function HomePage() {
     const nextReview = () => { setReviewTransition(true); setReviewIndex((c) => (c + 1) % testimonials.length); };
     const previousReview = () => { setReviewTransition(true); setReviewIndex((c) => (c - 1 + testimonials.length) % testimonials.length); };
 
-    const navLink = "transition hover:text-[#4a1fe0]";
+    // nav link: underline grows from 0 to full width on hover
+    const navLink = "relative py-1 font-semibold transition-colors hover:text-[#4a1fe0] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-0 after:rounded-full after:bg-[#4a1fe0] after:transition-all after:duration-300 hover:after:w-full";
+
+    // footer link: slides right slightly and turns white on hover
+    const footerLink = "block transition duration-200 hover:translate-x-1 hover:text-white";
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-white text-[#171653]">
+        <div className="min-h-screen overflow-x-clip bg-white text-[#171653]">
             {/* Header */}
             <header className="sticky top-0 z-50 border-b border-[#ece6fb] bg-white/95 backdrop-blur">
-                <div className="mx-auto flex h-[52px] w-full max-w-[1200px] items-center justify-between px-4 sm:px-6">
+                <div className="mx-auto flex h-20 w-full items-center justify-between px-4 sm:px-6">
                     <Logo />
-                    <nav className="hidden items-center gap-8 text-[11px] font-semibold text-[#2f2a6b] lg:flex">
-                        <a href="#home" className="relative py-1 text-[#4a1fe0] after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-full after:rounded-full after:bg-[#4a1fe0]">Home</a>
+                    <nav className="hidden items-center gap-8 text-[15px] font-semibold text-[#2f2a6b] lg:flex">
+                        <a href="#home" className="relative py-1 text-[#4a1fe0] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-full after:rounded-full after:bg-[#4a1fe0]">Home</a>
                         <a href="#how-it-works" className={navLink}>How It Works</a>
                         <a href="#templates" className={navLink}>Book Templates</a>
                         <a href="#our-story" className={navLink}>Our Story</a>
-                        <a href="#pricing" className={navLink}>Pricing</a>
-                        <a href="#faqs" className={navLink}>FAQs</a>
+                        {/* <a href="#pricing" className={navLink}>Pricing</a> */}
+                        {/* <a href="#faqs" className={navLink}>FAQs</a> */}
                     </nav>
                     <div className="flex items-center gap-2">
-                        <button className="hidden rounded-full border border-[#cdbff5] px-5 py-1.5 text-[11px] font-bold text-[#4a1fe0] transition hover:bg-[#f3ecff] sm:block">Login</button>
-                        <button className="rounded-full bg-[#5b2df0] px-5 py-1.5 text-[11px] font-bold text-white shadow-[0_6px_16px_rgba(74,31,224,.3)] transition hover:-translate-y-0.5">Get Started</button>
+                        {/* <button onClick={() => navigate("/auth")} className="hidden rounded-full border border-[#cdbff5] px-5 py-1.5 text-[11px] font-bold text-[#4a1fe0] transition hover:bg-[#f3ecff] sm:block">Login</button> */}
+                        <button
+                            onClick={() => navigate("/auth")}
+                            className="rounded-full bg-[#5b2df0] px-5 py-1.5 text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(74,31,224,.3)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#4a1fe0] hover:shadow-[0_10px_22px_rgba(74,31,224,.45)] active:translate-y-0 active:scale-95"
+                        >
+                            Get Started
+                        </button>
                     </div>
                 </div>
             </header>
@@ -183,12 +240,12 @@ export default function HomePage() {
             <main id="home">
                 {/* Hero */}
                 <section
-                    className="relative isolate overflow-hidden bg-[#2a1270] bg-cover bg-[70%_center] bg-no-repeat sm:bg-center"
+                    className="relative isolate overflow-hidden bg-[#2a1270] bg-cover bg-position-[70%_center] bg-no-repeat sm:bg-center"
                     style={{ backgroundImage: `url(${heroImage})` }}
                 >
-                    <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-[#24105f]/70 via-[#24105f]/30 to-transparent lg:hidden" />
-                    <div className="mx-auto flex min-h-[620px] w-full max-w-[1200px] items-center px-5 pb-16 pt-12 sm:px-8 lg:min-h-0 lg:aspect-[2/1] lg:px-6 lg:pb-12 lg:pt-8">
-                        <div className="max-w-[460px]">
+                    <div className="pointer-events-none absolute inset-0 -z-10 bg-linear-to-r from-[#24105f]/70 via-[#24105f]/30 to-transparent lg:hidden" />
+                    <div className="mx-auto flex min-h-155 w-full max-w-300 items-center px-5 pb-16 pt-12 sm:px-8 lg:min-h-0 lg:aspect-2/1 lg:px-6 lg:pb-12 lg:pt-8">
+                        <div className="max-w-115">
                             <p className="mb-4 text-[9px] font-bold uppercase tracking-[0.25em] text-[#cbb8ff]">Personalized Storybooks with AI</p>
                             <h1 className="text-[44px] font-black leading-[1.05] tracking-[-0.02em] text-white sm:text-[52px] lg:text-[clamp(40px,3.6vw,56px)]">
                                 Turn Their
@@ -197,16 +254,22 @@ export default function HomePage() {
                                 <br />
                                 into a <span className="text-[#ffd447]">Real Book</span>
                             </h1>
-                            <p className="mt-5 max-w-[360px] text-sm leading-6 text-[#efe8ff]">
-                                Create personalised stories with AI, beautiful illustrations, and lasting memories for the little ones you love.
+                            <p className="mt-5 max-w-90 text-sm leading-6 text-[#efe8ff]">
+                                Create personalized stories with AI, beautiful illustrations, and lasting memories for the little ones you love.
                             </p>
                             <div className="mt-6 flex flex-wrap items-center gap-3">
-                                <button type="button" className="group flex items-center gap-2 rounded-full bg-[#ffd447] px-6 py-2.5 text-xs font-extrabold text-[#2b1a6b] shadow-[0_10px_28px_rgba(255,212,71,0.3)] transition hover:-translate-y-0.5 hover:bg-[#ffdc62]">
+                                <button onClick={() => navigate("/auth")}
+                                    type="button"
+                                    className="group flex items-center gap-2 rounded-full bg-[#ffd447] px-6 py-2.5 text-xs font-extrabold text-[#2b1a6b] shadow-[0_10px_28px_rgba(255,212,71,0.3)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#ffdc62] hover:shadow-[0_14px_32px_rgba(255,212,71,0.5)] active:translate-y-0 active:scale-95"
+                                >
                                     Create Your Storybook
                                     <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
                                 </button>
-                                <button type="button" className="flex items-center gap-2 rounded-full border border-white/60 bg-white/5 px-6 py-2.5 text-xs font-bold text-white backdrop-blur-sm transition hover:bg-white/15">
-                                    <Play className="h-3 w-3" />
+                                <button
+                                    type="button"
+                                    className="group flex items-center gap-2 rounded-full border border-white/60 bg-white/5 px-6 py-2.5 text-xs font-bold text-white backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-white hover:bg-white/20 active:scale-95"
+                                >
+                                    <Play className="h-3 w-3 transition-transform duration-300 group-hover:scale-125" />
                                     Watch Video
                                 </button>
                             </div>
@@ -228,21 +291,21 @@ export default function HomePage() {
 
                     {/* Features */}
                     <section className="relative px-5 pb-10 pt-12">
-                        <div className="mx-auto grid max-w-[900px] grid-cols-2 gap-4 lg:grid-cols-4">
+                        <div className="mx-auto grid max-w-225 grid-cols-2 gap-4 lg:grid-cols-4">
                             {features.map((item) => {
                                 const Icon = item.icon;
                                 return (
                                     <div
                                         key={item.title}
-                                        className={`flex flex-col items-center rounded-2xl border px-4 py-6 text-center shadow-[0_2px_12px_rgba(120,100,200,0.06)] ${item.card}`}
+                                        className={`group flex cursor-pointer flex-col items-center rounded-2xl border px-4 py-6 text-center shadow-[0_2px_12px_rgba(120,100,200,0.06)] transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_14px_30px_rgba(120,100,200,0.18)] ${item.card}`}
                                     >
-                                        <div className={`flex h-[60px] w-[60px] items-center justify-center rounded-full ${item.bg}`}>
+                                        <div className={`flex h-15 w-15 items-center justify-center rounded-full transition duration-300 group-hover:rotate-6 group-hover:scale-110 ${item.bg}`}>
                                             <Icon className={`h-6 w-6 ${item.color}`} strokeWidth={2} />
                                         </div>
                                         <h3 className="mt-4 text-[14px] font-extrabold leading-tight text-[#1a1560]">
                                             {item.title}
                                         </h3>
-                                        <p className="mx-auto mt-1.5 max-w-[160px] text-[12px] leading-[18px] text-[#6b6796]">
+                                        <p className="mx-auto mt-1.5 max-w-40 text-[12px] leading-4.5 text-[#6b6796]">
                                             {item.description}
                                         </p>
                                     </div>
@@ -251,34 +314,32 @@ export default function HomePage() {
                         </div>
                     </section>
 
-                    
+
                     <section id="templates" className="relative px-5 pb-16 pt-10">
-                        <div className="relative z-10 mx-auto max-w-[1100px]">
+                        <div className="relative z-10 mx-auto max-w-275">
                             <SectionHeading eyebrow="Explore Endless Possibilities" sub="Choose from a wide range of magical themes or create your own unique story.">
                                 Story Templates for Every Imagination
                             </SectionHeading>
 
                             <div className="relative mt-8">
-                                <button aria-label="Previous templates" className="absolute -left-4 top-[38%] z-20 hidden h-9 w-9 items-center justify-center rounded-full bg-white text-[#5b2df0] shadow-[0_6px_20px_rgba(99,53,216,0.18)] transition hover:scale-105 lg:flex">
-                                    <ChevronLeft className="h-3.5 w-3.5" />
-                                </button>
 
                                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
                                     {templates.map((book) => {
                                         const Icon = book.icon;
                                         return (
-                                            <article key={book.category} className="group flex flex-col items-center text-center">
+                                            <article key={book.category} className={`group ${book.card} flex cursor-pointer flex-col items-center rounded-2xl px-4 pb-4 pt-3 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg`}
+                                            >
                                                 <img
                                                     src={book.image}
                                                     alt={book.lines.join(" ")}
-                                                    className="h-[190px] w-auto max-w-full object-contain mix-blend-multiply drop-shadow-[0_14px_14px_rgba(54,25,105,0.25)] transition duration-500 group-hover:-translate-y-1 group-hover:scale-[1.03]"
+                                                    className="h-47.5 w-auto max-w-full object-contain mix-blend-multiply drop-shadow-[0_14px_14px_rgba(54,25,105,0.25)] transition duration-500 group-hover:-translate-y-1 group-hover:scale-[1.03]"
                                                 />
                                                 <h3 className={`mt-4 text-[12px] font-bold leading-4 ${book.text}`}>
                                                     {book.lines[0]}
                                                     <br />
                                                     {book.lines[1]}
                                                 </h3>
-                                                <span className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-bold ${book.pill}`}>
+                                                <span className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-bold transition duration-300 group-hover:-translate-y-0.5 group-hover:shadow-md ${book.pill}`}>
                                                     <Icon className="h-3 w-3" />
                                                     {book.category}
                                                 </span>
@@ -286,15 +347,14 @@ export default function HomePage() {
                                         );
                                     })}
                                 </div>
-
-                                <button aria-label="Next templates" className="absolute -right-4 top-[38%] z-20 hidden h-9 w-9 items-center justify-center rounded-full bg-white text-[#5b2df0] shadow-[0_6px_20px_rgba(99,53,216,0.18)] transition hover:scale-105 lg:flex">
-                                    <ChevronRight className="h-3.5 w-3.5" />
-                                </button>
                             </div>
 
                             <div className="mt-8 text-center">
-                                <button className="inline-flex items-center gap-2 rounded-full bg-[#5b2df0] px-7 py-2.5 text-xs font-bold text-white shadow-[0_10px_26px_rgba(91,45,240,0.35)] transition hover:-translate-y-0.5">
-                                    Browse All Templates <ArrowRight className="h-3 w-3" />
+                                <button
+                                    onClick={() => navigate("/auth")}
+                                    className="group inline-flex items-center gap-2 rounded-full bg-[#5b2df0] px-7 py-2.5 text-xs font-bold text-white shadow-[0_10px_26px_rgba(91,45,240,0.35)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#4a1fe0] hover:shadow-[0_14px_32px_rgba(91,45,240,0.5)] active:translate-y-0 active:scale-95"
+                                >
+                                    Browse All Templates <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-1" />
                                 </button>
                             </div>
                         </div>
@@ -302,7 +362,7 @@ export default function HomePage() {
 
                     {/* How it works */}
                     <section id="how-it-works" className="relative px-5 pb-16 pt-6">
-                        <div className="relative z-10 mx-auto max-w-[1000px]">
+                        <div className="relative z-10 mx-auto max-w-250">
                             <SectionHeading eyebrow="How It Works" sub="From idea to a beautifully printed book, it's quick and easy.">
                                 Create a Personalized Book in 3 Simple Steps
                             </SectionHeading>
@@ -310,16 +370,16 @@ export default function HomePage() {
                             <div className="mt-8 flex flex-col items-stretch gap-4 lg:flex-row lg:items-center lg:gap-3">
                                 {steps.map((step, i) => (
                                     <React.Fragment key={step.number}>
-                                        <article className="relative flex-1 rounded-xl border border-[#eee8fb] bg-white p-4 shadow-[0_8px_26px_rgba(72,39,138,.08)]">
-                                            <span className="absolute -left-2 -top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-[#6335d8] text-xs font-black text-white shadow-md">
+                                        <article className="group relative flex-1 rounded-xl border border-[#eee8fb] bg-white p-4 shadow-[0_8px_26px_rgba(72,39,138,.08)] transition duration-300 hover:-translate-y-1.5 hover:border-[#d9c9fb] hover:shadow-[0_16px_34px_rgba(72,39,138,.16)]">
+                                            <span className="absolute -left-2 -top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-[#6335d8] text-xs font-black text-white shadow-md transition duration-300 group-hover:rotate-12 group-hover:scale-110">
                                                 {step.number}
                                             </span>
-                                            <div className="flex h-[130px] items-center justify-center">
-                                                <img src={step.image} alt={step.title} className="h-full w-auto max-w-full object-contain" />
+                                            <div className="flex h-44 items-center justify-center">
+                                                <img src={step.image} alt={step.title} className="h-full w-auto max-w-full object-contain transition duration-500 group-hover:scale-105" />
                                             </div>
                                             <div className="pt-3 text-center">
-                                                <h3 className="text-[13px] font-extrabold text-[#1a1560]">{step.title}</h3>
-                                                <p className="mx-auto mt-1 max-w-[220px] text-[11px] leading-4 text-[#6b6796]">{step.description}</p>
+                                                <h3 className="text-[14px] bg-violet-50 rounded-2xl p-2 font-extrabold text-[#1a1560]">{step.title}</h3>
+                                                <p className="mx-auto mt-1 max-w-55 text-[13px] leading-4 text-[#6b6796]">{step.description}</p>
                                             </div>
                                         </article>
                                         {i < steps.length - 1 && <ArrowRight className="mx-auto hidden h-3.5 w-3.5 shrink-0 text-[#8552e8] lg:block" />}
@@ -331,12 +391,12 @@ export default function HomePage() {
 
                     {/* Story value */}
                     <section id="our-story" className="relative">
-                        <div className="relative z-10 mx-auto grid max-w-[1000px] items-center lg:min-h-[300px] lg:grid-cols-2">
-                            <div className="relative flex h-[320px] items-end justify-center overflow-hidden lg:h-[300px]">
+                        <div className="relative z-10 mx-auto grid max-w-250 items-center lg:min-h-75 lg:grid-cols-2">
+                            <div className="relative flex h-80 items-end justify-center overflow-hidden lg:h-75">
                                 <img
                                     src={girlBook}
                                     alt="Happy child holding a personalized WonderBooks story"
-                                    className="relative z-10 h-full w-full max-w-[420px] object-contain object-bottom mix-blend-multiply"
+                                    className="relative z-10 h-full w-full max-w-105 object-contain object-bottom mix-blend-multiply"
                                 />
                             </div>
 
@@ -346,10 +406,10 @@ export default function HomePage() {
                                 <p className="mt-3 max-w-md text-xs leading-5 text-[#4d4a80]">
                                     WonderBooks creates personalized storybooks that celebrate every child's unique world &mdash; their name, interests, family, values and dreams. It's more than a story; it's a memory they'll cherish forever.
                                 </p>
-                                <div className="mt-6 grid max-w-[420px] grid-cols-2 gap-x-6 gap-y-4">
+                                <div className="mt-6 grid max-w-105 grid-cols-2 gap-x-6 gap-y-4">
                                     {values.map(([label, Icon, cls]) => (
-                                        <div key={label} className="flex items-center gap-3 text-xs font-bold text-[#403b72]">
-                                            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${cls}`}>
+                                        <div key={label} className="group flex cursor-default items-center gap-3 text-xs font-bold text-[#403b72] transition-colors hover:text-[#6335d8]">
+                                            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition duration-300 group-hover:-rotate-6 group-hover:scale-110 group-hover:shadow-md ${cls}`}>
                                                 <Icon className="h-4 w-4" />
                                             </span>
                                             {label}
@@ -366,14 +426,14 @@ export default function HomePage() {
                         onMouseEnter={() => setIsReviewPaused(true)}
                         onMouseLeave={() => setIsReviewPaused(false)}
                     >
-                        <div className="relative z-10 mx-auto max-w-[1000px]">
+                        <div className="relative z-10 mx-auto max-w-250">
                             <SectionHeading eyebrow="Loved By Families" sub="See what parents and kids are saying about WonderBooks.">
                                 Stories That Create Smiles
                             </SectionHeading>
 
                             <div className="relative mt-8 overflow-hidden px-1 pb-3">
                                 <div
-                                    className={`flex gap-4 [--review-card-width:100%] md:[--review-card-width:calc((100%_-_2rem)_/_3)] ${reviewTransition ? "transition-transform duration-700 ease-in-out" : ""}`}
+                                    className={`flex gap-4 [--review-card-width:100%] md:[--review-card-width:calc((100%-2rem)/3)] ${reviewTransition ? "transition-transform duration-700 ease-in-out" : ""}`}
                                     style={{
                                         transform: "translateX(calc(-1 * var(--review-index) * (var(--review-card-width) + 1rem)))",
                                         "--review-index": reviewIndex,
@@ -382,13 +442,13 @@ export default function HomePage() {
                                     {reviewSlides.map((review, index) => (
                                         <article
                                             key={`${review.name}-${index}`}
-                                            className="flex w-full shrink-0 gap-3 rounded-xl border border-[#eee8fb] bg-white p-4 shadow-[0_6px_22px_rgba(120,80,220,0.08)] md:w-[calc((100%_-_2rem)_/_3)]"
+                                            className="flex w-full shrink-0 gap-3 rounded-xl border border-[#eee8fb] bg-white p-4 shadow-[0_6px_22px_rgba(120,80,220,0.08)] transition-shadow duration-300 hover:shadow-[0_12px_28px_rgba(120,80,220,0.18)] md:w-[calc((100%-2rem)/3)]"
                                         >
-                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#e8dcff] to-[#f8eaff] text-[#6335d8]">
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#e8dcff] to-[#f8eaff] text-[#6335d8]">
                                                 <Users className="h-4 w-4" />
                                             </div>
                                             <div>
-                                                <p className="min-h-[64px] text-[11px] leading-4 text-[#5d5a8c]">&ldquo;{review.text}&rdquo;</p>
+                                                <p className="min-h-16 text-[11px] leading-4 text-[#5d5a8c]">&ldquo;{review.text}&rdquo;</p>
                                                 <p className="mt-2 text-xs font-extrabold text-[#292468]">{review.name}</p>
                                                 <div className="mt-1 flex gap-0.5 text-[#ffbd25]">
                                                     {Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-3 w-3" />)}
@@ -398,10 +458,18 @@ export default function HomePage() {
                                     ))}
                                 </div>
 
-                                <button onClick={previousReview} aria-label="Previous reviews" className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#6335d8] shadow-[0_4px_14px_rgba(99,53,216,0.2)] transition hover:scale-105">
+                                <button
+                                    onClick={previousReview}
+                                    aria-label="Previous reviews"
+                                    className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#6335d8] shadow-[0_4px_14px_rgba(99,53,216,0.2)] transition duration-300 hover:scale-110 hover:bg-[#6335d8] hover:text-white active:scale-95"
+                                >
                                     <ChevronLeft className="h-3 w-3" />
                                 </button>
-                                <button onClick={nextReview} aria-label="Next reviews" className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#6335d8] shadow-[0_4px_14px_rgba(99,53,216,0.2)] transition hover:scale-105">
+                                <button
+                                    onClick={nextReview}
+                                    aria-label="Next reviews"
+                                    className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#6335d8] shadow-[0_4px_14px_rgba(99,53,216,0.2)] transition duration-300 hover:scale-110 hover:bg-[#6335d8] hover:text-white active:scale-95"
+                                >
                                     <ChevronRight className="h-3 w-3" />
                                 </button>
                             </div>
@@ -412,7 +480,7 @@ export default function HomePage() {
                                         key={index}
                                         onClick={() => { setReviewTransition(true); setReviewIndex(index); }}
                                         aria-label={`Go to review ${index + 1}`}
-                                        className={`h-1.5 w-1.5 rounded-full transition-all ${visibleReviewIndex === index ? "bg-[#6335d8]" : "bg-[#d8d1ed]"}`}
+                                        className={`h-1.5 w-1.5 rounded-full transition-all hover:scale-150 hover:bg-[#8552e8] ${visibleReviewIndex === index ? "bg-[#6335d8]" : "bg-[#d8d1ed]"}`}
                                     />
                                 ))}
                             </div>
@@ -452,42 +520,64 @@ export default function HomePage() {
             </main>
 
             {/* Footer */}
-            <footer className="bg-[#211457] px-5 pb-6 pt-10 text-white">
-                <div className="mx-auto grid max-w-[1000px] gap-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
-                    <div className="flex flex-col items-center md:items-start md:pl-4">
+            <footer className="bg-[#211457] px-5 pb-6 pt-12 text-white">
+                <div className="mx-auto grid max-w-250 grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-[1.5fr_1fr_1fr_1fr] md:gap-8">
+                    {/* Brand */}
+                    <div className="col-span-2 flex flex-col items-center text-center md:col-span-1 md:items-start md:text-left">
                         <Logo stacked light />
-                        <p className="mt-2 text-[10px] text-[#bdb5dd]">Stories for a brighter tomorrow.</p>
+                        <p className="mt-3 max-w-[220px] text-[13px] leading-5 text-[#bdb5dd]">
+                            Stories for a brighter tomorrow.
+                        </p>
                     </div>
+
+                    {/* Quick Links */}
                     <div>
-                        <h3 className="text-[11px] font-extrabold">Quick Links</h3>
-                        <div className="mt-3 space-y-1.5 text-[10px] text-[#bdb5dd]">
-                            <a href="#home" className="block hover:text-white">Home</a>
-                            <a href="#templates" className="block hover:text-white">Templates</a>
-                            <a href="#pricing" className="block hover:text-white">Pricing</a>
-                            <a href="#faqs" className="block hover:text-white">FAQs</a>
+                        <h3 className="text-[14px] font-extrabold tracking-wide">Quick Links</h3>
+                        <div className="mt-4 space-y-2.5 text-[13px] text-[#bdb5dd]">
+                            <a href="#home" className={footerLink}>Home</a>
+                            <a href="#templates" className={footerLink}>Templates</a>
+                            <a href="#our-story" className={footerLink}>Story</a>
+                            {/* <a href="#faqs" className={footerLink}>FAQs</a> */}
                         </div>
                     </div>
+
+                    {/* Company */}
                     <div>
-                        <h3 className="text-[11px] font-extrabold">Company</h3>
-                        <div className="mt-3 space-y-1.5 text-[10px] text-[#bdb5dd]">
-                            <a href="#our-story" className="block hover:text-white">About Us</a>
-                            <a href="#contact" className="block hover:text-white">Contact</a>
-                            <a href="#privacy" className="block hover:text-white">Privacy Policy</a>
-                            <a href="#terms" className="block hover:text-white">Terms of Service</a>
+                        <h3 className="text-[14px] font-extrabold tracking-wide">Company</h3>
+                        <div className="mt-4 space-y-2.5 text-[13px] text-[#bdb5dd]">
+                            <a href="https://nowitservices.com/" target="_blank" rel="noopener noreferrer" className={footerLink}>About Us</a>
+                            <a href="https://nowitservices.com/" target="_blank" rel="noopener noreferrer" className={footerLink}>Contact</a>
+                            <a href="#privacy" className={footerLink}>Privacy Policy</a>
+                            <a href="#terms" className={footerLink}>Terms of Service</a>
                         </div>
                     </div>
-                    <div>
-                        <h3 className="text-[11px] font-extrabold">Follow Us</h3>
-                        <div className="mt-3 flex gap-2">
-                            {[Instagram, Facebook, Youtube, Pinterest].map((Icon, i) => (
-                                <a key={i} href="#" className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20">
-                                    <Icon className="h-3 w-3" />
+
+                    {/* Follow Us */}
+                    <div className="col-span-2 md:col-span-1">
+                        <h3 className="text-[14px] font-extrabold tracking-wide">Follow Us</h3>
+                        <div className="mt-4 flex gap-3">
+                            {[
+                                [Instagram, "Instagram", "https://www.instagram.com/_nowitservices_/"],
+                                [Facebook, "Facebook", "https://www.facebook.com/p/NOWIT-Services-61559601166623/"],
+                                [Youtube, "YouTube", "https://www.youtube.com/@nowitservicesltd"],
+                                [LinkedIn, "LinkedIn", "https://www.linkedin.com/company/nowitservices/posts/?feedView=all"],
+                            ].map(([Icon, label, url]) => (
+                                <a
+                                    key={label}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    aria-label={label}
+                                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition duration-300 hover:-translate-y-1 hover:bg-[#ffd447] hover:text-[#2b1a6b]"
+                                >
+                                    <Icon className="h-4 w-4" />
                                 </a>
                             ))}
                         </div>
                     </div>
                 </div>
-                <div className="mx-auto mt-8 max-w-[1000px] border-t border-white/10 pt-4 text-center text-[9px] text-[#aaa2cb]">
+
+                <div className="mx-auto mt-10 max-w-250 border-t border-white/10 pt-5 text-center text-[12px] text-[#aaa2cb]">
                     &copy; 2026 WonderBooks. All rights reserved.
                 </div>
             </footer>

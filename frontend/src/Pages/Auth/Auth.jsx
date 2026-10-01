@@ -11,7 +11,7 @@ import {
     Phone,
     Check,
 } from "lucide-react";
-import { FaApple } from "react-icons/fa";
+// import { FaApple } from "react-icons/fa";
 
 import { useAuth } from "../../context/AuthContext";
 import { sendOtp, verifyOtp, completeSignup, googleAuth } from "../../services/authService";
@@ -51,13 +51,24 @@ const AUTH_STYLES = `
 @keyframes wbAuthFadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes wbAuthPop{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
 @keyframes wbAuthProgress{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes wbAuthSpin{to{transform:rotate(360deg)}}
 .wb-auth-float{animation:wbAuthFloat 7s ease-in-out infinite}
 .wb-auth-twinkle{animation:wbAuthTwinkle 3.2s ease-in-out infinite}
 .wb-auth-fade-up{animation:wbAuthFadeUp .55s cubic-bezier(.2,.7,.2,1) both}
 .wb-auth-pop{animation:wbAuthPop .7s cubic-bezier(.2,.7,.2,1) both}
 .wb-auth-progress{transform-origin:left center;animation:wbAuthProgress linear forwards}
+.wb-auth-spin{animation:wbAuthSpin .8s linear infinite}
+.wb-google-btn{position:relative;overflow:hidden;isolation:isolate;cursor:pointer;transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease,background-color .25s ease}
+.wb-google-btn:hover:not(:disabled){transform:translateY(-2px);border-color:#c9b8ff;background-color:#faf9ff;box-shadow:0 8px 18px rgba(84,38,199,.18)}
+.wb-google-btn:active:not(:disabled){transform:translateY(0) scale(.98)}
+.wb-google-btn:focus-visible{outline:none;box-shadow:0 0 0 4px rgba(84,38,199,.2)}
+.wb-google-btn::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(110deg,transparent 30%,rgba(84,38,199,.12) 50%,transparent 70%);transform:translateX(-120%);transition:transform .7s ease}
+.wb-google-btn:hover:not(:disabled)::before{transform:translateX(120%)}
+.wb-google-btn .wb-google-icon{transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+.wb-google-btn:hover:not(:disabled) .wb-google-icon{transform:scale(1.18) rotate(-8deg)}
 @media (prefers-reduced-motion:reduce){
-  .wb-auth-float,.wb-auth-twinkle,.wb-auth-fade-up,.wb-auth-pop,.wb-auth-progress{animation:none!important}
+  .wb-auth-float,.wb-auth-twinkle,.wb-auth-fade-up,.wb-auth-pop,.wb-auth-progress,.wb-auth-spin{animation:none!important}
+  .wb-google-btn,.wb-google-btn::before,.wb-google-btn .wb-google-icon{transition:none!important}
 }
 `;
 
@@ -70,6 +81,7 @@ const PRIMARY_BTN =
     "flex h-[clamp(2.6rem,6vh,3rem)] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#5426c7] to-[#7a4ce0] text-[15px] font-bold text-white shadow-[0_8px_18px_rgba(84,38,199,0.28)] transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60";
 const SOCIAL_BTN =
     "flex h-[clamp(2.25rem,5.2vh,2.75rem)] items-center justify-center gap-2 rounded-2xl border border-[#ece5ff] bg-white text-[13.5px] font-semibold text-[#4a4362] transition hover:bg-[#faf9ff] disabled:cursor-not-allowed disabled:opacity-60";
+const GOOGLE_BTN = `${SOCIAL_BTN} wb-google-btn`;
 const OTP_BOX =
     "h-[clamp(2.5rem,6.5vh,3.5rem)] min-w-0 max-w-12 flex-1 rounded-2xl border border-[#ece5ff] bg-white text-center text-[18px] font-bold text-[#30215c] outline-none transition focus:border-[#5426c7] focus:shadow-[0_0_0_3px_rgba(84,38,199,0.12)] sm:text-[20px]";
 
@@ -576,7 +588,7 @@ export const Auth = () => {
 
                 {/* ------------------ Right: form ------------------ */}
 
-                <section className="relative z-10 mx-auto flex min-h-0 w-[calc(100%-1.5rem)] max-w-[34rem] flex-col self-center overflow-y-auto rounded-[26px] border border-white/60 bg-white/30 px-5 py-6 shadow-[0_12px_45px_rgba(65,35,120,0.18)] backdrop-blur-2xl scrollbar-hide md:mx-0 md:h-full md:w-full md:max-w-none md:items-center md:justify-center md:rounded-none md:border-0 md:bg-gradient-to-b md:from-white md:to-[#faf8ff] md:px-8 md:shadow-none md:backdrop-blur-none">
+                <section className="relative z-10 mx-auto flex min-h-0 w-[calc(100%-1.5rem)] max-w-136 flex-col self-center overflow-y-auto overflow-hidden rounded-[26px] border border-white/60 bg-white/30 px-5 py-6 shadow-[0_12px_45px_rgba(65,35,120,0.18)] backdrop-blur-2xl scrollbar-hide md:mx-0 md:h-full md:w-full md:max-w-none md:items-center md:justify-center md:rounded-none md:border-0 md:bg-linear-to-b md:from-white md:to-[#faf8ff] md:px-8 md:shadow-none md:backdrop-blur-none">
                     <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-[#efe8ff] blur-2xl" />
 
                     {/* Top row: Wonder Books logo + Stories doodle */}
@@ -746,20 +758,24 @@ export const Auth = () => {
                                             <div className="h-px flex-1 bg-[#ece5ff]" />
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-3 [@media(max-height:480px)]:hidden">
+                                        <div className="grid gap-3 [@media(max-height:480px)]:hidden">
                                             <button
                                                 type="button"
                                                 onClick={() => googleLogin()}
                                                 disabled={submitting}
-                                                className={SOCIAL_BTN}
+                                                className={GOOGLE_BTN}
                                             >
-                                                <GoogleIcon />
-                                                Google
+                                                {submitting ? (
+                                                    <span className="wb-auth-spin h-4.5 w-4.5 rounded-full border-2 border-[#d9ceff] border-t-[#5426c7]" />
+                                                ) : (
+                                                    <GoogleIcon className="wb-google-icon" />
+                                                )}
+                                                {submitting ? "Signing in..." : "Google"}
                                             </button>
-                                            <button type="button" className={SOCIAL_BTN}>
+                                            {/* <button type="button" className={SOCIAL_BTN}>
                                                 <FaApple size={20} />
                                                 Apple
-                                            </button>
+                                            </button> */}
                                         </div>
                                     </>
                                 )}
