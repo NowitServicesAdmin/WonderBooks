@@ -12,7 +12,7 @@ export function Layout({ header = true, superadmin = false }) {
     const navigate = useNavigate();
     const [showLogoutAlert, setShowLogoutAlert] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
+    console.log(user ,"user in layout@j");
     const handleLogout = () => {
         setMobileMenuOpen(false);
         setShowLogoutAlert(true);

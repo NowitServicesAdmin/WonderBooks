@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { User } from "../models/user.js";
 import { uploadToS3, deleteFromS3, normalizeS3Url } from "../services/s3Service.js";
 import { sendEmail } from "../config/mailer.js";
+import { notify } from "../services/alertService.js"; // ALERTS
 
 const ABOUT_LIMIT = 200;
 const ALLOWED_LANGUAGES = ["English", "Hindi", "Telugu", "Spanish"];
@@ -130,6 +131,8 @@ export const updateProfile = async (req, res) => {
 
         await user.save();
 
+        await notify.profileUpdated(user._id); // ALERTS
+
         return res.status(200).json({
             success: true,
             message: "Profile updated",
@@ -188,6 +191,8 @@ export const uploadAvatar = async (req, res) => {
         user.avatarStorageKey = uploaded.key;
 
         await user.save();
+
+        await notify.avatarUpdated(user._id); // ALERTS
 
         if (previousKey && previousProvider === "s3") {
             // Best-effort cleanup of the old photo; failure here shouldn't fail the request.
@@ -285,6 +290,8 @@ export const requestDataExport = async (req, res) => {
             });
         }
 
+        await notify.dataExportRequested(user._id); // ALERTS (only after the email was sent)
+
         return res.status(200).json({
             success: true,
             message: "We've emailed you a copy of your data",
@@ -336,6 +343,8 @@ export const deleteAccount = async (req, res) => {
         }).catch((error) =>
             console.error("Account deletion email error:", error)
         );
+
+        // No alert here: the account no longer exists, so nobody could read it.
 
         return res.status(200).json({
             success: true,

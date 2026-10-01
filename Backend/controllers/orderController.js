@@ -4,6 +4,7 @@ import razorpay from "../config/razorpayClient.js";
 import Order from "../models/order.js";
 import Book from "../models/book.js";
 import { getPrintPrice, PRINT_CURRENCY } from "../config/printPricing.js";
+import { notify } from "../services/alertService.js"; // ALERTS
 
 const REQUIRED_ADDRESS_FIELDS = [
   "name",
@@ -140,6 +141,7 @@ export const verifyOrder = async (req, res) => {
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
+      await notify.paymentFailed(req.userId, bookId); // ALERTS
       return res
         .status(400)
         .json({ success: false, message: "Payment verification failed" });
@@ -170,6 +172,7 @@ export const verifyOrder = async (req, res) => {
       razorpayOrderId: razorpay_order_id,
     });
     if (existing) {
+      // Already confirmed earlier (and already alerted), so no alert here.
       return res
         .status(200)
         .json({ success: true, order: toClientOrder(existing) });
@@ -202,6 +205,8 @@ export const verifyOrder = async (req, res) => {
       razorpayPaymentId: razorpay_payment_id,
       razorpaySignature: razorpay_signature,
     });
+
+    await notify.orderConfirmed(req.userId, order); // ALERTS
 
     return res.status(201).json({ success: true, order: toClientOrder(order) });
   } catch (error) {
@@ -283,6 +288,8 @@ export const cancelOrder = async (req, res) => {
     order.cancelledAt = new Date();
     order.cancelReason = reason;
     await order.save();
+
+    await notify.orderCancelled(req.userId, order); // ALERTS
 
     return res.json({ success: true, order: toClientOrder(order) });
   } catch (error) {
