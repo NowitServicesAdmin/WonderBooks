@@ -35,7 +35,7 @@ import getBook from "../../assets/wonder-books/step-get-book.png";
 import girlBook from "../../assets/wonder-books/girl-book-clean.png";
 import logo from "../../assets/wonder-books/wonderbook-logo.png";
 import { User, Image } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 const templates = [
     {
@@ -544,11 +544,35 @@ export default function HomePage() {
                     {/* Company */}
                     <div>
                         <h3 className="text-[14px] font-extrabold tracking-wide">Company</h3>
-                        <div className="mt-4 space-y-2.5 text-[13px] text-[#bdb5dd]">
-                            <a href="https://nowitservices.com/" target="_blank" rel="noopener noreferrer" className={footerLink}>About Us</a>
-                            <a href="https://nowitservices.com/" target="_blank" rel="noopener noreferrer" className={footerLink}>Contact</a>
-                            <a href="#privacy" className={footerLink}>Privacy Policy</a>
-                            <a href="#terms" className={footerLink}>Terms of Service</a>
+                        <div>
+                           
+                            <div className="mt-4 space-y-2.5 text-[13px] text-[#bdb5dd]">
+                                <a
+                                    href="https://nowitservices.com/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={footerLink}
+                                >
+                                    About Us
+                                </a>
+
+                                <a
+                                    href="https://nowitservices.com/"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={footerLink}
+                                >
+                                    Contact
+                                </a>
+
+                                <Link to="/privacy" className={footerLink}>
+                                    Privacy Policy
+                                </Link>
+
+                                <Link to="/terms" className={footerLink}>
+                                    Terms of Service
+                                </Link>
+                            </div>
                         </div>
                     </div>
 

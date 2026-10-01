@@ -569,10 +569,10 @@ export const OrderDetails = ({
       {/* -------------------------------------------------------------- */}
 
       <div className="mt-auto flex items-center justify-between border-t border-(--tint) px-8 py-5">
-        <button className="flex items-center gap-2 rounded-[9px] border border-[#bcb0eb] px-4 py-2.5 text-[12px] font-semibold text-[#5743b2] transition hover:bg-[#f7f5ff]">
+        {/* <button className="flex items-center gap-2 rounded-[9px] border border-[#bcb0eb] px-4 py-2.5 text-[12px] font-semibold text-[#5743b2] transition hover:bg-[#f7f5ff]">
           <Download size={16} />
           Download Invoice
-        </button>
+        </button> */}
 
         {order.rawStatus === "confirmed" && (
           <button

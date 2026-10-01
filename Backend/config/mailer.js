@@ -24,7 +24,6 @@ export const sendEmail = async ({ to, subject, html, text }) => {
         console.log("====================================================\n");
         return { delivered: false, dev: true };
     }
-
     await transporter.sendMail({
         from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         to,

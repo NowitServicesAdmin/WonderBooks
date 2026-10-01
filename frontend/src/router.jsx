@@ -19,6 +19,8 @@ import { SuperAdminOrders } from './Pages/SuperAdmin/Orders'
 import {SuperAdminSubscriptions} from './Pages/SuperAdmin/Subscription'
 import { ProtectedRoute, RoleHomeRedirect, RoleRoute } from './protectedRoute/ProtectedRoute'
 import HomePage from './Pages/Home/page'
+import Privacy from './Pages/Home/Privacy'
+import Terms from './Pages/Home/terms'
 
 export const Router=createBrowserRouter([
     {
@@ -32,6 +34,14 @@ export const Router=createBrowserRouter([
     {
         path:'/landing',
         element:<HomePage />
+    },
+    {
+        path:'/privacy',
+        element:<Privacy />
+    },
+    {
+        path:'/terms',
+        element:<Terms />
     },
     {
         element:<ProtectedRoute />,

@@ -34,20 +34,186 @@ export const secondsUntilResendAllowed = (lastOtpSentAt) => {
     return Math.max(0, Math.ceil(OTP_RESEND_COOLDOWN_SECONDS - elapsedSeconds));
 };
 
+
+
 export const sendOtpEmail = async ({ email, otp }) => {
-    await sendEmail({
-        to: email,
-        subject: "Your WonderBooks verification code",
-        text: `Your WonderBooks verification code is ${otp}. It expires in ${EMAIL_OTP_EXPIRY_MINUTES} minutes.`,
-        html: `
-            <div style="font-family:sans-serif;max-width:420px;margin:auto;padding:24px;">
-                <h2 style="color:#5426c7;">WonderBooks</h2>
-                <p>Your verification code is:</p>
-                <p style="font-size:32px;font-weight:bold;letter-spacing:6px;color:#30215c;">${otp}</p>
-                <p style="color:#918aa5;font-size:13px;">This code expires in ${EMAIL_OTP_EXPIRY_MINUTES} minutes. If you didn't request this, you can ignore this email.</p>
-            </div>
-        `,
-    });
+    try {
+        console.log("📧 Starting OTP email...");
+        console.log("📩 Recipient:", email);
+        console.log("🔐 OTP:", otp);
+
+        const result = await sendEmail({
+            to: email,
+            subject: `${otp} is your WonderBooks verification code`,
+
+            text: `
+Your WonderBooks verification code is ${otp}.
+
+This code expires in ${EMAIL_OTP_EXPIRY_MINUTES} minutes.
+
+If you didn't request this code, you can safely ignore this email.
+
+— The WonderBooks Team
+            `.trim(),
+
+            html: `
+                <!DOCTYPE html>
+                <html>
+                <body style="
+                    margin:0;
+                    padding:40px 0;
+                    background:#f7f4ff;
+                    font-family:Arial,Helvetica,sans-serif;
+                ">
+
+                    <div style="
+                        max-width:480px;
+                        margin:auto;
+                        background:#ffffff;
+                        border-radius:20px;
+                        overflow:hidden;
+                    ">
+
+                        <div style="
+                            padding:28px;
+                            text-align:center;
+                            background:linear-gradient(135deg,#5426c7,#7654e8);
+                        ">
+                            <div style="
+                                font-size:30px;
+                                font-weight:bold;
+                                color:#ffffff;
+                            ">
+                                ✨ WonderBooks
+                            </div>
+
+                            <div style="
+                                margin-top:8px;
+                                font-size:14px;
+                                color:#eee9ff;
+                            ">
+                                Where every story becomes an adventure
+                            </div>
+                        </div>
+
+                        <div style="
+                            padding:36px 30px;
+                            text-align:center;
+                        ">
+
+                            <div style="
+                                font-size:30px;
+                                margin-bottom:20px;
+                            ">
+                                🔐
+                            </div>
+
+                            <h2 style="
+                                margin:0 0 12px;
+                                color:#30215c;
+                            ">
+                                Verify your email
+                            </h2>
+
+                            <p style="
+                                color:#6f6880;
+                                font-size:15px;
+                                line-height:1.6;
+                            ">
+                                Use the verification code below to continue
+                                your WonderBooks journey.
+                            </p>
+
+                            <div style="
+                                display:inline-block;
+                                padding:16px 24px;
+                                margin:20px 0;
+                                border-radius:14px;
+                                background:#f4f0ff;
+                                border:1px solid #e2d9ff;
+                            ">
+                                <div style="
+                                    font-size:34px;
+                                    font-weight:bold;
+                                    letter-spacing:8px;
+                                    color:#5426c7;
+                                ">
+                                    ${otp}
+                                </div>
+                            </div>
+
+                            <p style="
+                                color:#918aa5;
+                                font-size:13px;
+                            ">
+                                This code expires in
+                                <strong>
+                                    ${EMAIL_OTP_EXPIRY_MINUTES} minutes
+                                </strong>.
+                            </p>
+
+                            <hr style="
+                                border:0;
+                                border-top:1px solid #eeeaf7;
+                                margin:28px 0;
+                            ">
+
+                            <p style="
+                                color:#918aa5;
+                                font-size:12px;
+                            ">
+                                If you didn't request this verification code,
+                                you can safely ignore this email.
+                            </p>
+
+                        </div>
+
+                        <div style="
+                            padding:20px;
+                            text-align:center;
+                            background:#faf9fd;
+                        ">
+                            <p style="
+                                margin:0;
+                                font-size:12px;
+                                color:#a09aaf;
+                            ">
+                                Made with ✨ for little storytellers
+                            </p>
+
+                            <p style="
+                                margin:6px 0 0;
+                                font-size:12px;
+                                color:#b0a9bb;
+                            ">
+                                © ${new Date().getFullYear()} WonderBooks
+                            </p>
+                        </div>
+
+                    </div>
+
+                </body>
+                </html>
+            `,
+        });
+
+        console.log("✅ OTP email sent successfully!");
+        console.log("📨 Email provider response:", result);
+
+        return {
+            success: true,
+            result,
+        };
+
+    } catch (error) {
+        console.error("❌ OTP email failed!");
+        console.error("Error message:", error?.message);
+        console.error("Error code:", error?.code);
+        console.error("Error response:", error?.response);
+        console.error("Full error:", error);
+
+        throw error;
+    }
 };
 
 export const sendOtpSms = async ({ phone, otp }) => {

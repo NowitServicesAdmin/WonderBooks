@@ -32,7 +32,6 @@
 // AudioService.js/ttsWorker.js
 // const TTS_ENGINE_URL = process.env.TTS_ENGINE_URL || "http://3.229.24.45:8020/generate";
 const TTS_ENGINE_URL = process.env.TTS_ENGINE_URL || "http://127.0.0.1:8020/generate";
-
 // Matches the `id` values from your language picker exactly (lowercase)
 const SUPPORTED_LANGS = new Set([
   "english", "spanish", "french", "german", "italian",

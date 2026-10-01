@@ -19,7 +19,7 @@ export const ProtectedRoute = () => {
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/auth" replace />;
+        return <Navigate to="/landing" replace />;
     }
 
     return <Outlet />;
@@ -47,7 +47,7 @@ export const RoleHomeRedirect = () => {
     }
 
     if (!isAuthenticated) {
-        return <Navigate to="/auth" replace />;
+        return <Navigate to="/landing" replace />;
     }
 
     return <Navigate to={homeFor(user)} replace />;
