@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Sparkles, User, BookOpen, Bell, HelpCircle, ChevronRight, ChevronDown, Globe, Users, Mail, Camera, Trash2, FileText, Info, Check, Crown, Heart, MessageCircle, Lightbulb, Package, Megaphone, CalendarDays, ArrowRight, ShieldCheck, Download, TriangleAlert, Headset, CreditCard, Loader2,} from "lucide-react";
+import { Sparkles, User, BookOpen, Bell, HelpCircle, ChevronRight, ChevronDown, Globe, Users, Mail, Camera, Trash2, FileText, Info, Check, Crown, Heart, MessageCircle, Lightbulb, Package, Megaphone, CalendarDays, ArrowRight, ShieldCheck, Download, TriangleAlert, Headset, CreditCard, Loader2,Phone} from "lucide-react";
 import ReactSelect from "react-select";
 import { useAuth } from "../../context/AuthContext";
 import SubscriptionPanel from "./SubscriptionPanel";
@@ -260,6 +260,7 @@ function ProfilePanel() {
     const buildInitial = (profile) => ({
         name: profile?.name || user?.name || "",
         email: profile?.email || user?.email || "",
+        phone: profile?.phone || user?.phone || null,
         language: profile?.language || "English",
         ageGroup: profile?.ageGroup || "6 – 8 years",
         characters: profile?.favoriteCharacters || [],
@@ -445,6 +446,13 @@ function ProfilePanel() {
                         Email
                     </span>
                     <IconInput icon={Mail} type="email" value={form.email} onChange={() => {}} disabled />
+                </label>
+            
+                <label className="block text-sm">
+                    <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
+                        Phone
+                    </span>
+                    <IconInput icon={Phone} type="tel" value={form.phone} onChange={() => {}} disabled />
                 </label>
 
                 <div className="text-sm">
