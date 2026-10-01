@@ -9,7 +9,6 @@ import { STORY_OPTION_LABELS as OPTS } from "../config/storyOptions.js";
 import { generateImagePrompt } from "../components/generateImagePrompt.js";
 import { generateImage } from "../components/imageGenerator.js";
 import { uploadToS3 } from "../services/s3Service.js";
-// import { uploadImage, getFromR2 } from "../services/storageService.js";
 import { notify } from "../services/alertService.js";
 import {
     uploadImage,
@@ -38,6 +37,9 @@ const BOOK_PAGE_COUNT = Number(process.env.BOOK_PAGE_COUNT) || 10;
 
 const GENERIC_FAILURE =
     "Something went wrong while creating your book. Please try again - this one wasn't counted against your plan.";
+
+const STALE_FAILURE =
+    "Creating this book took too long and was stopped. Please try again - this one wasn't counted against your plan.";
 
 const buildStoryDataFromSelections = (selections = {}, characters = []) => {
     const pick = (key) => selections?.[key]?.label ?? null;
@@ -215,12 +217,16 @@ const generatePageImage = async ({ bookId, storyData, imageData }) => {
 // so the "My Books" page can show a loading skeleton and poll until it finishes.
 const generateBookInBackground = async ({
     bookId,
+    userId, // ALERTS: who to notify
     mode,
     message,
     storySettings,
     characters,
     files
 }) => {
+    // ALERTS: kept outside the try so the catch block can use the real title.
+    let bookTitle = "Your story";
+
     try {
         // Manual and AI mode both arrive as chosen settings (AI mode's chat
         // has already worked out age/theme/style/etc. and the story idea), so
@@ -247,6 +253,8 @@ const generateBookInBackground = async ({
         ) {
             throw new Error("Generated story is invalid or contains no pages");
         }
+
+        bookTitle = generatedStory.title; // ALERTS
 
         await book.updateOne(
             { _id: bookId },
@@ -425,66 +433,64 @@ const generateBookInBackground = async ({
         );
 
         // -----------------------------------------------------------
-        // Generate the cover (with reference photo + title overlay)
-        // Generate the cover (with reference photo + title overlay)
+        // Generate the cover (with reference photo). Two attempts.
         // -----------------------------------------------------------
         console.log("Generating cover image...");
 
         for (let coverAttempt = 1; coverAttempt <= 2; coverAttempt += 1) {
-        try {
-            let coverReferenceImages = await getCharacterReferenceImages(
-                storyData.characters,
-                imagePrompts.cover.characters || []
-            );
-
-            if (!coverReferenceImages.length) {
-                coverReferenceImages = await getCharacterPhotoReferenceImages(
-                    storyData.characters
+            try {
+                let coverReferenceImages = await getCharacterReferenceImages(
+                    storyData.characters,
+                    imagePrompts.cover.characters || []
                 );
-            }
 
-            console.log(
-                `Loaded ${coverReferenceImages.length} character reference image(s) for cover.`
-            );
-
-            const rawCoverBuffer = await generateImage({
-                prompt: imagePrompts.cover.prompt,
-                referenceImages: coverReferenceImages,
-                width: 768,
-                height: 1024
-            });
-            // The title is NOT baked into the image. The frontend (books.jsx card
-            // and BookReader cover) renders it as real text, so baking it in too
-            // produced a duplicate / clipped title on the cover.
-            const finalCoverBuffer = rawCoverBuffer;
-
-            const coverKey = `books/${bookId}/cover.png`;
-
-            const uploadedCover = await uploadImage({
-                key: coverKey,
-                buffer: finalCoverBuffer,
-                contentType: "image/png"
-            });
-
-            await book.updateOne(
-                { _id: bookId },
-                {
-                    $set: {
-                        coverImageUrl: uploadedCover.url,
-                        coverStorageKey: uploadedCover.key
-                    }
+                if (!coverReferenceImages.length) {
+                    coverReferenceImages = await getCharacterPhotoReferenceImages(
+                        storyData.characters
+                    );
                 }
-            );
 
-            console.log("Cover completed:", uploadedCover.url);
-            break;
-        } catch (coverError) {
-            console.error(`Cover generation failed (attempt ${coverAttempt}/2):`, coverError);
-        }
+                console.log(
+                    `Loaded ${coverReferenceImages.length} character reference image(s) for cover.`
+                );
+
+                const rawCoverBuffer = await generateImage({
+                    prompt: imagePrompts.cover.prompt,
+                    referenceImages: coverReferenceImages,
+                    width: 768,
+                    height: 1024
+                });
+                // The title is NOT baked into the image. The frontend (books.jsx card
+                // and BookReader cover) renders it as real text, so baking it in too
+                // produced a duplicate / clipped title on the cover.
+                const finalCoverBuffer = rawCoverBuffer;
+
+                const coverKey = `books/${bookId}/cover.png`;
+
+                const uploadedCover = await uploadImage({
+                    key: coverKey,
+                    buffer: finalCoverBuffer,
+                    contentType: "image/png"
+                });
+
+                await book.updateOne(
+                    { _id: bookId },
+                    {
+                        $set: {
+                            coverImageUrl: uploadedCover.url,
+                            coverStorageKey: uploadedCover.key
+                        }
+                    }
+                );
+
+                console.log("Cover completed:", uploadedCover.url);
+                break;
+            } catch (coverError) {
+                console.error(`Cover generation failed (attempt ${coverAttempt}/2):`, coverError);
+            }
         }
 
         // -----------------------------------------------------------
-        // Generate page images (same reference photo(s) reused)
         // Generate page images (same reference photo(s) reused)
         // -----------------------------------------------------------
         const failedPages = [];
@@ -535,20 +541,25 @@ const generateBookInBackground = async ({
         ).length;
         const allPagesCompleted = totalPages > 0 && unfinishedPages === 0;
 
+        const failureReason = `${unfinishedPages} of ${totalPages} page illustrations couldn't be created. Please try again - this one wasn't counted against your plan.`;
+
         await book.updateOne(
             { _id: bookId },
             {
                 $set: allPagesCompleted
                     ? { status: "completed", completedAt: new Date(), failureReason: null }
-                    : {
-                        status: "failed",
-                        failureReason: `${unfinishedPages} of ${totalPages} page illustrations couldn't be created. Please try again - this one wasn't counted against your plan.`
-                    }
+                    : { status: "failed", failureReason }
             }
         );
 
         console.log(`Book ${bookId} status: ${allPagesCompleted ? "completed" : "failed"}`);
 
+        // ALERTS: tell the user how it ended.
+        if (allPagesCompleted) {
+            await notify.bookCompleted(userId, bookId, completedBook?.title || bookTitle);
+        } else {
+            await notify.bookFailed(userId, bookId, completedBook?.title || bookTitle, failureReason);
+        }
     } catch (error) {
         console.error("Create book error:", error);
 
@@ -561,6 +572,9 @@ const generateBookInBackground = async ({
             .catch((updateError) =>
                 console.error("Could not mark book as failed:", updateError)
             );
+
+        // ALERTS
+        await notify.bookFailed(userId, bookId, bookTitle, GENERIC_FAILURE);
     }
 };
 
@@ -571,7 +585,7 @@ export const createBook = async (req, res) => {
         // anything is created so a blocked request costs nothing.
         const access = await canAccessFeature({ userId: req.userId, component: "book" });
         if (!access.allowed) {
-            notify.planLimitReached(req.userId, access);// for alert
+            await notify.planLimitReached(req.userId, access); // ALERTS
             return res.status(403).json({
                 success: false,
                 code: access.reason,
@@ -632,6 +646,7 @@ export const createBook = async (req, res) => {
         );
 
         if (createSafety.verdict === "block") {
+            await notify.contentBlocked(req.userId, createSafety.message); // ALERTS
             return res.status(422).json({
                 success: false,
                 code: "CONTENT_NOT_ALLOWED",
@@ -652,6 +667,11 @@ export const createBook = async (req, res) => {
         const usageNow = await getBookUsage(req.userId, access.startDate);
         if (usageNow > access.limit) {
             await book.deleteOne({ _id: placeholder._id });
+            await notify.planLimitReached(req.userId, {
+                message: `You've used all ${access.limit} book${access.limit === 1 ? "" : "s"} in your plan. Upgrade to create more.`,
+                limit: access.limit,
+                currentUsage: access.limit
+            }); // ALERTS
             return res.status(403).json({
                 success: false,
                 code: "LIMIT_REACHED",
@@ -671,9 +691,13 @@ export const createBook = async (req, res) => {
             status: "generating"
         });
 
+        // ALERTS: generation started (never throws, safe after response).
+        notify.bookStarted(req.userId, bookId);
+
         // Fire and forget. Errors are handled inside the worker.
         generateBookInBackground({
             bookId,
+            userId: req.userId, // ALERTS
             mode,
             message: typeof message === "string" ? softenText(message, createAge) : message,
             storySettings: softenSelections(storySettings, createAge),
@@ -698,24 +722,33 @@ export const getMyBooks = async (req, res) => {
         // If the server restarted mid-generation the book would stay on
         // "generating" forever. Anything older than this is treated as failed.
         const STALE_MS = 45 * 60 * 1000;
-        await book.updateMany(
-            {
+
+        const staleBooks = await book
+            .find({
                 user: req.userId,
                 status: "generating",
                 createdAt: { $lt: new Date(Date.now() - STALE_MS) }
-            },
-            {
-                $set: {
-                    status: "failed",
-                    failureReason:
-                        "Creating this book took too long and was stopped. Please try again - this one wasn't counted against your plan."
-                }
-            }
-        );
+            })
+            .select("_id title")
+            .lean();
 
-        // Failed books are never listed. Instead the user is told once, via
-        // an alert, why it failed (`failures` below); the client then calls
-        // acknowledgeFailures so the alert isn't shown again.
+        if (staleBooks.length > 0) {
+            await book.updateMany(
+                { _id: { $in: staleBooks.map((b) => b._id) }, status: "generating" },
+                { $set: { status: "failed", failureReason: STALE_FAILURE } }
+            );
+
+            // ALERTS: dedupeKey means one alert per book, even if this runs often.
+            await Promise.all(
+                staleBooks.map((b) =>
+                    notify.bookFailed(req.userId, b._id.toString(), b.title, STALE_FAILURE)
+                )
+            );
+        }
+
+        // Failed books are never listed. The user is told via an alert (and
+        // `failures` below); the client then calls acknowledgeFailures so the
+        // popup isn't shown again.
         const failedBooks = await book
             .find({ user: req.userId, status: "failed", failureAcknowledged: false })
             .select("title failureReason")
@@ -763,7 +796,7 @@ export const getMyBooks = async (req, res) => {
     }
 };
 
-// The user has seen the failure alert for these books - don't show it again.
+// The user has seen the failure popup for these books - don't show it again.
 export const acknowledgeFailures = async (req, res) => {
     try {
         const ids = (Array.isArray(req.body?.ids) ? req.body.ids : [])
@@ -851,24 +884,11 @@ export const getBookById = async (req, res) => {
         });
     }
 };
+
 export const testImagePrompts = async (req, res) => {
     try {
         console.log("Triggering");
-
-        // const imagePrompts = await generateImagePrompt(generatedStory);
-
-        // console.log(imagePrompts, "@imagePrompt");
-
-        // const page1Prompt = imagePrompts.images[0].prompt;
-
         console.log("Generating image for page 1...");
-
-        // const imageBuffer = await generateImage(page1Prompt);
-
-        // console.log("Generated image size:", imageBuffer.length);
-
-        // res.set("Content-Type", "image/png");
-        // res.send(imageBuffer);
     } catch (error) {
         console.error("Image generation error:", error);
 
@@ -1116,6 +1136,9 @@ export const chatBook = async (req, res) => {
         const safety = await checkStoryText(latestText, { age: knownAge });
 
         if (safety.verdict === "block" || earlierHardBlock) {
+            // No alert here: the chat already shows this message inline, and
+            // alerting on every typed message would be noisy. The alert is
+            // sent from createBook instead.
             return res.status(422).json({
                 success: false,
                 code: "CONTENT_NOT_ALLOWED",

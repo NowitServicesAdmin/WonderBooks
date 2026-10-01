@@ -30,7 +30,7 @@ export const Router=createBrowserRouter([
         element:<Auth />
     },
     {
-        path:'/jesus',
+        path:'/landing',
         element:<HomePage />
     },
     {

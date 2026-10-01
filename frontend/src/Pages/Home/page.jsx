@@ -22,7 +22,6 @@ import {
     FaYoutube as Youtube,
 } from "react-icons/fa";
 import heroImage from "../../assets/wonder-books/hero.png";
-import templatesBg from "../../assets/wonder-books/templates-bg.png";
 import templatesStarLeft from "../../assets/wonder-books/star-left.png";
 import templatesStarRight from "../../assets/wonder-books/star-right.png";
 import braveExplorer from "../../assets/wonder-books/template-brave-explorer.png";
@@ -34,8 +33,7 @@ import shareIdeas from "../../assets/wonder-books/step-share-ideas.png";
 import aiCreates from "../../assets/wonder-books/step-ai-creates.png";
 import getBook from "../../assets/wonder-books/step-get-book.png";
 import girlBook from "../../assets/wonder-books/girl-book-clean.png";
-import ctaLeft from "../../assets/wonder-books/cta-left-clean.png";
-import ctaRight from "../../assets/wonder-books/cta-right-clean.png";
+import { User, Image } from "lucide-react";
 
 const templates = [
     { image: braveExplorer, lines: ["The Brave", "Little Explorer"], category: "Adventure", icon: Tent, text: "text-[#2d3a8c]", pill: "bg-[#e8ebff] text-[#3a3fb5]" },
@@ -51,11 +49,40 @@ const steps = [
     { number: "3", image: getBook, title: "Get Your Book", description: "Order a high-quality printed book and treasure it forever." },
 ];
 
+
 const features = [
-    { title: "Personalized Stories", description: "Your child's name, interests and values", icon: BookOpen, bg: "bg-[#e8e0ff]", color: "text-[#6335d8]" },
-    { title: "Beautiful Illustrations", description: "Multiple art styles to choose from", icon: ImageIcon, bg: "bg-[#d9f4ea]", color: "text-[#1f9a72]" },
-    { title: "Printed & Delivered", description: "High-quality book, shipped to your doorstep", icon: Gift, bg: "bg-[#ffe0f0]", color: "text-[#e0449a]" },
-    { title: "Create Lasting Memories", description: "Stories they'll treasure forever", icon: Heart, bg: "bg-[#ffe0f0]", color: "text-[#e0449a]" },
+    {
+        title: "Personalized Stories",
+        description: "Your child's name, interests and unique characters",
+        icon: User,
+        card: "bg-gradient-to-b from-[#fff1f7] to-[#fff7fb] border-[#ffe3ef]",
+        bg: "bg-[#ffe0ee]",
+        color: "text-[#ec1c8c] fill-[#ec1c8c]",
+    },
+    {
+        title: "Beautiful Illustrations",
+        description: "Multiple art styles to choose from",
+        icon: ImageIcon,
+        card: "bg-gradient-to-b from-[#eefafd] to-[#f6fcff] border-[#dcf3f8]",
+        bg: "bg-[#d3f5ee]",
+        color: "text-[#0f6b5c]",
+    },
+    {
+        title: "Printed & Delivered",
+        description: "High-quality book, shipped to your doorstep",
+        icon: Gift,
+        card: "bg-gradient-to-b from-[#f6f0ff] to-[#faf7ff] border-[#e9ddff]",
+        bg: "bg-[#eadcff]",
+        color: "text-[#8b2be2]",
+    },
+    {
+        title: "Create Lasting Memories",
+        description: "Stories they'll treasure forever",
+        icon: Heart,
+        card: "bg-gradient-to-b from-[#fff1f7] to-[#fff7fb] border-[#ffe3ef]",
+        bg: "bg-[#ffdce8]",
+        color: "text-[#f0245f] fill-[#f0245f]",
+    },
 ];
 
 const values = [
@@ -195,29 +222,36 @@ export default function HomePage() {
                 {/* One shared background (templatesBg) for every section below the hero */}
                 <div
                     className="relative overflow-hidden bg-cover bg-top bg-no-repeat lg:bg-fixed"
-                    // style={{ backgroundImage: `url(${templatesBg})` }}
+                // style={{ backgroundImage: `url(${templatesBg})` }}
                 >
                     {/* <Sparkles /> */}
 
                     {/* Features */}
                     <section className="relative px-5 pb-10 pt-12">
-                        <div className="mx-auto grid max-w-[900px] grid-cols-2 gap-x-6 gap-y-8 lg:grid-cols-4">
+                        <div className="mx-auto grid max-w-[900px] grid-cols-2 gap-4 lg:grid-cols-4">
                             {features.map((item) => {
                                 const Icon = item.icon;
                                 return (
-                                    <div key={item.title} className="text-center">
-                                        <div className={`mx-auto flex h-[50px] w-[50px] items-center justify-center rounded-full ${item.bg}`}>
-                                            <Icon className={`h-5 w-5 ${item.color}`} />
+                                    <div
+                                        key={item.title}
+                                        className={`flex flex-col items-center rounded-2xl border px-4 py-6 text-center shadow-[0_2px_12px_rgba(120,100,200,0.06)] ${item.card}`}
+                                    >
+                                        <div className={`flex h-[60px] w-[60px] items-center justify-center rounded-full ${item.bg}`}>
+                                            <Icon className={`h-6 w-6 ${item.color}`} strokeWidth={2} />
                                         </div>
-                                        <h3 className="mt-3 text-[12px] font-extrabold text-[#1a1560]">{item.title}</h3>
-                                        <p className="mx-auto mt-1 max-w-[150px] text-[11px] leading-4 text-[#6b6796]">{item.description}</p>
+                                        <h3 className="mt-4 text-[14px] font-extrabold leading-tight text-[#1a1560]">
+                                            {item.title}
+                                        </h3>
+                                        <p className="mx-auto mt-1.5 max-w-[160px] text-[12px] leading-[18px] text-[#6b6796]">
+                                            {item.description}
+                                        </p>
                                     </div>
                                 );
                             })}
                         </div>
                     </section>
 
-                    Templates
+                    
                     <section id="templates" className="relative px-5 pb-16 pt-10">
                         <div className="relative z-10 mx-auto max-w-[1100px]">
                             <SectionHeading eyebrow="Explore Endless Possibilities" sub="Choose from a wide range of magical themes or create your own unique story.">

@@ -5,6 +5,7 @@ import { User } from "../models/user.js";
 import Plan from "../models/plan.js";
 import { getPlanConfig, getPlanPrice } from "../config/subscriptionPlans.js";
 import { canAccessFeature } from "../config/subscriptionLimits.js";
+import { notify } from "../services/alertService.js"; // ALERTS
 
 // -------------------------------------------------------------------------
 // Helpers
@@ -58,6 +59,7 @@ const expireIfNeeded = async (subscription) => {
         subscription.status = "expired";
         await subscription.save();
         await syncUserFromSubscription(subscription.userId, subscription);
+        await notify.subscriptionExpired(subscription.userId, subscription); // ALERTS
     }
 };
 
@@ -398,6 +400,7 @@ export const activateSubscription = async (req, res) => {
                 .digest("hex");
 
             if (expectedSignature !== razorpay_signature) {
+                await notify.subscriptionPaymentFailed(req.user._id); // ALERTS
                 return res.status(400).json({ success: false, message: "Payment verification failed" });
             }
 
@@ -442,6 +445,11 @@ export const activateSubscription = async (req, res) => {
             orderId,
             paymentId,
         });
+
+        // ALERTS: only for a genuinely new activation, not a repeated call.
+        if (!alreadyApplied) {
+            await notify.subscriptionActivated(req.user._id, subscription, paymentId);
+        }
 
         return res.status(200).json({
             success: true,
@@ -489,6 +497,8 @@ export const cancelSubscription = async (req, res) => {
         await subscription.save();
         await syncUserFromSubscription(req.user._id, subscription);
 
+        await notify.subscriptionCancelled(req.user._id, subscription); // ALERTS
+
         return res.status(200).json({
             success: true,
             message:
@@ -527,6 +537,8 @@ export const restoreSubscription = async (req, res) => {
         await subscription.save();
         await syncUserFromSubscription(req.user._id, subscription);
 
+        await notify.subscriptionRestored(req.user._id, subscription); // ALERTS
+
         return res.status(200).json({ success: true, message: "Subscription restored", subscription });
     } catch (error) {
         console.error("restoreSubscription error:", error);
@@ -548,7 +560,34 @@ export const expireOutdatedSubscriptions = async () => {
         sub.status = "expired";
         await sub.save();
         await syncUserFromSubscription(sub.userId, sub);
+        await notify.subscriptionExpired(sub.userId, sub); // ALERTS
     }
 
     return expired.length;
+};
+
+// -------------------------------------------------------------------------
+// ALERTS (new, optional): "your plan ends soon" reminder for paid plans.
+// Not a route and not called anywhere yet. To use it, call it from the same
+// place that runs expireOutdatedSubscriptions (app.js), e.g. once an hour.
+// The dedupeKey on the alert means each user is reminded only once per
+// billing period, however often this runs.
+// -------------------------------------------------------------------------
+export const notifyExpiringSubscriptions = async (daysBefore = 3) => {
+    const now = new Date();
+    const soon = new Date(now.getTime() + daysBefore * 24 * 60 * 60 * 1000);
+
+    const expiring = await Subscription.find({
+        status: "active",
+        amount: { $gt: 0 },
+        endDate: { $gt: now, $lte: soon },
+    })
+        .select("userId planName planDisplayName endDate cancelRequested")
+        .lean();
+
+    for (const sub of expiring) {
+        await notify.subscriptionExpiring(sub.userId, sub);
+    }
+
+    return expiring.length;
 };
