@@ -96,7 +96,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const API_BASE = import.meta.env.VITE_API_URL|| "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export const useTTS = () => {
     const audioRef = useRef(null);
@@ -124,7 +124,7 @@ export const useTTS = () => {
     }, [teardown]);
 
     const speak = useCallback(
-        async ({ bookId, pageId, text, voiceId: vid }) => {
+        async ({ bookId, pageId, text, voiceId: vid, language }) => {
             teardown();
             setError("");
             setVoiceId(vid);
@@ -132,7 +132,7 @@ export const useTTS = () => {
             const myReq = reqIdRef.current;
 
             try {
-                const key = `${bookId}/${pageId}/${vid}`;
+                const key = `${bookId}/${pageId}/${vid}/${language || "english"}`; // include language in cache key
                 let url = blobUrlCache.current.get(key);
 
                 if (!url) {
@@ -144,14 +144,14 @@ export const useTTS = () => {
                             "Content-Type": "application/json",
                             Authorization: `Bearer ${localStorage.getItem("wb_token") || ""}`,
                         },
-                        body: JSON.stringify({ bookId, pageId, text, voiceId: vid }),
+                        body: JSON.stringify({ bookId, pageId, text, voiceId: vid, language }),
                         signal: controller.signal,
                     });
                     if (!res.ok) {
                         const detail = await res.json().catch(() => ({}));
                         throw new Error(detail.error || "Couldn't generate the voice. Please try again.");
                     }
-                    const blob = await res.blob(); // audio/mpeg bytes
+                    const blob = await res.blob();
                     url = URL.createObjectURL(blob);
                     blobUrlCache.current.set(key, url);
                 }
@@ -168,7 +168,7 @@ export const useTTS = () => {
                 await audio.play();
                 if (myReq === reqIdRef.current) setStatus("playing");
             } catch (err) {
-                console.log(err,"error@jesus")
+                console.log(err, "error@jesus")
                 if (err.name === "AbortError" || myReq !== reqIdRef.current) return;
                 setError(err.message || "Something went wrong with the voice.");
                 setStatus("idle");

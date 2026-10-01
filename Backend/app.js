@@ -20,6 +20,7 @@ import { requireAuth } from "./middleware/auth.js";
 import { expireOutdatedSubscriptions } from "./controllers/subscriptionController.js";
 import OpenAI from "openai";
 import AudioCache from "./models/AudioCache.js";
+import AlertRoutes from "./routes/alertRoutes.js";
 
 const app = express();
 
@@ -37,19 +38,18 @@ const MAX_CACHE_ENTRIES = 200;
 
 app.post("/api/tts", async (req, res) => {
   try {
-    console.log("Triggering @god", req.body)
-    const { bookId, pageId, text, voiceId } = req.body;
+    const { bookId, pageId, text, voiceId, language } = req.body;
     if (!bookId || pageId === undefined || pageId === null || !text || !voiceId) {
       return res.status(400).json({ error: "bookId, pageId, text and voiceId are required" });
     }
-    const cacheKey = `${bookId}:${pageId}:${voiceId}`;
+    const cacheKey = `${bookId}:${pageId}:${voiceId}:${language || "english"}`;
 
     let audioBuffer = audioMemoryCache.get(cacheKey);
     if (!audioBuffer) {
-      audioBuffer = await generateAudio({ text, voiceId });
+      audioBuffer = await generateAudio({ text, voiceId, language });
 
       if (audioMemoryCache.size >= MAX_CACHE_ENTRIES) {
-        audioMemoryCache.delete(audioMemoryCache.keys().next().value); // drop oldest
+        audioMemoryCache.delete(audioMemoryCache.keys().next().value);
       }
       audioMemoryCache.set(cacheKey, audioBuffer);
     }
@@ -59,13 +59,12 @@ app.post("/api/tts", async (req, res) => {
       "Content-Length": audioBuffer.length,
       "Cache-Control": "no-store",
     });
-    res.send(audioBuffer); // sent directly, nothing left on disk
+    res.send(audioBuffer);
   } catch (err) {
-    console.log("TTS error:", err.message, err.cause?.code || err.cause);
+    console.error("TTS error:", err.message, err.cause?.code || err.cause);
     res.status(500).json({ error: "Failed to generate speech" });
   }
 });
-
 app.use("/audio", express.static("uploads/audio"));
 app.use("/api/auth", authRoutes);
 app.use("/api/book", bookRoutes);
@@ -74,7 +73,7 @@ app.use("/api/admin", adminPlanRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/orders", orderRoutes);
-
+app.use("/api/alerts", AlertRoutes);
 const startServer = async () => {
   try {
     await connectDB();

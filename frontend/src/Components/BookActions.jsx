@@ -333,7 +333,7 @@ export const BookActions = ({ book, pages, currentPageIndex = 0 }) => {
       flash("error", "There's no text to read on this page.");
       return;
     }
-    speak({ bookId: book._id, pageId, text, voiceId });
+    speak({ bookId: book._id, pageId, text, voiceId,language:book.storyData?.language || "English" });
   };
 
   const handleVoiceSelect = (option) => {

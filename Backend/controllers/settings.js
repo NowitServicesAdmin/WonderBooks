@@ -33,12 +33,14 @@ const sanitizeProfile = (user) => ({
     avatarUrl: normalizeS3Url(user.avatarUrl) || null,
     isVerified: Boolean(user.isVerified),
     createdAt: user.createdAt,
+    phone: user.phone || null,
+
 });
 
 export const getProfile = async (req, res) => {
     try {
         const user = await User.findById(req.userId);
-
+        console.log("Get profile user:@j", user);
         if (!user) {
             return res.status(404).json({
                 success: false,

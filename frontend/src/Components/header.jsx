@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Bell } from "lucide-react";
 import { HeaderAnimationSearch } from "./HeaderAnimationSearch";
 import { ThemeToggle } from "./ThemeToggle";
+import { NotificationBell } from "./Notificationbell";
 
 
 
@@ -53,21 +54,6 @@ export const Header = ({
             {/* Soft overlay to keep UI readable */}
             <div className="pointer-events-none absolute inset-0 z-1 bg-linear-to-r from-white/30 via-white/10 to-white/20" />
 
-            {/* =====================================================
-                RIGHT SIDE DECORATION
-            ===================================================== */}
-
-            {/* {imageUrls.rightIllustration && (
-                <img
-                    src={imageUrls.rightIllustration}
-                    alt="WonderBook stories"
-                    className="pointer-events-none absolute right-[105px] bottom-0 z-[2] h-[92px] w-[230px] object-contain object-bottom opacity-95 drop-shadow-[0_8px_16px_rgba(84,38,199,0.10)] transition-transform duration-700 hover:scale-[1.02]"
-                />
-            )} */}
-
-            {/* =====================================================
-                TOP RIGHT CONTROLS
-            ===================================================== */}
 
             <div className="absolute right-3 top-3 z-30 flex items-center gap-2 md:right-5 md:top-4 md:gap-3">
 
@@ -75,7 +61,7 @@ export const Header = ({
                 <ThemeToggle />
 
                 {/* Notification */}
-                <button
+                {/* <button
                     type="button"
                     aria-label="Notifications"
                     className="relative flex h-10 w-10 items-center justify-center rounded-xl md:h-11.5 md:w-11.5 text-[#5426c7] transition-all duration-200 hover:bg-white/70 hover:scale-105"
@@ -87,7 +73,8 @@ export const Header = ({
                             {notificationCount}
                         </span>
                     )}
-                </button>
+                </button> */}
+                <NotificationBell />
 
                 {/* Profile */}
                 <button

@@ -41,6 +41,7 @@ const SUPPORTED_LANGS = new Set([
 ]);
 
 export async function generateAudio({ text, voiceId, language }) {
+  console.log("Triggering @god", text, voiceId, language)
   const lang = SUPPORTED_LANGS.has((language || "").toLowerCase()) ? language.toLowerCase() : "english";
 
   const res = await fetch(TTS_ENGINE_URL, {
