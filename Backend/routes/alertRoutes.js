@@ -1,5 +1,6 @@
 import express from "express";
-import authMiddleware from "../middleware/auth.js"; // use your existing auth middleware
+import { requireAuth } from "../middleware/auth.js";
+ // use your existing auth middleware
 import {
     getMyAlerts, getUnreadCount, markAlertRead, markAllAlertsRead,
     deleteAlert, clearMyAlerts, broadcastAlert,
@@ -7,7 +8,7 @@ import {
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(requireAuth);
 
 router.get("/", getMyAlerts);
 router.get("/unread-count", getUnreadCount);

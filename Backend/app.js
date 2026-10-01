@@ -20,6 +20,7 @@ import { requireAuth } from "./middleware/auth.js";
 import { expireOutdatedSubscriptions } from "./controllers/subscriptionController.js";
 import OpenAI from "openai";
 import AudioCache from "./models/AudioCache.js";
+import AlertRoutes from "./routes/alertRoutes.js";
 
 const app = express();
 
@@ -74,7 +75,7 @@ app.use("/api/admin", adminPlanRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/orders", orderRoutes);
-
+app.use("/api/alerts", AlertRoutes);
 const startServer = async () => {
   try {
     await connectDB();
