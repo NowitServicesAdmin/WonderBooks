@@ -40,7 +40,7 @@ import { generateCharacterReferences } from "../services/characterReferenceServi
 
 // Pages per book. Override with BOOK_PAGE_COUNT in .env for quick test runs
 // (e.g. BOOK_PAGE_COUNT=2) without touching code.
-const BOOK_PAGE_COUNT = Number(process.env.BOOK_PAGE_COUNT) || 10;
+const BOOK_PAGE_COUNT = Number(process.env.BOOK_PAGE_COUNT) || 2;
 
 const GENERIC_FAILURE =
     "Something went wrong while creating your book. Please try again - this one wasn't counted against your plan.";

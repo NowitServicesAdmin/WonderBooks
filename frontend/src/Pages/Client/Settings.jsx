@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Sparkles, User, BookOpen, Bell, HelpCircle, ChevronRight, ChevronDown, Globe, Users, Mail, Camera, Trash2, FileText, Info, Check, Crown, Heart, MessageCircle, Lightbulb, Package, Megaphone, CalendarDays, ArrowRight, ShieldCheck, Download, TriangleAlert, Headset, CreditCard, Loader2,Phone} from "lucide-react";
+import { Sparkles, User, BookOpen, Bell, HelpCircle, ChevronRight, ChevronDown, Globe, Users, Mail, Camera, Trash2, FileText, Info, Check, Crown, Heart, MessageCircle, Lightbulb, Package, Megaphone, CalendarDays, ArrowRight, ShieldCheck, Download, TriangleAlert, Headset, CreditCard, Loader2, Phone } from "lucide-react";
 import ReactSelect from "react-select";
 import { useAuth } from "../../context/AuthContext";
 import SubscriptionPanel from "./SubscriptionPanel";
@@ -317,6 +317,7 @@ function ProfilePanel() {
                 ageGroup: form.ageGroup,
                 favoriteCharacters: form.characters,
                 about: form.about,
+                phone: form.phone,
             });
             const next = buildInitial(profile);
             setSaved(next);
@@ -365,214 +366,214 @@ function ProfilePanel() {
 
     return (
         <div className="flex flex-col gap-4">
-        <div
-            className="flex flex-col gap-5 rounded-3xl border bg-white p-4 shadow-[0_4px_24px_rgba(84,38,199,0.05)] sm:p-6"
-            style={{ borderColor: tokens.line }}
-        >
-            {/* Avatar + identity */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="relative shrink-0">
-                        {form.avatarUrl ? (
-                            <img
-                                src={form.avatarUrl}
-                                alt="Profile"
-                                className="h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24"
-                            />
-                        ) : (
-                            <div
-                                className="flex h-20 w-20 items-center justify-center rounded-full text-2xl font-bold text-white sm:h-24 sm:w-24"
-                                style={{ background: "linear-gradient(135deg,#B98CF0,var(--accent))" }}
-                            >
-                                {initials || "U"}
-                            </div>
-                        )}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp"
-                            className="hidden"
-                            onChange={handleAvatarChange}
-                        />
-                        <button
-                            type="button"
-                            aria-label="Change photo"
-                            onClick={handleAvatarClick}
-                            disabled={avatarUploading}
-                            className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-(--tint) bg-white shadow-md disabled:opacity-60"
-                            style={{ color: tokens.purple }}
-                        >
-                            {avatarUploading ? (
-                                <Loader2 size={15} className="animate-spin" />
-                            ) : (
-                                <Camera size={15} />
-                            )}
-                        </button>
-                    </div>
-
-                    <div className="min-w-0">
-                        <p className="truncate text-xl font-extrabold" style={{ color: tokens.ink }}>
-                            {form.name || "Your name"}
-                        </p>
-                        <p className="truncate text-sm" style={{ color: tokens.inkSoft }}>
-                            {form.email}
-                        </p>
-                        <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-[#F3EDFF] px-3 py-1 text-xs font-semibold text-[#5B4A8A]">
-                            <Crown size={13} className="text-[#F0B429]" />
-                            Young Reader
-                        </span>
-                    </div>
-                </div>
-
-            </div>
-
-            {avatarError && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-600">
-                    {avatarError}
-                </div>
-            )}
-
-            {/* Fields */}
-            <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-3 md:grid-cols-2">
-                <label className="block text-sm">
-                    <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
-                        Name
-                    </span>
-                    <IconInput icon={User} value={form.name} onChange={(v) => set("name", v)} />
-                </label>
-
-                <label className="block text-sm">
-                    <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
-                        Email
-                    </span>
-                    <IconInput icon={Mail} type="email" value={form.email} onChange={() => {}} disabled />
-                </label>
-            
-                <label className="block text-sm">
-                    <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
-                        Phone
-                    </span>
-                    <IconInput icon={Phone} type="tel" value={form.phone} onChange={() => {}} disabled />
-                </label>
-
-                <div className="text-sm">
-                    <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
-                        Language
-                    </span>
-                    <IconSelect icon={Globe} value={form.language} options={LANGUAGES} onChange={(v) => set("language", v)} />
-                </div>
-
-                <div className="text-sm">
-                    <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
-                        Child's age group
-                    </span>
-                    <IconSelect icon={Users} value={form.ageGroup} options={AGE_GROUPS} onChange={(v) => set("ageGroup", v)} />
-                </div>
-            </div>
-
-
-            {/* Favorite characters */}
-            <Section
-                icon={Heart}
-                title="Favorite characters"
-                optional
-                description="Select characters your child enjoys."
-                tint="#FFF6EA"
-                iconBg="#FFE7CC"
-                iconColor="#E5533D"
+            <div
+                className="flex flex-col gap-5 rounded-3xl border bg-white p-4 shadow-[0_4px_24px_rgba(84,38,199,0.05)] sm:p-6"
+                style={{ borderColor: tokens.line }}
             >
-                <div className="flex flex-wrap gap-2.5">
-                    {FAVORITE_CHARACTERS.map(({ id, emoji }) => {
-                        const active = form.characters.includes(id);
-                        return (
+                {/* Avatar + identity */}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="relative shrink-0">
+                            {form.avatarUrl ? (
+                                <img
+                                    src={form.avatarUrl}
+                                    alt="Profile"
+                                    className="h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24"
+                                />
+                            ) : (
+                                <div
+                                    className="flex h-20 w-20 items-center justify-center rounded-full text-2xl font-bold text-white sm:h-24 sm:w-24"
+                                    style={{ background: "linear-gradient(135deg,#B98CF0,var(--accent))" }}
+                                >
+                                    {initials || "U"}
+                                </div>
+                            )}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="hidden"
+                                onChange={handleAvatarChange}
+                            />
                             <button
-                                key={id}
                                 type="button"
-                                onClick={() => toggleIn("characters", id)}
-                                aria-pressed={active}
-                                className={`flex h-11 items-center gap-2 rounded-full border bg-white pl-1.5 pr-4 text-sm font-medium transition-all duration-200 ${active
-                                        ? "border-(--accent) text-(--ink) shadow-[0_4px_12px_rgba(84,38,199,0.15)]"
-                                        : "border-[#efe6d8] text-[#5B5372] hover:border-[#cbb7ff]"
-                                    }`}
+                                aria-label="Change photo"
+                                onClick={handleAvatarClick}
+                                disabled={avatarUploading}
+                                className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border border-(--tint) bg-white shadow-md disabled:opacity-60"
+                                style={{ color: tokens.purple }}
                             >
-                                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f6f0ff] text-lg">
-                                    {emoji}
-                                </span>
-                                {id}
-                                {active && (
-                                    <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-(--accent) text-white">
-                                        <Check size={12} strokeWidth={3} />
-                                    </span>
+                                {avatarUploading ? (
+                                    <Loader2 size={15} className="animate-spin" />
+                                ) : (
+                                    <Camera size={15} />
                                 )}
                             </button>
-                        );
-                    })}
-                </div>
-            </Section>
+                        </div>
 
-            {/* About your child */}
-            <Section
-                icon={MessageCircle}
-                title="About your child"
-                optional
-                description="This helps us suggest better stories."
-                tint="#EEF4FF"
-                iconBg="#DCE8FF"
-                iconColor="#4F7BE8"
-            >
-                <div className="relative">
-                    <textarea
-                        value={form.about}
-                        maxLength={ABOUT_LIMIT}
-                        onChange={(e) => set("about", e.target.value)}
-                        placeholder="e.g. loves space, is curious, enjoys funny stories..."
-                        rows={3}
-                        className="w-full resize-none rounded-xl border bg-white px-4 pb-7 pt-3 text-sm outline-none transition focus:border-[#a98aff] focus:ring-2 focus:ring-[#a98aff]/25"
+                        <div className="min-w-0">
+                            <p className="truncate text-xl font-extrabold" style={{ color: tokens.ink }}>
+                                {form.name || "Your name"}
+                            </p>
+                            <p className="truncate text-sm" style={{ color: tokens.inkSoft }}>
+                                {form.email}
+                            </p>
+                            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-[#F3EDFF] px-3 py-1 text-xs font-semibold text-[#5B4A8A]">
+                                <Crown size={13} className="text-[#F0B429]" />
+                                Young Reader
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
+
+                {avatarError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-600">
+                        {avatarError}
+                    </div>
+                )}
+
+                {/* Fields */}
+                <div className="grid grid-cols-1 gap-x-6 gap-y-4 lg:grid-cols-3 md:grid-cols-2">
+                    <label className="block text-sm">
+                        <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
+                            Name
+                        </span>
+                        <IconInput icon={User} value={form.name} onChange={(v) => set("name", v)} />
+                    </label>
+
+                    <label className="block text-sm">
+                        <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
+                            Email
+                        </span>
+                        <IconInput icon={Mail} type="email" value={form.email} onChange={() => { }} disabled />
+                    </label>
+
+                    <label className="block text-sm">
+                        <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
+                            Phone
+                        </span>
+                        <IconInput icon={Phone} type="tel" value={form.phone} onChange={() => { }} disabled />
+                    </label>
+
+                    <div className="text-sm">
+                        <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
+                            Language
+                        </span>
+                        <IconSelect icon={Globe} value={form.language} options={LANGUAGES} onChange={(v) => set("language", v)} />
+                    </div>
+
+                    <div className="text-sm">
+                        <span className="mb-1.5 block font-semibold" style={{ color: tokens.ink }}>
+                            Child's age group
+                        </span>
+                        <IconSelect icon={Users} value={form.ageGroup} options={AGE_GROUPS} onChange={(v) => set("ageGroup", v)} />
+                    </div>
+                </div>
+
+
+                {/* Favorite characters */}
+                <Section
+                    icon={Heart}
+                    title="Favorite characters"
+                    optional
+                    description="Select characters your child enjoys."
+                    tint="#FFF6EA"
+                    iconBg="#FFE7CC"
+                    iconColor="#E5533D"
+                >
+                    <div className="flex flex-wrap gap-2.5">
+                        {FAVORITE_CHARACTERS.map(({ id, emoji }) => {
+                            const active = form.characters.includes(id);
+                            return (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    onClick={() => toggleIn("characters", id)}
+                                    aria-pressed={active}
+                                    className={`flex h-11 items-center gap-2 rounded-full border bg-white pl-1.5 pr-4 text-sm font-medium transition-all duration-200 ${active
+                                        ? "border-(--accent) text-(--ink) shadow-[0_4px_12px_rgba(84,38,199,0.15)]"
+                                        : "border-[#efe6d8] text-[#5B5372] hover:border-[#cbb7ff]"
+                                        }`}
+                                >
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f6f0ff] text-lg">
+                                        {emoji}
+                                    </span>
+                                    {id}
+                                    {active && (
+                                        <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-(--accent) text-white">
+                                            <Check size={12} strokeWidth={3} />
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </Section>
+
+                {/* About your child */}
+                <Section
+                    icon={MessageCircle}
+                    title="About your child"
+                    optional
+                    description="This helps us suggest better stories."
+                    tint="#EEF4FF"
+                    iconBg="#DCE8FF"
+                    iconColor="#4F7BE8"
+                >
+                    <div className="relative">
+                        <textarea
+                            value={form.about}
+                            maxLength={ABOUT_LIMIT}
+                            onChange={(e) => set("about", e.target.value)}
+                            placeholder="e.g. loves space, is curious, enjoys funny stories..."
+                            rows={3}
+                            className="w-full resize-none rounded-xl border bg-white px-4 pb-7 pt-3 text-sm outline-none transition focus:border-[#a98aff] focus:ring-2 focus:ring-[#a98aff]/25"
+                            style={{ borderColor: tokens.line, color: tokens.ink }}
+                        />
+                        <span className="pointer-events-none absolute bottom-2.5 right-4 text-xs text-(--text-muted)">
+                            {form.about.length}/{ABOUT_LIMIT}
+                        </span>
+                    </div>
+                </Section>
+
+                {error && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-600">
+                        {error}
+                    </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-3 pb-2">
+                    <button
+                        type="button"
+                        onClick={() => setForm(saved)}
+                        disabled={saving || loading}
+                        className="h-12 rounded-xl border bg-white px-7 text-sm font-semibold transition hover:bg-(--tint) active:scale-[0.98] disabled:opacity-60"
                         style={{ borderColor: tokens.line, color: tokens.ink }}
-                    />
-                    <span className="pointer-events-none absolute bottom-2.5 right-4 text-xs text-(--text-muted)">
-                        {form.about.length}/{ABOUT_LIMIT}
-                    </span>
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSave}
+                        disabled={saving || loading}
+                        className="flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(84,38,199,0.28)] transition hover:bg-(--accent-hover) active:scale-[0.98] disabled:opacity-60"
+                        style={{ backgroundColor: tokens.purple }}
+                    >
+                        {saving ? (
+                            <Loader2 size={17} className="animate-spin" />
+                        ) : justSaved ? (
+                            <Check size={17} />
+                        ) : (
+                            <Sparkles size={17} />
+                        )}
+                        {saving ? "Saving…" : justSaved ? "Saved!" : "Save changes"}
+                    </button>
                 </div>
-            </Section>
-
-            {error && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-600">
-                    {error}
-                </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex items-center justify-end gap-3 pb-2">
-                <button
-                    type="button"
-                    onClick={() => setForm(saved)}
-                    disabled={saving || loading}
-                    className="h-12 rounded-xl border bg-white px-7 text-sm font-semibold transition hover:bg-(--tint) active:scale-[0.98] disabled:opacity-60"
-                    style={{ borderColor: tokens.line, color: tokens.ink }}
-                >
-                    Cancel
-                </button>
-                <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={saving || loading}
-                    className="flex h-12 items-center gap-2 rounded-xl px-6 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(84,38,199,0.28)] transition hover:bg-(--accent-hover) active:scale-[0.98] disabled:opacity-60"
-                    style={{ backgroundColor: tokens.purple }}
-                >
-                    {saving ? (
-                        <Loader2 size={17} className="animate-spin" />
-                    ) : justSaved ? (
-                        <Check size={17} />
-                    ) : (
-                        <Sparkles size={17} />
-                    )}
-                    {saving ? "Saving…" : justSaved ? "Saved!" : "Save changes"}
-                </button>
             </div>
-        </div>
 
-        <DeleteAccountCard />
+            <DeleteAccountCard />
         </div>
     );
 }
@@ -665,8 +666,8 @@ function NotificationsPanel({ goTo }) {
                                     onClick={() => setFrequency(f)}
                                     aria-pressed={active}
                                     className={`h-11 rounded-full border px-6 text-sm font-semibold transition-all duration-200 ${active
-                                            ? "border-transparent bg-(--accent) text-white shadow-[0_5px_12px_rgba(84,38,199,0.25)]"
-                                            : "border-(--tint) bg-white text-(--ink) hover:border-[#cbb7ff] hover:bg-(--tint)"
+                                        ? "border-transparent bg-(--accent) text-white shadow-[0_5px_12px_rgba(84,38,199,0.25)]"
+                                        : "border-(--tint) bg-white text-(--ink) hover:border-[#cbb7ff] hover:bg-(--tint)"
                                         }`}
                                 >
                                     {f}
@@ -792,9 +793,36 @@ function DeleteAccountCard() {
 }
 
 const QUICK_HELP = [
-    { id: "contact", icon: MessageCircle, title: "Contact Us", desc: "Need more help? Our support team is here for you.", tint: "var(--tint)", border: "#E3D8FB", iconBg: "var(--tint)", iconColor: "var(--accent)" },
-    { id: "center", icon: BookOpen, title: "Help Center", desc: "Browse guides and helpful resources.", tint: "#EEF4FF", border: "#D6E3FF", iconBg: "#DCE8FF", iconColor: "#4F7BE8" },
-    { id: "report", icon: TriangleAlert, title: "Report a Problem", desc: "Let us know what went wrong. We'll look into it and help you.", tint: "#FFF0F1", border: "#FFD9DC", iconBg: "#FFDDE0", iconColor: "#E5333D" },
+    {
+        id: "contact",
+        icon: MessageCircle,
+        title: "Contact Us",
+        desc: "Need more help? Our support team is here for you.",
+        tint: "var(--tint)",
+        border: "#E3D8FB",
+        iconBg: "var(--tint)",
+        iconColor: "var(--accent)",
+    },
+    {
+        id: "center",
+        icon: BookOpen,
+        title: "Help Center",
+        desc: "Browse guides and helpful resources.",
+        tint: "#EEF4FF",
+        border: "#D6E3FF",
+        iconBg: "#DCE8FF",
+        iconColor: "#4F7BE8",
+    },
+    {
+        id: "report",
+        icon: TriangleAlert,
+        title: "Report a Problem",
+        desc: "Let us know what went wrong. We'll look into it and help you.",
+        tint: "#FFF0F1",
+        border: "#FFD9DC",
+        iconBg: "#FFDDE0",
+        iconColor: "#E5333D",
+    },
 ];
 
 const FAQS = [
@@ -807,6 +835,30 @@ const FAQS = [
 
 function HelpAboutPanel() {
     const [openFaq, setOpenFaq] = useState(null);
+    const handleQuickHelp = (id) => {
+        if (id === "contact") {
+            window.location.href = "tel:7893536373";
+            return;
+        }
+
+        if (id === "center") {
+            window.location.href = "mailto:contact.us@nowitservices.com";
+            return;
+        }
+
+        if (id === "report") {
+            const subject = encodeURIComponent("Report a Problem - Wonder Books");
+            const body = encodeURIComponent(
+                "Hello Wonder Books Support,\n\n" +
+                "I would like to report a problem.\n\n" +
+                "Problem description:\n\n\n" +
+                "Thank you."
+            );
+
+            window.location.href =
+                `mailto:contact.us@nowitservices.com?subject=${subject}&body=${body}`;
+        }
+    };
 
     return (
         <div className="flex flex-col gap-5">
@@ -823,24 +875,42 @@ function HelpAboutPanel() {
                         </p>
                     </div>
                 </div>
-
                 <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                     {QUICK_HELP.map((h) => (
                         <button
                             key={h.id}
                             type="button"
+                            onClick={() => handleQuickHelp(h.id)}
                             className="group flex items-center gap-3 rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
-                            style={{ backgroundColor: h.tint, borderColor: h.border }}
+                            style={{
+                                backgroundColor: h.tint,
+                                borderColor: h.border,
+                            }}
                         >
-                            <IconTile icon={h.icon} bg={h.iconBg} color={h.iconColor} size={26} className="h-14 w-14" />
+                            <IconTile
+                                icon={h.icon}
+                                bg={h.iconBg}
+                                color={h.iconColor}
+                                size={26}
+                                className="h-14 w-14"
+                            />
+
                             <span className="min-w-0 flex-1">
-                                <span className="block text-sm font-bold" style={{ color: tokens.ink }}>
+                                <span
+                                    className="block text-sm font-bold"
+                                    style={{ color: tokens.ink }}
+                                >
                                     {h.title}
                                 </span>
-                                <span className="block text-sm leading-snug" style={{ color: tokens.inkSoft }}>
+
+                                <span
+                                    className="block text-sm leading-snug"
+                                    style={{ color: tokens.inkSoft }}
+                                >
                                     {h.desc}
                                 </span>
                             </span>
+
                             <span
                                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white shadow-sm transition group-hover:translate-x-0.5"
                                 style={{ color: tokens.purple }}
@@ -987,8 +1057,8 @@ function SettingsBreadcrumb({ activeId, onSelect }) {
                                     setOpen(false);
                                 }}
                                 className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${isActive
-                                        ? "bg-(--tint) text-(--accent)"
-                                        : "text-(--ink) hover:bg-(--tint)"
+                                    ? "bg-(--tint) text-(--accent)"
+                                    : "text-(--ink) hover:bg-(--tint)"
                                     }`}
                             >
                                 <cat.icon size={18} className={isActive ? "text-(--accent)" : "text-[#5B5372]"} />

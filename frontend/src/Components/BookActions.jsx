@@ -328,7 +328,6 @@ export const BookActions = ({ book, pages, currentPageIndex = 0 }) => {
     const pageId = page?.imageKey ?? (page?.kind === "end" ? "end" : String(currentPageIndex));
     const text =
       page?.kind === "story" ? page.text : page?.heading || page?.sub || "";
-
     if (!text?.trim()) {
       flash("error", "There's no text to read on this page.");
       return;
@@ -461,7 +460,7 @@ export const BookActions = ({ book, pages, currentPageIndex = 0 }) => {
                 ? `${selectedOption?.label ?? "Playing"} reading`
                 : isPaused
                   ? "Paused"
-                  : selectedOption?.label ?? "Read Aloud"}
+                  : selectedOption?.label }
           </span>
           <ChevronDown size={15} className={`transition-transform ${voiceMenuOpen ? "rotate-180" : ""}`} />
         </button>

@@ -171,7 +171,7 @@ export const HeaderAnimationSearch = ({
                 </div>
 
 
-                <button
+                {/* <button
                     type="button"
                     aria-label="Voice input"
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#6b52c8] sm:h-9 sm:w-9 transition-all duration-200 hover:bg-(--tint) hover:scale-105 active:scale-95"
@@ -180,7 +180,7 @@ export const HeaderAnimationSearch = ({
                         size={19}
                         strokeWidth={1.8}
                     />
-                </button>
+                </button> */}
 
 
                 <button

@@ -838,11 +838,11 @@ export const Auth = () => {
                                     <span className="break-all font-semibold text-[#30215c]">{loginTarget}</span>
                                 </p>
 
-                                {devOtp && (
+                                {/* {devOtp && (
                                     <p className="mt-2 rounded-xl bg-[#fff8e1] px-3 py-2 text-[12px] font-medium text-[#8a6d1a]">
                                         Dev mode: your code is <span className="font-bold">{devOtp}</span>
                                     </p>
-                                )}
+                                )} */}
 
                                 <form
                                     onSubmit={handleLoginVerify}

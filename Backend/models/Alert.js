@@ -1,18 +1,43 @@
 import mongoose from "mongoose";
 
 export const ALERT_TYPES = [
-    // account
+    // ---------------------------------------------------------------------
+    // ACCOUNT
+    // ---------------------------------------------------------------------
     "welcome",
     "profile_updated",
     "avatar_updated",
     "data_export_requested",
-    // books
+
+    // ---------------------------------------------------------------------
+    // BOOKS
+    // ---------------------------------------------------------------------
     "book_generation_started",
     "book_completed",
     "book_partially_failed",
     "book_failed",
     "plan_limit_reached",
-    // admin
+
+    // ---------------------------------------------------------------------
+    // SUBSCRIPTIONS
+    // ---------------------------------------------------------------------
+    "subscription_activated",
+    "subscription_payment_failed",
+    "subscription_cancelled",
+    "subscription_restored",
+    "subscription_expired",
+    "subscription_expiring",
+
+    // ---------------------------------------------------------------------
+    // ORDERS / PRINTED BOOKS
+    // ---------------------------------------------------------------------
+    "payment_failed",
+    "order_confirmed",
+    "order_cancelled",
+
+    // ---------------------------------------------------------------------
+    // ADMIN
+    // ---------------------------------------------------------------------
     "announcement",
 ];
 
