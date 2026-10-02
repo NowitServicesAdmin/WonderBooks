@@ -1,4 +1,5 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { MAX_REFERENCE_CHARACTERS } from "../config/characterLimits.js";
 
 // Matches your existing uploadToS3 config: bucket "wonderbooks",
 // region ap-south-1 (confirmed from your S3 URLs).
@@ -7,6 +8,28 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
+
+// Every page used to re-download every photo from S3 (10 pages x 5 photos).
+// Keys are unique per upload, so a small in-memory cache is safe: a book's
+// photos are fetched once and reused for the cover and all pages.
+const PHOTO_CACHE_LIMIT = 40;
+const photoCache = new Map(); // photoStorageKey -> Buffer
+
+const rememberPhoto = (key, buffer) => {
+    photoCache.set(key, buffer);
+    while (photoCache.size > PHOTO_CACHE_LIMIT) {
+        photoCache.delete(photoCache.keys().next().value);
+    }
+};
+
+const sameCharacter = (character, lookup) => {
+    const value = String(lookup || "").trim().toLowerCase();
+    if (!value) return false;
+    return (
+        String(character?.id || "").trim().toLowerCase() === value ||
+        String(character?.name || "").trim().toLowerCase() === value
+    );
+};
 
 /**
  * Loads the ORIGINAL uploaded character photos directly from S3
@@ -23,9 +46,13 @@ const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
  * manifest so every character with a photo gets matched to its own.
  *
  * @param {Array<Object>} characters - storyData.characters
+ * @param {Object} [options]
+ * @param {Array<string>} [options.only] - ids/names of the characters that are
+ *   actually in THIS image. When given, only those photos are returned, so a
+ *   character that is not in the scene is never drawn into it.
  * @returns {Promise<Array<{ buffer: Buffer, contentType: string, characterId: string, characterName: string, characterType: string }>>}
  */
-export const getCharacterPhotoReferenceImages = async (characters = []) => {
+export const getCharacterPhotoReferenceImages = async (characters = [], { only = null } = {}) => {
     const references = [];
 
     if (!BUCKET_NAME) {
@@ -35,41 +62,54 @@ export const getCharacterPhotoReferenceImages = async (characters = []) => {
         return references;
     }
 
+    const wanted = Array.isArray(only) ? only : null;
+
     for (const character of characters) {
         if (!character?.hasPhoto || !character?.photoStorageKey) {
             continue;
         }
 
+        if (wanted && !wanted.some((lookup) => sameCharacter(character, lookup))) {
+            continue;
+        }
+
         try {
-            console.log(
-                `Loading uploaded photo for character ${character.name}...`
-            );
+            let buffer = photoCache.get(character.photoStorageKey);
 
-            const command = new GetObjectCommand({
-                Bucket: BUCKET_NAME,
-                Key: character.photoStorageKey
-            });
-
-            const response = await s3Client.send(command);
-
-            if (!response?.Body) {
-                console.warn(
-                    `Empty S3 photo for character: ${character.name}`
+            if (!buffer) {
+                console.log(
+                    `Loading uploaded photo for character ${character.name}...`
                 );
-                continue;
-            }
 
-            const bytes = await response.Body.transformToByteArray();
+                const command = new GetObjectCommand({
+                    Bucket: BUCKET_NAME,
+                    Key: character.photoStorageKey
+                });
 
-            if (!bytes?.length) {
-                console.warn(
-                    `Empty photo buffer for character: ${character.name}`
-                );
-                continue;
+                const response = await s3Client.send(command);
+
+                if (!response?.Body) {
+                    console.warn(
+                        `Empty S3 photo for character: ${character.name}`
+                    );
+                    continue;
+                }
+
+                const bytes = await response.Body.transformToByteArray();
+
+                if (!bytes?.length) {
+                    console.warn(
+                        `Empty photo buffer for character: ${character.name}`
+                    );
+                    continue;
+                }
+
+                buffer = Buffer.from(bytes);
+                rememberPhoto(character.photoStorageKey, buffer);
             }
 
             references.push({
-                buffer: Buffer.from(bytes),
+                buffer,
                 contentType: "image/png",
                 characterId: character.id,
                 characterName: character.name || "Unnamed character",
@@ -85,5 +125,5 @@ export const getCharacterPhotoReferenceImages = async (characters = []) => {
         }
     }
 
-    return references.slice(0, 4);
+    return references.slice(0, MAX_REFERENCE_CHARACTERS);
 };

@@ -16,6 +16,13 @@ import {
 } from "../services/storageService.js";
 import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
 import { generateCharacterBible } from "../components/characterBible.js";
+import { verifyIllustration } from "../components/imageVerifier.js";
+import {
+    limitCharacters,
+    exceedsCharacterLimits,
+    MAX_REFERENCE_CHARACTERS,
+    CHARACTER_LIMIT_MESSAGE
+} from "../config/characterLimits.js";
 import {
     checkStoryText,
     findHardBlock,
@@ -70,79 +77,121 @@ const buildStoryDataFromSelections = (selections = {}, characters = []) => {
     };
 };
 
+const findSceneCharacter = (characters = [], lookup) => {
+    const value = String(lookup || "").trim().toLowerCase();
+    if (!value) return null;
+
+    return (
+        characters.find((item) => {
+            const id = String(item?.id || "").trim().toLowerCase();
+            const name = String(item?.name || "").trim().toLowerCase();
+            return id === value || name === value;
+        }) || null
+    );
+};
+
+// The reference images for ONE image (cover or page), for exactly the
+// recurring characters that appear in it - in scene order.
+//   - the character's canonical (stylised) reference when it exists,
+//   - otherwise that character's own uploaded photo, so a character whose
+//     canonical reference is missing is no longer silently dropped.
+// Every image carries the character's name/type so the generator can label
+// "Reference photo N = <who>". Characters NOT in the scene are not sent, so
+// they can't leak into it. An image with no recurring characters gets none.
 const getCharacterReferenceImages = async (
     characters = [],
     characterReferences = []
 ) => {
+    const sceneList = (characterReferences || [])
+        .map((item) => String(item || "").trim())
+        .filter(Boolean);
+
+    if (!sceneList.length) {
+        return [];
+    }
+
     const references = [];
+    const seen = new Set();
+    let matchedAny = false;
 
-    for (const characterReference of characterReferences) {
-        const lookupValue = String(characterReference || "")
-            .trim()
-            .toLowerCase();
-
-        if (!lookupValue) {
-            continue;
-        }
-
-        const character = characters.find((item) => {
-            const characterId = String(item?.id || "")
-                .trim()
-                .toLowerCase();
-
-            const characterName = String(item?.name || "")
-                .trim()
-                .toLowerCase();
-
-            return (
-                characterId === lookupValue ||
-                characterName === lookupValue
-            );
-        });
+    for (const lookup of sceneList) {
+        const character = findSceneCharacter(characters, lookup);
 
         if (!character) {
-            console.warn(
-                `Character reference not found for: ${characterReference}`
-            );
+            console.warn(`Character reference not found for: ${lookup}`);
             continue;
         }
 
-        if (!character.referenceStorageKey) {
-            console.warn(
-                `No canonical reference found for character: ${character.name} (${character.id})`
-            );
+        matchedAny = true;
+
+        if (seen.has(String(character.id))) {
             continue;
         }
+        seen.add(String(character.id));
 
-        try {
-            const response = await getStorageImage(
-                character.referenceStorageKey
-            );
+        let reference = null;
 
-            if (!response?.Body) {
-                continue;
+        if (character.referenceStorageKey) {
+            try {
+                const response = await getStorageImage(character.referenceStorageKey);
+                const bytes = response?.Body
+                    ? await response.Body.transformToByteArray()
+                    : null;
+
+                if (bytes?.length) {
+                    reference = {
+                        buffer: Buffer.from(bytes),
+                        contentType: "image/png",
+                        characterId: character.id,
+                        characterName: character.name || "Unnamed character",
+                        characterType: character.type || "Character"
+                    };
+                }
+            } catch (error) {
+                console.error(
+                    `Failed to load reference for character ${character.name}:`,
+                    error
+                );
             }
+        }
 
-            const bytes = await response.Body.transformToByteArray();
-
-            if (!bytes?.length) {
-                continue;
-            }
-
-            references.push({
-                buffer: Buffer.from(bytes),
-                contentType: "image/png"
+        if (!reference) {
+            const [photo] = await getCharacterPhotoReferenceImages(characters, {
+                only: [character.id]
             });
-        } catch (error) {
-            console.error(
-                `Failed to load reference for character ${character.name}:`,
-                error
-            );
+            reference = photo || null;
+        }
+
+        if (reference) {
+            references.push(reference);
         }
     }
 
-    return references.slice(0, 4);
+    // The scene named people we don't recognise at all (a naming mismatch):
+    // better to use every character's photo than to draw them with none.
+    if (!matchedAny) {
+        return getCharacterPhotoReferenceImages(characters);
+    }
+
+    return references.slice(0, MAX_REFERENCE_CHARACTERS);
 };
+
+// How many times one picture may be regenerated when it doesn't match its page.
+const IMAGE_VERIFY_TRIES = 3;
+
+// Scene "characters" can be ids or names - turn them into display names.
+const resolveCharacterNames = (allCharacters = [], sceneCharacters = []) =>
+    sceneCharacters
+        .map((entry) => {
+            const key = typeof entry === "object" ? entry?.name || entry?.id : entry;
+            const match = allCharacters.find(
+                (character) =>
+                    String(character.id) === String(key) ||
+                    String(character.name || "").toLowerCase() === String(key || "").toLowerCase()
+            );
+            return match?.name || (key ? String(key) : "");
+        })
+        .filter(Boolean);
 
 // Generates, uploads and saves the illustration for ONE page. Throws on
 // failure so the caller can retry.
@@ -161,30 +210,74 @@ const generatePageImage = async ({ bookId, storyData, imageData }) => {
 
     console.log(`Generating image for page ${pageNumber}...`);
 
-    let pageReferenceImages = await getCharacterReferenceImages(
+    const pageReferenceImages = await getCharacterReferenceImages(
         storyData.characters,
         imageData.characters || []
     );
-
-    if (!pageReferenceImages.length) {
-        pageReferenceImages = await getCharacterPhotoReferenceImages(
-            storyData.characters
-        );
-    }
 
     console.log(
         `Loaded ${pageReferenceImages.length} character reference image(s) for page ${pageNumber}.`
     );
 
-    const imageBuffer = await generateImage({
-        prompt,
-        referenceImages: pageReferenceImages,
-        width: 768,
-        height: 1024
-    });
+    const sceneCharacterNames = resolveCharacterNames(
+        storyData.characters,
+        imageData.characters || []
+    );
 
-    if (!imageBuffer || !imageBuffer.length) {
-        throw new Error(`No image generated for page ${pageNumber}`);
+    // Generate, then check the picture really matches the page. A random
+    // stock-looking result (sign, food photo, horses...) is thrown away and
+    // regenerated instead of being saved into the book.
+    let imageBuffer;
+    let fallbackBuffer = null; // right picture, but a character is missing
+    let lastReason = "";
+
+    for (let tryNumber = 1; tryNumber <= IMAGE_VERIFY_TRIES; tryNumber += 1) {
+        const candidate = await generateImage({
+            prompt,
+            referenceImages: pageReferenceImages,
+            width: 768,
+            height: 1024
+        });
+
+        if (!candidate || !candidate.length) {
+            throw new Error(`No image generated for page ${pageNumber}`);
+        }
+
+        const verdict = await verifyIllustration({
+            buffer: candidate,
+            scene: imageData.scene || prompt,
+            characterNames: sceneCharacterNames,
+            label: `page ${pageNumber}`
+        });
+
+        if (verdict.ok) {
+            imageBuffer = candidate;
+            break;
+        }
+
+        lastReason = verdict.reason;
+
+        if (verdict.severity === "missing") {
+            fallbackBuffer = candidate;
+        }
+
+        console.warn(
+            `Page ${pageNumber} image not accepted (${verdict.severity}, try ${tryNumber}/${IMAGE_VERIFY_TRIES}): ${verdict.reason}`
+        );
+    }
+
+    // Never save a random/unrelated picture. But a proper illustration that is
+    // only missing a character is better than failing the whole page - use the
+    // last such attempt instead of burning more image credits.
+    if (!imageBuffer && fallbackBuffer) {
+        console.warn(`Page ${pageNumber}: using best available image (a character may be missing): ${lastReason}`);
+        imageBuffer = fallbackBuffer;
+    }
+
+    if (!imageBuffer) {
+        throw new Error(
+            `Page ${pageNumber} image did not match the scene after ${IMAGE_VERIFY_TRIES} tries: ${lastReason}`
+        );
     }
 
     const uploadedImage = await uploadImage({
@@ -391,6 +484,13 @@ const generateBookInBackground = async ({
 
                 return {
                     ...character,
+                    // look notes from the Character Bible. In memory only (the
+                    // book schema doesn't store them): they are handed to the
+                    // image-prompt writer so every page describes the same look.
+                    appearance: match.appearance,
+                    clothing: match.clothing,
+                    colors: match.colors,
+                    signatureDetails: match.signatureDetails,
                     referenceImageUrl: match.referenceImageUrl,
                     referenceStorageProvider: match.referenceStorageProvider,
                     referenceStorageKey: match.referenceStorageKey
@@ -437,18 +537,12 @@ const generateBookInBackground = async ({
         // -----------------------------------------------------------
         console.log("Generating cover image...");
 
-        for (let coverAttempt = 1; coverAttempt <= 2; coverAttempt += 1) {
+        for (let coverAttempt = 1; coverAttempt <= 3; coverAttempt += 1) {
             try {
-                let coverReferenceImages = await getCharacterReferenceImages(
+                const coverReferenceImages = await getCharacterReferenceImages(
                     storyData.characters,
                     imagePrompts.cover.characters || []
                 );
-
-                if (!coverReferenceImages.length) {
-                    coverReferenceImages = await getCharacterPhotoReferenceImages(
-                        storyData.characters
-                    );
-                }
 
                 console.log(
                     `Loaded ${coverReferenceImages.length} character reference image(s) for cover.`
@@ -460,6 +554,22 @@ const generateBookInBackground = async ({
                     width: 768,
                     height: 1024
                 });
+
+                // Reject a cover that has nothing to do with the story
+                // (the retry loop below then generates a new one).
+                const coverVerdict = await verifyIllustration({
+                    buffer: rawCoverBuffer,
+                    scene: imagePrompts.cover.scene || imagePrompts.cover.prompt,
+                    characterNames: resolveCharacterNames(
+                        storyData.characters,
+                        imagePrompts.cover.characters || []
+                    ),
+                    label: "cover"
+                });
+
+                if (!coverVerdict.ok) {
+                    throw new Error(`Cover did not match the story: ${coverVerdict.reason}`);
+                }
                 // The title is NOT baked into the image. The frontend (books.jsx card
                 // and BookReader cover) renders it as real text, so baking it in too
                 // produced a duplicate / clipped title on the cover.
@@ -486,7 +596,7 @@ const generateBookInBackground = async ({
                 console.log("Cover completed:", uploadedCover.url);
                 break;
             } catch (coverError) {
-                console.error(`Cover generation failed (attempt ${coverAttempt}/2):`, coverError);
+                console.error(`Cover generation failed (attempt ${coverAttempt}/3):`, coverError);
             }
         }
 
@@ -620,6 +730,16 @@ export const createBook = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: `Story settings are required for ${mode} mode`
+            });
+        }
+
+        // 3 people + 1 pet + 1 object max (checked before a placeholder
+        // book exists, so a rejected request never costs a plan book).
+        if (exceedsCharacterLimits(characters)) {
+            return res.status(400).json({
+                success: false,
+                code: "CHARACTER_LIMIT",
+                message: CHARACTER_LIMIT_MESSAGE
             });
         }
 
@@ -967,6 +1087,9 @@ WHAT TO DO
    - language: the language the user writes in if supported, else "English".
    - If the user names a drawing look ("watercolour", "3D", "sketch"), a language or a lettering style, use it.
    - Extra people or pets they mention (mom, dog, grandma) become characters.
+   - LIMITS: a story has at most 3 people (the hero counts as one), 1 pet and 1 object. A pet or an object never
+     uses up a people slot. Never return more than that. If the user asks for more, keep what is already there
+     and say warmly in your reply that a story can have 3 people, 1 pet and 1 object.
 2. Never ask for something you can reasonably infer or choose yourself.
 3. The ONLY things you may ask about, and only if missing: who the story is for (age group) and the hero's name.
    Ask at most ONE question per reply. One friendly sentence can cover both.
@@ -1067,9 +1190,9 @@ const parseJson = (raw) => {
 const sanitizeCharacters = (list, previous = []) => {
     const usedIds = new Set();
 
-    return (Array.isArray(list) ? list : [])
+    const cleaned = (Array.isArray(list) ? list : [])
         .filter((c) => str(c?.name))
-        .slice(0, 6)
+        .slice(0, 12) // sanity bound before the real per-kind limits below
         .map((c, index) => {
             const name = str(c.name, 60);
 
@@ -1094,6 +1217,9 @@ const sanitizeCharacters = (list, previous = []) => {
                 favouriteFood: str(c.favouriteFood, 120)
             };
         });
+
+    // 3 people + 1 pet + 1 object (a pet/object never takes a people slot)
+    return limitCharacters(cleaned);
 };
 
 const sanitizeSettings = (s = {}) => {

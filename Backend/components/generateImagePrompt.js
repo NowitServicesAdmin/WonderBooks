@@ -1,4 +1,4 @@
-import gemini from "../config/gemini.js";
+import { generateContentResilient } from "./geminiCall.js";
 import { isAnimalOrObjectCharacter } from "./promptSafety.js";
 
 const cleanJson = (text) => {
@@ -9,6 +9,45 @@ const cleanJson = (text) => {
 };
 
 const IMAGE_PROMPT_ATTEMPTS = 3;
+
+// Light model first; if it is rate-limited or down, the stronger model (its own
+// separate quota) takes over for that call.
+const PROMPT_MODELS = [
+    process.env.GEMINI_PROMPT_MODEL || "gemini-3.5-flash-lite",
+    process.env.GEMINI_TEXT_MODEL || "gemini-3.5-flash"
+];
+
+// One line per field the Character Bible filled in, so every page prompt
+// repeats the SAME look instead of "her distinctive hairstyle and clothing".
+const lockedLook = (character = {}) => {
+    const parts = [];
+    const add = (label, value) => {
+        const text = String(value || "").trim();
+        if (text) parts.push(`${label}: ${text}`);
+    };
+    const look = character.appearance || {};
+    const clothes = character.clothing || {};
+    const colors = character.colors || {};
+
+    add("hair", look.hair);
+    add("eyes", look.eyes);
+    add("skin tone", look.skinTone);
+    add("body", look.body);
+    add("fur", look.fur);
+    add("markings", look.markings);
+    add("top", clothes.top);
+    add("bottom", clothes.bottom);
+    add("shoes", clothes.shoes);
+    add("accessories", clothes.accessories);
+    add("main colors", [colors.primary, colors.secondary, colors.accent].filter(Boolean).join(", "));
+    if (Array.isArray(character.signatureDetails) && character.signatureDetails.length) {
+        add("signature details", character.signatureDetails.join("; "));
+    }
+
+    return parts.length
+        ? `LOCKED LOOK (copy these exact details into every prompt this character appears in):\n${parts.join("\n")}\n`
+        : "";
+};
 
 // One image prompt per story page, in page order. Prompts are matched to pages
 // by pageNumber; if the model left numbers out, fall back to position - but
@@ -289,6 +328,7 @@ ${character.favouriteFood || "Not specified"}
 USER PHOTO AVAILABLE:
 ${character.hasPhoto ? "Yes" : "No"}
 
+${lockedLook(character)}
 ${visualIdentityRule(character)}
 
 Do not redesign this character between pages.
@@ -633,8 +673,10 @@ Rules:
 
         for (let attempt = 1; attempt <= IMAGE_PROMPT_ATTEMPTS; attempt += 1) {
             try {
-                const response = await gemini.models.generateContent({
-                    model: "gemini-3.5-flash-lite",
+                const response = await generateContentResilient({
+                    label: "Image prompts",
+                    models: PROMPT_MODELS,
+                    attemptsPerModel: 2,
                     contents: prompt
                 });
 
@@ -674,6 +716,13 @@ Rules:
                     `generateImagePrompt attempt ${attempt}/${IMAGE_PROMPT_ATTEMPTS} failed:`,
                     attemptError.message
                 );
+
+                // Every Gemini model already refused (quota / outage): trying
+                // again right away only burns more quota. Retries are for bad
+                // JSON or a wrong page count.
+                if (attemptError.allModelsFailed) {
+                    break;
+                }
 
                 if (attempt < IMAGE_PROMPT_ATTEMPTS) {
                     await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));

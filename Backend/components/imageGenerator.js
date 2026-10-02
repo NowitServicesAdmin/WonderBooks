@@ -1,10 +1,12 @@
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
+import sharp from "sharp";
 import {
   isModerationBlock,
   sanitizeImagePrompt,
   MAX_SAFETY_LEVEL,
 } from "./promptSafety.js";
+import { MAX_REFERENCE_CHARACTERS } from "../config/characterLimits.js";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -38,6 +40,69 @@ const closestSupportedSize = (width, height) => {
   return ratio < 1 ? "1024x1536" : "1536x1024";
 };
 
+
+
+// ---------------------------------------------------------------------------
+// WHY THIS EXISTS: with 5 reference photos in one images.edit call, OpenAI
+// returned a picture while reporting only 8 input tokens - i.e. it never saw
+// the prompt or the photos - so the result was a random stock-looking image
+// (horses, a cereal bowl, warning signs). Calls with 1-4 photos were normal.
+// So: never send more than MAX_EDIT_IMAGES files. Extra characters are merged
+// into ONE side-by-side sheet, which still counts as a single reference.
+// ---------------------------------------------------------------------------
+const MAX_EDIT_IMAGES = Math.max(1, Number(process.env.OPENAI_MAX_REFERENCE_IMAGES) || 4);
+
+// A normal edit call with references uses 500+ input tokens. Anything this
+// low means the request was effectively ignored.
+const MIN_PLAUSIBLE_INPUT_TOKENS = 100;
+
+const combineReferences = async (refs) => {
+    const TILE = 512;
+
+    const tiles = await Promise.all(
+        refs.map((ref) =>
+            sharp(ref.buffer)
+                .rotate()
+                .resize(TILE, TILE, { fit: "contain", background: "#ffffff" })
+                .png()
+                .toBuffer()
+        )
+    );
+
+    const sheet = await sharp({
+        create: { width: TILE * tiles.length, height: TILE, channels: 3, background: "#ffffff" },
+    })
+        .composite(tiles.map((input, index) => ({ input, left: index * TILE, top: 0 })))
+        .png()
+        .toBuffer();
+
+    const names = refs.map((ref) => ref.characterName || "character");
+
+    return {
+        buffer: sheet,
+        contentType: "image/png",
+        characterName: names.join(" and "),
+        characterType: `ONE image with ${refs.length} separate characters side by side, left to right: ${refs
+            .map((ref) => `${ref.characterName || "character"}${ref.characterType ? ` (${ref.characterType})` : ""}`)
+            .join(", ")} - match each one individually`,
+    };
+};
+
+// Keeps at most `max` reference files; the overflow is merged into one sheet.
+const limitReferences = async (refs, max) => {
+    if (refs.length <= max) {
+        return refs;
+    }
+
+    return [...refs.slice(0, max - 1), await combineReferences(refs.slice(max - 1))];
+};
+
+const toUploadFiles = (refs) =>
+    Promise.all(
+        refs.map((image, index) =>
+            toFile(image.buffer, `reference-${index}.png`, { type: image.contentType || "image/png" })
+        )
+    );
 
 const buildReferenceManifest = (referenceImages) =>
     referenceImages
@@ -80,6 +145,14 @@ specific character it is labeled with above.${
         multiple
             ? " Every character listed above has its own dedicated reference photo and MUST be matched to it individually - do not blend, merge, or apply one character's reference onto a different character, and do not favor one character's likeness over another's. Every character with a reference photo must be rendered with equal fidelity to its own reference, even when that character is a pet or an object rather than a person."
             : " This reference photo is the definitive identity source for that character."
+    }
+
+ONLY THESE CHARACTERS: draw exactly the characters listed above and no
+other recurring character, pet or object from the book. A character that is
+not listed here is NOT in this scene, so do not add them.${
+        multiple
+            ? " Keep every listed character visually distinct from the others - never give two characters the same face, hair, glasses or clothes."
+            : ""
     }
 
 STEP 1 - IDENTITY LOCK: For each labeled reference photo, first establish
@@ -131,20 +204,14 @@ export const generateImage = async ({
     // uploaded image files AND the reference manifest in the prompt, so the
     // "Reference photo N" labels always line up with the Nth file actually
     // sent to the model.
-    const validReferences = referenceImages.filter((image) => image?.buffer).slice(0, 4);
+    const validReferences = referenceImages.filter((image) => image?.buffer).slice(0, MAX_REFERENCE_CHARACTERS);
 
-        const imageFiles = await Promise.all(
-            validReferences.map((image, index) =>
-                toFile(
-                    image.buffer,
-                    `reference-${index}.png`,
-                    { type: image.contentType || "image/png" }
-                )
-            )
-        );
+    // At most MAX_EDIT_IMAGES files go to OpenAI (see note above).
+    let referencesForCall = await limitReferences(validReferences, MAX_EDIT_IMAGES);
+    let imageFiles = await toUploadFiles(referencesForCall);
 
     console.log(
-      `Generating OpenAI image (${MODEL}, quality: ${QUALITY}) with ${validReferences.length} reference image(s), size ${size}...`,
+      `Generating OpenAI image (${MODEL}, quality: ${QUALITY}) with ${referencesForCall.length} reference file(s) (${validReferences.length} character(s)), size ${size}...`,
     );
 
     let lastError;
@@ -159,7 +226,7 @@ export const generateImage = async ({
         const safePrompt = sanitizeImagePrompt(prompt, safetyLevel);
         const finalPrompt = buildPromptWithReferenceInstruction(
           safePrompt,
-          useReferences ? validReferences : []
+          useReferences ? referencesForCall : []
         );
 
         let response;
@@ -179,6 +246,28 @@ export const generateImage = async ({
             size,
             quality: QUALITY,
             moderation: MODERATION,
+          });
+        }
+
+        // The request was effectively ignored (prompt + photos never seen), so
+        // the picture is random. Merge ALL references into one sheet and retry.
+        const inputTokens = response?.usage?.input_tokens;
+        if (
+          useReferences &&
+          typeof inputTokens === "number" &&
+          inputTokens < MIN_PLAUSIBLE_INPUT_TOKENS
+        ) {
+          console.warn(
+            `OpenAI reported only ${inputTokens} input tokens for ${referencesForCall.length} reference file(s) - the request was ignored. Retrying with the references merged into one image...`,
+          );
+
+          if (referencesForCall.length > 1) {
+            referencesForCall = await limitReferences(validReferences, 1);
+            imageFiles = await toUploadFiles(referencesForCall);
+          }
+
+          throw Object.assign(new Error("OpenAI ignored the request (too few input tokens)."), {
+            status: 503,
           });
         }
 

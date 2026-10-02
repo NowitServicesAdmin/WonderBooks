@@ -1,21 +1,35 @@
 import gemini from "../config/gemini.js";
 import { createUserContent, createPartFromBase64 } from "@google/genai";
+import sharp from "sharp";
+import { generateContentResilient } from "./geminiCall.js";
+import {
+  limitCharacters,
+  MAX_REFERENCE_CHARACTERS,
+} from "../config/characterLimits.js";
 
 // Configurable so you can drop to a less-loaded model (e.g. "gemini-2.5-flash")
 // via env var without touching code, if 3.5 keeps 503ing.
 const TEXT_MODEL = process.env.GEMINI_TEXT_MODEL || "gemini-3.5-flash";
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// Second model used only when the first one is rate-limited or down. Gemini
+// counts limits per model, so this gives the Bible a separate quota to fall
+// back on instead of retrying the exhausted one.
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash-lite";
 
-const isRetryableError = (error) => {
-  const status = error?.status || error?.code;
-  const message = error?.message || "";
-
-  return (
-    status === 503 ||
-    status === 429 ||
-    /UNAVAILABLE|RESOURCE_EXHAUSTED|overloaded|high demand/i.test(message)
-  );
+// The photos only need to show what the character looks like. Sending the
+// 5 MB originals makes the request huge (slow, more tokens, and the likely
+// cause of the "fetch failed / ECONNRESET" errors), so shrink them first.
+const shrinkPhotoForGemini = async (buffer) => {
+  try {
+    const data = await sharp(buffer)
+      .rotate()
+      .resize({ width: 768, height: 768, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 82 })
+      .toBuffer();
+    return { data, contentType: "image/jpeg" };
+  } catch {
+    return { data: buffer, contentType: "image/png" };
+  }
 };
 
 const cleanJson = (text) => {
@@ -39,35 +53,6 @@ const normalizeCharacters = (characters = []) => {
     photoStorageProvider: character.photoStorageProvider || null,
     photoStorageKey: character.photoStorageKey || null,
   }));
-};
-
-const generateContentWithRetry = async (params, { maxRetries = 4 } = {}) => {
-  let lastError;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await gemini.models.generateContent(params);
-    } catch (error) {
-      lastError = error;
-
-      const retryable = isRetryableError(error);
-
-      if (!retryable || attempt === maxRetries) {
-        throw error;
-      }
-
-      const delay = 1000 * Math.pow(2, attempt) + Math.random() * 300;
-
-      console.warn(
-        `Gemini call failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${Math.round(delay)}ms...`,
-        error?.message || error,
-      );
-
-      await sleep(delay);
-    }
-  }
-
-  throw lastError;
 };
 
 export const generateCharacterBible = async ({ story, storyData, characterPhotos = [] }) => {
@@ -129,14 +114,25 @@ CHARACTER RULES:
      real eye color, real skin tone, real species/breed, real fur
      color and pattern, real markings, real body proportions. These
      fields must match the attached photo, not a generic guess.
+     Be exact about small identifying features, because they are what
+     make a person recognisable in every illustration:
+       * glasses: the REAL frame shape (rectangular / square / round /
+         oval / cat-eye), frame colour and thickness - never default to
+         "round"; if the frames are rectangular say "rectangular";
+       * facial hair (moustache / beard) as actually shown, or none;
+       * earrings, nose stud, bindi, hairband, other jewellery as shown;
+       * hair length and parting, and the exact clothing colours.
+     Put any such feature in "accessories" or "markings" AND in
+     "signatureDetails" so it is repeated on every page.
    - Only invent appearance details for characters that have NO
      attached reference photo.
 6. If there are NO user-provided characters, determine the minimum
    recurring cast required by the story.
 7. The maximum recurring cast is:
-   - 1 person
+   - 3 people
    - 1 pet
    - 1 object
+   (a pet or an object never takes up one of the 3 people slots)
 8. Do not create unnecessary recurring characters.
 9. A character does NOT need to appear on every page.
 10. Only characters actually needed by the story should be recurring.
@@ -272,10 +268,12 @@ JSON FORMAT:
       contentParts.push(
         `Reference photo for character "${character.name}" (id: ${character.id}, type: ${character.type}):`,
       );
+      const small = await shrinkPhotoForGemini(photo.buffer);
+
       contentParts.push(
         createPartFromBase64(
-          photo.buffer.toString("base64"),
-          photo.contentType || "image/png",
+          small.data.toString("base64"),
+          small.contentType,
         ),
       );
     }
@@ -285,8 +283,10 @@ JSON FORMAT:
     // NOTE: the @google/genai SDK expects "config", not "generationConfig".
     // The old field name was silently ignored, so temperature and
     // JSON-mode enforcement weren't actually being applied before.
-    const response = await generateContentWithRetry({
-      model: TEXT_MODEL, // gemini-3.5-flash is multimodal, handles both cases
+    const response = await generateContentResilient({
+      label: "Character Bible",
+      models: [TEXT_MODEL, FALLBACK_MODEL],
+      attemptsPerModel: 2,
       contents: hasPhotos ? createUserContent(contentParts) : prompt,
       config: {
         temperature: 0.2,
@@ -320,29 +320,15 @@ JSON FORMAT:
       throw new Error("Character Bible must contain a characters array.");
     }
 
-    if (parsed.characters.length > 3) {
-      throw new Error(
-        "Character Bible cannot contain more than 3 recurring characters.",
+    // Cap at 3 people + 1 pet + 1 object. Trim instead of throwing: throwing
+    // here threw away a good Gemini answer and dropped the whole book back to
+    // raw photos with no character consistency.
+    if (parsed.characters.length > MAX_REFERENCE_CHARACTERS) {
+      console.warn(
+        `Character Bible returned ${parsed.characters.length} characters, trimming to the 3 people + 1 pet + 1 object limit.`,
       );
     }
-
-    const personCount = parsed.characters.filter(
-      (character) => character.type === "person",
-    ).length;
-
-    const petCount = parsed.characters.filter(
-      (character) => character.type === "pet",
-    ).length;
-
-    const objectCount = parsed.characters.filter(
-      (character) => character.type === "object",
-    ).length;
-
-    if (personCount > 1 || petCount > 1 || objectCount > 1) {
-      throw new Error(
-        "Character Bible supports at most one person, one pet and one object.",
-      );
-    }
+    parsed.characters = limitCharacters(parsed.characters);
 
     return parsed;
   } catch (error) {
