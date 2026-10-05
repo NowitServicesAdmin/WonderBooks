@@ -206,17 +206,24 @@ export const generateCharacterReferences = async ({
     const updatedCharacters = [];
 
     for (const character of characters) {
-        const reference =
-            await generateCharacterReference({
-                bookId,
-                character,
-                imageStyle
-            });
+        try {
+            const reference =
+                await generateCharacterReference({
+                    bookId,
+                    character,
+                    imageStyle
+                });
 
-        updatedCharacters.push({
-            ...character,
-            ...reference
-        });
+            updatedCharacters.push({
+                ...character,
+                ...reference
+            });
+        } catch (error) {
+            console.error(
+                `Skipping canonical reference for ${character.name}, its uploaded photo will be used instead.`
+            );
+            updatedCharacters.push(character);
+        }
     }
 
     return updatedCharacters;

@@ -17,6 +17,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { chatBook, createBook } from "../services/bookService";
 import { PlanLimitAlert, getPlanLimitError } from "./PlanLimitAlert";
+import { canAddKind, CHARACTER_LIMITS } from "../Data/characterLimits";
 // NOTE: requires `export` added to `const STORY_OPTIONS = {...}` in ManualMode.jsx
 import { STORY_OPTIONS } from "./ManualMode";
 
@@ -48,10 +49,13 @@ const EMPTY_COMPANION_DRAFT = { name: "", description: "", photoFile: null, phot
 
 // The + menu in the input bar. "type" flows straight into startCompanion(type).
 const ADD_MENU_ITEMS = [
-    { type: "character", label: "Add a character", icon: UserPlus },
-    { type: "pet", label: "Add a pet", icon: PawPrint },
-    { type: "object", label: "Add an object", icon: Box },
+    // kind = which limit applies: 3 people, 1 pet, 1 object (see Data/characterLimits.js)
+    { type: "character", kind: "person", label: "Add a character", icon: UserPlus },
+    { type: "pet", kind: "pet", label: "Add a pet", icon: PawPrint },
+    { type: "object", kind: "object", label: "Add an object", icon: Box },
 ];
+
+const KIND_OF_TYPE = { character: "person", pet: "pet", object: "object" };
 
 /* ------------------------------------------------------------------ */
 /* Matching the AI's free-text story settings back onto the visual     */
@@ -468,6 +472,8 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
     /* ---------------- + menu: add character / pet / object ---------------- */
 
     const startCompanion = (type) => {
+        // limit: 3 people, 1 pet, 1 object
+        if (!canAddKind(store.current.state.characters, KIND_OF_TYPE[type])) return;
         setPickingPhoto(false);
         setShowCustomize(false);
         setCompanionDraft(EMPTY_COMPANION_DRAFT);
@@ -495,6 +501,12 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
         const description = companionDraft.description.trim();
         const hasPhoto = Boolean(companionDraft.photoFile);
         const s = store.current;
+
+        // re-check at save time (the chat may have added someone meanwhile)
+        if (!canAddKind(s.state.characters, KIND_OF_TYPE[type])) {
+            cancelCompanion();
+            return;
+        }
 
         const characterType = type === "character" ? "Friend" : type === "pet" ? "Pet" : "Object";
         const newCharacter = {
@@ -946,20 +958,26 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                                 <>
                                     <div className="fixed inset-0 z-10" onClick={() => setShowAddMenu(false)} />
                                     <div className="absolute bottom-full left-0 z-20 mb-2 w-56 overflow-hidden rounded-2xl border border-[#E5E1ED] bg-white py-1.5 shadow-[0_16px_36px_rgba(90,57,199,0.18)]">
-                                        {ADD_MENU_ITEMS.map(({ type, label, icon: Icon }) => (
-                                            <button
-                                                key={type}
-                                                type="button"
-                                                onClick={() => {
-                                                    setShowAddMenu(false);
-                                                    startCompanion(type);
-                                                }}
-                                                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[14px] font-medium text-[#38345F] transition-colors hover:bg-[#F6F2FF]"
-                                            >
-                                                <Icon size={16} className="text-[#5A39C7]" />
-                                                {label}
-                                            </button>
-                                        ))}
+                                        {ADD_MENU_ITEMS.map(({ type, kind, label, icon: Icon }) => {
+                                            const full = !canAddKind(characters, kind);
+                                            return (
+                                                <button
+                                                    key={type}
+                                                    type="button"
+                                                    disabled={full}
+                                                    title={full ? `You can add up to ${CHARACTER_LIMITS[kind]} ${kind === "person" ? "characters" : kind}` : undefined}
+                                                    onClick={() => {
+                                                        setShowAddMenu(false);
+                                                        startCompanion(type);
+                                                    }}
+                                                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[14px] font-medium text-[#38345F] transition-colors hover:bg-[#F6F2FF] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
+                                                >
+                                                    <Icon size={16} className="text-[#5A39C7]" />
+                                                    {label}
+                                                    {full && <span className="ml-auto text-[11px] font-normal text-[#8a84a3]">Limit reached</span>}
+                                                </button>
+                                            );
+                                        })}
                                         {hasChat && photoCount < characters.length && (
                                             <button
                                                 type="button"

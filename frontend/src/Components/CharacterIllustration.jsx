@@ -14,12 +14,16 @@ import {
     Type,
 } from "lucide-react";
 import { useState, useRef } from "react";
+import { CHARACTER_LIMITS, characterKind } from "../Data/characterLimits";
 
 const CHARACTER_TYPES = [
     { id: "person", label: "Person", icon: UserRound },
     { id: "animal", label: "Animal", icon: PawPrint },
     { id: "object", label: "Object", icon: Package },
 ];
+
+// how many of each type fit in one book: 3 people, 1 animal, 1 object
+const limitFor = (type) => CHARACTER_LIMITS[characterKind(type)];
 
 const GENDER_OPTIONS = [
     { id: "female", label: "Girl", emoji: "👧", selectedClass: "border-[#f7bfd1] bg-[#fff2f6]", dotClass: "border-[#ee7fa4]" },
@@ -71,63 +75,90 @@ export const CharacterWorkspace = ({
     languageOptions = [],
     fontOptions = [],
 }) => {
+    // lists the saved characters of one type, in the order they were added
+    const ofType = (type, source = characters) =>
+        source.filter((character) => character.type === type);
+
+    const formFrom = (character) =>
+        character
+            ? {
+                name: character.name || "",
+                gender: character.gender || "",
+                age: character.age || "",
+                hobbies: character.hobbies || "",
+                favouriteFood: character.favouriteFood || "",
+                photo: character.photo || null,
+            }
+            : emptyForm();
+
     const [characterType, setCharacterType] = useState("person");
-    const [formData, setFormData] = useState(emptyForm());
+    // which slot of that type is being edited (person: 0-2, animal/object: 0)
+    const [slot, setSlot] = useState(0);
+    const [formData, setFormData] = useState(() => formFrom(ofType("person")[0]));
     const fileInputRef = useRef(null);
 
-    const getCharacterForType = (type, source = characters) =>
-        source.find((character) => character.type === type);
+    const getCharacterAt = (type, index, source = characters) =>
+        ofType(type, source)[index];
 
     const handleChange = (field, value) => {
         setFormData((previous) => ({ ...previous, [field]: value }));
     };
 
-    // save current tab
-    const saveCurrentTab = (type = characterType, data = formData) => {
+    // save the slot being edited
+    const saveCurrentTab = (type = characterType, index = slot, data = formData) => {
         // Don't create an empty character just because the user clicked another tab.
         if (!data.name?.trim()) return;
 
         setCharacters((previous) => {
-            const existingIndex = previous.findIndex((c) => c.type === type);
+            const existing = getCharacterAt(type, index, previous);
 
             const character = {
-                id: existingIndex >= 0 ? previous[existingIndex].id : Date.now(),
+                id: existing ? existing.id : `${Date.now()}${Math.floor(Math.random() * 1000)}`,
                 type,
                 ...data,
                 // objects have no gender
                 gender: type === "object" ? "" : data.gender,
             };
 
-            if (existingIndex >= 0) {
-                return previous.map((item, index) =>
-                    index === existingIndex ? character : item
-                );
+            if (existing) {
+                return previous.map((item) => (item.id === existing.id ? character : item));
             }
+
+            // hard cap: 3 people, 1 animal, 1 object
+            if (ofType(type, previous).length >= limitFor(type)) return previous;
+
             return [...previous, character];
         });
     };
 
+    // jump to another type / slot (the form being left is saved first if it has a name)
+    const goTo = (nextType, nextSlot = 0) => {
+        if (nextType === characterType && nextSlot === slot) return;
+
+        saveCurrentTab(characterType, slot, formData);
+
+        setFormData(formFrom(getCharacterAt(nextType, nextSlot)));
+        setCharacterType(nextType);
+        setSlot(nextSlot);
+    };
+
     const handleCharacterTypeChange = (nextType) => {
         if (nextType === characterType) return;
+        goTo(nextType, 0);
+    };
 
-        saveCurrentTab(characterType, formData);
+    const handleRemoveCharacter = () => {
+        const target = getCharacterAt(characterType, slot);
+        if (!target) return;
 
-        const savedCharacter = getCharacterForType(nextType);
+        if (target.photo?.preview) URL.revokeObjectURL(target.photo.preview);
+        setCharacters((previous) => previous.filter((item) => item.id !== target.id));
 
-        if (savedCharacter) {
-            setFormData({
-                name: savedCharacter.name || "",
-                gender: savedCharacter.gender || "",
-                age: savedCharacter.age || "",
-                hobbies: savedCharacter.hobbies || "",
-                favouriteFood: savedCharacter.favouriteFood || "",
-                photo: savedCharacter.photo || null,
-            });
-        } else {
-            setFormData(emptyForm());
-        }
-
-        setCharacterType(nextType);
+        // later ones move up a slot; land on the one now sitting here, or an empty slot
+        const remaining = ofType(characterType).filter((item) => item.id !== target.id);
+        const nextSlot = Math.min(slot, remaining.length);
+        setFormData(formFrom(remaining[nextSlot]));
+        setSlot(nextSlot);
     };
 
     // photo upload
@@ -157,10 +188,15 @@ export const CharacterWorkspace = ({
 
     const handleSaveCharacter = () => {
         if (!formData.name.trim()) return;
-        saveCurrentTab(characterType, formData);
+        saveCurrentTab(characterType, slot, formData);
     };
 
-    const currentCharacter = getCharacterForType(characterType);
+    const currentCharacter = getCharacterAt(characterType, slot);
+    const savedOfType = ofType(characterType);
+    const typeLimit = limitFor(characterType);
+    // a later slot opens once the one before it is saved (or typed, so it auto-saves on the way)
+    const unlockedSlots =
+        savedOfType.length + (slot === savedOfType.length && formData.name.trim() ? 1 : 0);
     const typeLabel =
         CHARACTER_TYPES.find((type) => type.id === characterType)?.label || "Character";
     const canSave = Boolean(formData.name.trim());
@@ -191,7 +227,7 @@ export const CharacterWorkspace = ({
                                     type="button"
                                     onClick={() => handleCharacterTypeChange(type.id)}
                                     className={`
-                                        flex h-10 items-center gap-2 rounded-[12px] border px-4
+                                        flex h-10 items-center gap-2 rounded-xl border px-4
                                         text-[13px] font-semibold transition-all duration-200
                                         ${isSelected
                                             ? "border-(--accent-hover) bg-(--accent-hover) text-white shadow-[0_6px_16px_rgba(105,71,215,0.22)]"
@@ -201,11 +237,48 @@ export const CharacterWorkspace = ({
                                 >
                                     <Icon size={16} />
                                     {type.label}
+                                    <span className={`text-[11px] font-medium ${isSelected ? "text-white/80" : "text-[#9a93a6]"}`}>
+                                        {ofType(type.id).length}/{limitFor(type.id)}
+                                    </span>
                                 </button>
                             );
                         })}
                     </div>
                 </div>
+
+                {/* ---------------- PERSON SLOTS (up to 3 people) ---------------- */}
+                {typeLimit > 1 && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                        {Array.from({ length: typeLimit }, (_, index) => {
+                            const saved = savedOfType[index];
+                            const isActive = slot === index;
+                            const locked = index >= unlockedSlots && !saved;
+
+                            return (
+                                <button
+                                    key={index}
+                                    type="button"
+                                    disabled={locked}
+                                    onClick={() => goTo(characterType, index)}
+                                    className={`
+                                        flex h-9 max-w-45 items-center gap-2 rounded-[11px] border px-3
+                                        text-[12px] font-semibold transition-all duration-200
+                                        ${isActive
+                                            ? "border-[#8062db] bg-(--tint) text-[#5e3ccc]"
+                                            : "border-[#e2ddea] bg-white text-[#676174] hover:border-[#cbbdea]"
+                                        }
+                                        ${locked ? "cursor-not-allowed opacity-45 hover:border-[#e2ddea]" : ""}
+                                    `}
+                                >
+                                    <span className="shrink-0">Person {index + 1}</span>
+                                    {saved && (
+                                        <span className="truncate font-medium text-[#8e8798]">{saved.name}</span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
                 <div className="my-4 border-t border-dashed border-[#e7e1ed]" />
 
@@ -219,7 +292,7 @@ export const CharacterWorkspace = ({
                             <div>
                                 <label className={labelClass}>
                                     <UserRound size={14} className="text-[#8870c9]" />
-                                    Main character name
+                                    {characterType === "person" && slot === 0 ? "Main character name" : `${typeLabel} name`}
                                 </label>
                                 <input
                                     type="text"
@@ -427,7 +500,7 @@ export const CharacterWorkspace = ({
                                             type="button"
                                             onClick={() => onSelect?.("language", option)}
                                             className={`
-                                                flex h-10 items-center justify-center gap-2 rounded-[12px] border
+                                                flex h-10 items-center justify-center gap-2 rounded-xl border
                                                 text-[12px] font-semibold transition-all duration-200
                                                 ${isSelected
                                                     ? "border-(--accent-hover) bg-(--tint) text-[#5e3ccc] shadow-[0_6px_14px_rgba(105,71,215,0.14)]"
@@ -460,7 +533,7 @@ export const CharacterWorkspace = ({
                                             type="button"
                                             onClick={() => onSelect?.("font", option)}
                                             className={`
-                                                flex h-10 items-center justify-center gap-2 rounded-[12px] border px-2
+                                                flex h-10 items-center justify-center gap-2 rounded-xl border px-2
                                                 text-[12px] font-semibold transition-all duration-200
                                                 ${isSelected
                                                     ? "border-(--accent-hover) bg-(--tint) text-[#5e3ccc] shadow-[0_6px_14px_rgba(105,71,215,0.14)]"
@@ -488,9 +561,20 @@ export const CharacterWorkspace = ({
             <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#eeeaf3] bg-white px-4 py-3 sm:px-6">
                 <p className="text-[11px] text-[#8e8798]">
                     {currentCharacter
-                        ? `${typeLabel} character saved. You can update the details.`
-                        : "You can create one character for each type."}
+                        ? `${typeLabel} saved. You can update the details.`
+                        : "Add up to 3 people, 1 animal and 1 object."}
                 </p>
+
+                <div className="flex shrink-0 items-center gap-2">
+                {currentCharacter && (
+                    <button
+                        type="button"
+                        onClick={handleRemoveCharacter}
+                        className="flex h-11 items-center rounded-[13px] border border-[#e2ddea] bg-white px-4 text-[13px] font-semibold text-[#8a5160] transition-all hover:border-[#e7b9c3] hover:bg-[#fff4f6]"
+                    >
+                        Remove
+                    </button>
+                )}
 
                 <button
                     type="button"
@@ -508,6 +592,7 @@ export const CharacterWorkspace = ({
                     <ImagePlus size={17} />
                     {currentCharacter ? "Update Character" : "Add Character"}
                 </button>
+                </div>
             </div>
         </section>
     );
