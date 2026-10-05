@@ -595,10 +595,10 @@ const JourneyCard = ({ books = [] }) => {
                 {stat.value}
               </span>
 
-              <ChevronRight
+              {/* <ChevronRight
                 size={18}
                 className="text-[#b0b2bf] transition group-hover:translate-x-0.5 group-hover:text-(--accent-hover)"
-              />
+              /> */}
             </button>
           );
         })}

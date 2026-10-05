@@ -3,7 +3,7 @@ import { Bell } from "lucide-react";
 import { HeaderAnimationSearch } from "./HeaderAnimationSearch";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./Notificationbell";
-
+import { useNavigate } from "react-router-dom";
 
 
 const imageUrls = {
@@ -34,6 +34,7 @@ export const Header = ({
     notificationCount = 3,
 }) => {
     const [story, setStory] = useState("");
+    const navigate = useNavigate();
 
     return (
         <header className="relative isolate w-full shrink-0 overflow-hidden rounded-b-[20px] border border-[#ebe5ff] bg-[#fbf9ff] shadow-[0_4px_24px_rgba(84,38,199,0.06)] md:h-30 md:rounded-b-none md:rounded-r-3xl">
@@ -82,7 +83,12 @@ export const Header = ({
                     aria-label="Profile"
                     className="flex items-center justify-center rounded-full transition hover:scale-105"
                 >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full md:h-12.5 md:w-12.5 border-2 border-white bg-[#cfe8c1] shadow-[0_3px_12px_rgba(80,50,30,0.10)]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full md:h-12.5 md:w-12.5 border-2 border-white bg-[#cfe8c1] shadow-[0_3px_12px_rgba(80,50,30,0.10)]"
+                    onClick={() => {
+                        // Handle profile click, e.g., navigate to profile page or open a dropdown
+                        // console.log("Profile button clicked");
+                        navigate("/settings"); // Example navigation to profile page
+                    }}>
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}

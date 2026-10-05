@@ -36,6 +36,8 @@ import girlBook from "../../assets/wonder-books/girl-book-clean.png";
 import logo from "../../assets/wonder-books/wonderbook-logo.png";
 import { User, Image } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
+import ContactForm from "../../Components/ContactForm";
+import PricingSection from "../../Components/PricingSection";
 
 const templates = [
     {
@@ -390,7 +392,7 @@ export default function HomePage() {
                     </section>
 
                     {/* Story value */}
-                    <section id="our-story" className="relative">
+                    {/* <section id="our-story" className="relative">
                         <div className="relative z-10 mx-auto grid max-w-250 items-center lg:min-h-75 lg:grid-cols-2">
                             <div className="relative flex h-80 items-end justify-center overflow-hidden lg:h-75">
                                 <img
@@ -418,7 +420,7 @@ export default function HomePage() {
                                 </div>
                             </div>
                         </div>
-                    </section>
+                    </section> */}
 
                     {/* Testimonials */}
                     <section
@@ -486,6 +488,9 @@ export default function HomePage() {
                             </div>
                         </div>
                     </section>
+
+                 <PricingSection />
+                       <ContactForm />
 
                     {/* CTA */}
                     {/* <section className="relative overflow-hidden">

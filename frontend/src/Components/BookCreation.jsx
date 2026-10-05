@@ -5,9 +5,11 @@ import { Bot, Pencil,
 } from "lucide-react";
 import { AiBookCreation } from "./AiBookCreation";
 import { ManualMode } from "./ManualMode";
+import { useAuth } from "../context/AuthContext";
 export const BookCreation = () => {
   const location = useLocation();
   const navigate = useNavigate();
+   const {user}=useAuth();
 
   // An idea typed in the header arrives via router state and always opens AI mode.
   const [incomingIdea] = useState(() => location.state?.idea?.trim() || "");
@@ -31,7 +33,7 @@ export const BookCreation = () => {
         {/* Greeting */}
         <div>
           <h1 className="flex items-center gap-2 text-[30px] font-bold tracking-[-0.8px] text-[#29246f]">
-            Good morning, Arav!
+            Hello, {user?.name || "Arav"}!
             <span className="text-[34px]">👋</span>
           </h1>
 

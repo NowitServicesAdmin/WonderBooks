@@ -17,7 +17,6 @@ import { createBook } from "../services/bookService";
 import WonderAlertModal from "./WonderAlertModal";
 import { PlanLimitAlert, getPlanLimitError } from "./PlanLimitAlert";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export const STORY_OPTIONS = {
     age: [
@@ -145,58 +144,58 @@ export const STORY_OPTIONS = {
         adventure: [
             { id: "courage", label: "Courage", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790157964/9177fc07-1bd0-47a5-81ee-77e918ce58a8_xhxsde.png" },
             { id: "perseverance", label: "Never Give Up", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158032/1925d752-6876-404d-b16c-bfb236cdaff5_ifwxzt.png" },
-            { id: "teamwork", label: "Teamwork", image:"https://res.cloudinary.com/dakiwpzly/image/upload/v1790158094/aa78ca5c-6bcf-47f0-a614-4760438fa61e_hhcb8c.png" },
+            { id: "teamwork", label: "Teamwork", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158094/aa78ca5c-6bcf-47f0-a614-4760438fa61e_hhcb8c.png" },
             { id: "curiosity", label: "Stay Curious", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158146/212a3855-7ec7-48cc-852e-2efc5bdc8e51_uqef5w.png" },
             { id: "confidence", label: "Believe in Yourself", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158199/3e1502c8-da3b-4760-8d60-349b3d35428e_y0guuf.png" },
             { id: "responsibility", label: "Take Responsibility", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158292/b8230cf9-0396-446e-bc5f-59f5e9dd6bfa_c6m2a7.png" },
         ],
         activities: [
             { id: "teamwork", label: "Working Together", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158368/239d78cb-5ecf-4bf9-9047-9e53b3ee1a97_a1ovpo.png" },
-            { id: "practice", label: "Practice Makes Progress", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158417/9ae20909-795b-4091-a423-fb6deebbed12_tmwg5c.png"  },
-            { id: "creativity", label: "Be Creative", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158464/9b719d5f-83c5-4c20-9135-b217efa5d61e_iwwfuy.png"  },
-            { id: "patience", label: "Be Patient", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158512/d57530fc-9764-4178-8bf1-49f54dc7d177_eucfsx.png"  },
-            { id: "sharing", label: "Sharing With Others", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158563/623cd943-9ff6-4bd2-8271-4311f93bbff2_rwbbbu.png"  },
-            { id: "fun", label: "Enjoy the Journey", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158628/ae0b90b4-7990-42d3-b387-69c6fdb8cf78_bneuww.png"  },
+            { id: "practice", label: "Practice Makes Progress", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158417/9ae20909-795b-4091-a423-fb6deebbed12_tmwg5c.png" },
+            { id: "creativity", label: "Be Creative", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158464/9b719d5f-83c5-4c20-9135-b217efa5d61e_iwwfuy.png" },
+            { id: "patience", label: "Be Patient", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158512/d57530fc-9764-4178-8bf1-49f54dc7d177_eucfsx.png" },
+            { id: "sharing", label: "Sharing With Others", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158563/623cd943-9ff6-4bd2-8271-4311f93bbff2_rwbbbu.png" },
+            { id: "fun", label: "Enjoy the Journey", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158628/ae0b90b4-7990-42d3-b387-69c6fdb8cf78_bneuww.png" },
         ],
         worlds: [
-            { id: "curiosity", label: "Explore the Unknown", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158690/3c03e3e8-8893-410e-953c-ac79870aa5c7_plqbtt.png"  },
-            { id: "friendship", label: "Friendship Across Worlds", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158740/a10f471c-3a46-4648-bf57-e5a5d899575b_wvsap8.png"  },
-            { id: "teamwork", label: "Teamwork", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158094/aa78ca5c-6bcf-47f0-a614-4760438fa61e_hhcb8c.png"  },
-            { id: "discovery", label: "Learning Through Discovery", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158815/7cfb407d-26f6-43c8-a0e8-0650e7e1bac1_mgfro2.png"  },
-            { id: "courage", label: "Face the Unknown With Courage", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158865/bb9c8222-5810-4ec3-bf16-c73b558ed217_mce2xc.png"  },
-            { id: "imagination", label: "The Power of Imagination", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159555/7183e800-3040-4b2f-92f1-bf953c76b09c_orjiza.png"  },
+            { id: "curiosity", label: "Explore the Unknown", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158690/3c03e3e8-8893-410e-953c-ac79870aa5c7_plqbtt.png" },
+            { id: "friendship", label: "Friendship Across Worlds", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158740/a10f471c-3a46-4648-bf57-e5a5d899575b_wvsap8.png" },
+            { id: "teamwork", label: "Teamwork", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158094/aa78ca5c-6bcf-47f0-a614-4760438fa61e_hhcb8c.png" },
+            { id: "discovery", label: "Learning Through Discovery", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158815/7cfb407d-26f6-43c8-a0e8-0650e7e1bac1_mgfro2.png" },
+            { id: "courage", label: "Face the Unknown With Courage", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790158865/bb9c8222-5810-4ec3-bf16-c73b558ed217_mce2xc.png" },
+            { id: "imagination", label: "The Power of Imagination", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159555/7183e800-3040-4b2f-92f1-bf953c76b09c_orjiza.png" },
         ],
         holidays: [
-            { id: "togetherness", label: "Togetherness", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159671/43fb5ec0-33aa-44d4-840d-1a1038404d4e_qduyqn.png"  },
-            { id: "gratitude", label: "Be Grateful", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159717/39ee6345-99a8-48c3-a527-cd18ff07d19e_yprial.png"  },
-            { id: "giving", label: "The Joy of Giving", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159764/2ac271fb-728b-4c9e-9d8a-983bce841642_d6xljf.png"  },
-            { id: "family", label: "Family Matters", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159811/ff6b77a1-d446-4684-8bc8-bd5fce61eb32_g2wcdi.png"  },
-            { id: "kindness", label: "Spread Kindness", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159903/c7bfaae9-a3b7-4ee4-97c2-4bcef8689bff_rbt0g5.png"  },
-            { id: "celebration", label: "Celebrate Life", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159924/f326cadc-461f-4686-94b7-d8dbeb208100_sa6z3v.png"  },
+            { id: "togetherness", label: "Togetherness", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159671/43fb5ec0-33aa-44d4-840d-1a1038404d4e_qduyqn.png" },
+            { id: "gratitude", label: "Be Grateful", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159717/39ee6345-99a8-48c3-a527-cd18ff07d19e_yprial.png" },
+            { id: "giving", label: "The Joy of Giving", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159764/2ac271fb-728b-4c9e-9d8a-983bce841642_d6xljf.png" },
+            { id: "family", label: "Family Matters", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159811/ff6b77a1-d446-4684-8bc8-bd5fce61eb32_g2wcdi.png" },
+            { id: "kindness", label: "Spread Kindness", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159903/c7bfaae9-a3b7-4ee4-97c2-4bcef8689bff_rbt0g5.png" },
+            { id: "celebration", label: "Celebrate Life", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159924/f326cadc-461f-4686-94b7-d8dbeb208100_sa6z3v.png" },
         ],
         family: [
-            { id: "love", label: "Family Love", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159964/8f599501-9785-4b66-b34b-8b9f6063da91_fxgs2q.png"  },
-            { id: "togetherness", label: "Together Is Better", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160050/ba1b6a03-848b-48c7-b886-8fc643b7092c_zxsiac.png"  },
-            { id: "respect", label: "Respect Each Other", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160075/d9bc6d7f-2a70-4ce9-8ed4-d39eaf1c690a_gbse1v.png"  },
-            { id: "forgiveness", label: "Learn to Forgive", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160134/5abd7ed9-dbcd-4be2-b75b-f4f8485e9f12_tsz8ft.png"  },
-            { id: "helping", label: "Help One Another", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160189/f407fb00-2565-45af-931a-f07419d5dfff_iurvt5.png"  },
-            { id: "gratitude", label: "Appreciate Your Family", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160240/fd422cb3-b881-4bd0-80b0-12e59739f435_igjulf.png"  },
+            { id: "love", label: "Family Love", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159964/8f599501-9785-4b66-b34b-8b9f6063da91_fxgs2q.png" },
+            { id: "togetherness", label: "Together Is Better", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160050/ba1b6a03-848b-48c7-b886-8fc643b7092c_zxsiac.png" },
+            { id: "respect", label: "Respect Each Other", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160075/d9bc6d7f-2a70-4ce9-8ed4-d39eaf1c690a_gbse1v.png" },
+            { id: "forgiveness", label: "Learn to Forgive", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160134/5abd7ed9-dbcd-4be2-b75b-f4f8485e9f12_tsz8ft.png" },
+            { id: "helping", label: "Help One Another", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160189/f407fb00-2565-45af-931a-f07419d5dfff_iurvt5.png" },
+            { id: "gratitude", label: "Appreciate Your Family", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160240/fd422cb3-b881-4bd0-80b0-12e59739f435_igjulf.png" },
         ],
         education: [
-            { id: "curiosity", label: "Stay Curious", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160308/66da93c9-d014-4d58-9cb2-384d692eff9c_m2yo2x.png"  },
-            { id: "learning", label: "Learning Is an Adventure", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160349/6f4b90e0-2353-468d-97dc-21a3ab314797_o8wjh6.png"  },
-            { id: "perseverance", label: "Keep Trying", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160436/9470a593-35e1-441d-9703-6cf352297cdd_n2cvwi.png"  },
-            { id: "problem-solving", label: "Think of Solutions", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160469/1d0c3f95-1683-4d75-9bc3-1cf1118f613f_sm2enz.png"  },
-            { id: "confidence", label: "Believe You Can Learn", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160599/f774ac06-e75e-431a-8e7b-125eaab61ad6_u9meg5.png"  },
-            { id: "creativity", label: "Think Creatively", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160650/8a74970e-4892-49dd-abaa-5672afd688e5_o7ystb.png"  },
+            { id: "curiosity", label: "Stay Curious", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160308/66da93c9-d014-4d58-9cb2-384d692eff9c_m2yo2x.png" },
+            { id: "learning", label: "Learning Is an Adventure", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160349/6f4b90e0-2353-468d-97dc-21a3ab314797_o8wjh6.png" },
+            { id: "perseverance", label: "Keep Trying", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160436/9470a593-35e1-441d-9703-6cf352297cdd_n2cvwi.png" },
+            { id: "problem-solving", label: "Think of Solutions", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160469/1d0c3f95-1683-4d75-9bc3-1cf1118f613f_sm2enz.png" },
+            { id: "confidence", label: "Believe You Can Learn", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160599/f774ac06-e75e-431a-8e7b-125eaab61ad6_u9meg5.png" },
+            { id: "creativity", label: "Think Creatively", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160650/8a74970e-4892-49dd-abaa-5672afd688e5_o7ystb.png" },
         ],
         feelings: [
-            { id: "friendship", label: "Friendship", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790157089/e731c512-e43c-4dc0-b19e-2cb01da5b456_gjbdi5.png"  },
-            { id: "empathy", label: "Understand Others", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160775/57d24b19-2146-4328-b4f9-84306da2ee6f_yobxkt.png"  },
-            { id: "confidence", label: "Believe in Yourself", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160826/bb44d2e7-7f33-468c-8cc1-bcf045bccb1a_va6coq.png"  },
-            { id: "kindness", label: "Choose Kindness", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159717/39ee6345-99a8-48c3-a527-cd18ff07d19e_yprial.png"  },
-            { id: "emotional-awareness", label: "Understand Your Feelings", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160925/1d1b61e7-949b-4dec-b4c4-b165639f34c8_jtu2bb.png"  },
-            { id: "resilience", label: "Be Strong Through Challenges", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160993/5b4a9295-cd31-4b42-aedc-b1e1294a7405_v7dtqp.png"  },
+            { id: "friendship", label: "Friendship", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790157089/e731c512-e43c-4dc0-b19e-2cb01da5b456_gjbdi5.png" },
+            { id: "empathy", label: "Understand Others", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160775/57d24b19-2146-4328-b4f9-84306da2ee6f_yobxkt.png" },
+            { id: "confidence", label: "Believe in Yourself", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160826/bb44d2e7-7f33-468c-8cc1-bcf045bccb1a_va6coq.png" },
+            { id: "kindness", label: "Choose Kindness", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790159717/39ee6345-99a8-48c3-a527-cd18ff07d19e_yprial.png" },
+            { id: "emotional-awareness", label: "Understand Your Feelings", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160925/1d1b61e7-949b-4dec-b4c4-b165639f34c8_jtu2bb.png" },
+            { id: "resilience", label: "Be Strong Through Challenges", image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790160993/5b4a9295-cd31-4b42-aedc-b1e1294a7405_v7dtqp.png" },
         ],
     },
 
@@ -273,7 +272,7 @@ export const STORY_OPTIONS = {
             description: "Rich seasonal colours and atmosphere. Great for stories set in different times of the year.",
             image: "https://res.cloudinary.com/dakiwpzly/image/upload/v1790076266/3d5fd589-efb4-4efc-b293-fa3b7ce091da_efgead.png",
         },
-        
+
     ],
 
     language: [
@@ -285,21 +284,165 @@ export const STORY_OPTIONS = {
         { id: "portuguese", label: "Portuguese", emoji: "🇵🇹" },
         { id: "dutch", label: "Dutch", emoji: "🇳🇱" },
         { id: "hindi", label: "Hindi", emoji: "🇮🇳" },
+        { id: "bengali", label: "Bengali", emoji: "🇧🇩" },
+        { id: "telugu", label: "Telugu", emoji: "🇮🇳" },
+        { id: "tamil", label: "Tamil", emoji: "🇮🇳" },
+        { id: "marathi", label: "Marathi", emoji: "🇮🇳" },
+        { id: "gujarati", label: "Gujarati", emoji: "🇮🇳" },
+        { id: "kannada", label: "Kannada", emoji: "🇮🇳" },
+        { id: "malayalam", label: "Malayalam", emoji: "🇮🇳" },
+        { id: "punjabi", label: "Punjabi", emoji: "🇮🇳" },
+        { id: "urdu", label: "Urdu", emoji: "🇵🇰" },
         { id: "arabic", label: "Arabic", emoji: "🇸🇦" },
+        { id: "hebrew", label: "Hebrew", emoji: "🇮🇱" },
+        { id: "turkish", label: "Turkish", emoji: "🇹🇷" },
+        { id: "russian", label: "Russian", emoji: "🇷🇺" },
+        { id: "ukrainian", label: "Ukrainian", emoji: "🇺🇦" },
+        { id: "polish", label: "Polish", emoji: "🇵🇱" },
+        { id: "czech", label: "Czech", emoji: "🇨🇿" },
+        { id: "swedish", label: "Swedish", emoji: "🇸🇪" },
+        { id: "norwegian", label: "Norwegian", emoji: "🇳🇴" },
+        { id: "danish", label: "Danish", emoji: "🇩🇰" },
+        { id: "finnish", label: "Finnish", emoji: "🇫🇮" },
+        { id: "greek", label: "Greek", emoji: "🇬🇷" },
+        { id: "romanian", label: "Romanian", emoji: "🇷🇴" },
+        { id: "hungarian", label: "Hungarian", emoji: "🇭🇺" },
+        { id: "vietnamese", label: "Vietnamese", emoji: "🇻🇳" },
+        { id: "thai", label: "Thai", emoji: "🇹🇭" },
+        { id: "indonesian", label: "Indonesian", emoji: "🇮🇩" },
+        { id: "malay", label: "Malay", emoji: "🇲🇾" },
+        { id: "filipino", label: "Filipino", emoji: "🇵🇭" },
         { id: "japanese", label: "Japanese", emoji: "🇯🇵" },
         { id: "chinese", label: "Chinese", emoji: "🇨🇳" },
         { id: "korean", label: "Korean", emoji: "🇰🇷" },
     ],
 
     font: [
-        { id: "rounded", label: "Rounded & Playful", fontFamily: '"Baloo 2", "Comic Sans MS", cursive' },
-        { id: "serif", label: "Classic Storybook", fontFamily: 'Georgia, "Times New Roman", serif' },
-        { id: "handwritten", label: "Handwritten", fontFamily: '"Segoe Script", "Bradley Hand", cursive' },
-        { id: "sans", label: "Clean & Modern", fontFamily: '"Poppins", "Helvetica Neue", Arial, sans-serif' },
-        { id: "bubbly", label: "Bubbly & Bold", fontFamily: '"Fredoka One", "Baloo 2", cursive' },
-        { id: "whimsical", label: "Whimsical", fontFamily: '"Chewy", "Comic Sans MS", cursive' },
-        { id: "elegant", label: "Elegant Script", fontFamily: '"Dancing Script", "Segoe Script", cursive' },
-        { id: "typewriter", label: "Typewriter", fontFamily: '"Courier New", Courier, monospace' },
+        {
+            id: "rounded",
+            label: "Rounded & Playful",
+            fontFamily: '"Baloo 2", "Comic Sans MS", cursive',
+        },
+        {
+            id: "bubbly",
+            label: "Bubbly & Bold",
+            fontFamily: '"Fredoka", "Baloo 2", cursive',
+        },
+        {
+            id: "whimsical",
+            label: "Whimsical",
+            fontFamily: '"Chewy", "Comic Sans MS", cursive',
+        },
+        {
+            id: "playful",
+            label: "Playful",
+            fontFamily: '"Bubblegum Sans", "Baloo 2", cursive',
+        },
+        {
+            id: "comic",
+            label: "Comic",
+            fontFamily: '"Comic Sans MS", "Comic Neue", cursive',
+        },
+        {
+            id: "handwritten",
+            label: "Handwritten",
+            fontFamily: '"Caveat", "Segoe Script", cursive',
+        },
+        {
+            id: "casual",
+            label: "Casual Handwriting",
+            fontFamily: '"Patrick Hand", "Comic Sans MS", cursive',
+        },
+        {
+            id: "storybook",
+            label: "Classic Storybook",
+            fontFamily: 'Georgia, "Times New Roman", serif',
+        },
+        {
+            id: "classic",
+            label: "Classic",
+            fontFamily: '"Merriweather", Georgia, serif',
+        },
+        {
+            id: "literary",
+            label: "Literary",
+            fontFamily: '"Libre Baskerville", Georgia, serif',
+        },
+        {
+            id: "serif",
+            label: "Traditional Serif",
+            fontFamily: '"Playfair Display", Georgia, serif',
+        },
+        {
+            id: "elegant",
+            label: "Elegant",
+            fontFamily: '"Cormorant Garamond", Georgia, serif',
+        },
+        {
+            id: "elegantScript",
+            label: "Elegant Script",
+            fontFamily: '"Dancing Script", "Segoe Script", cursive',
+        },
+        {
+            id: "modern",
+            label: "Clean & Modern",
+            fontFamily: '"Poppins", "Helvetica Neue", Arial, sans-serif',
+        },
+        {
+            id: "minimal",
+            label: "Minimal",
+            fontFamily: '"Inter", "Helvetica Neue", Arial, sans-serif',
+        },
+        {
+            id: "friendly",
+            label: "Friendly",
+            fontFamily: '"Nunito", "Helvetica Neue", Arial, sans-serif',
+        },
+        {
+            id: "geometric",
+            label: "Geometric",
+            fontFamily: '"Montserrat", Arial, sans-serif',
+        },
+        {
+            id: "bold",
+            label: "Bold & Strong",
+            fontFamily: '"Roboto", Arial, sans-serif',
+        },
+        {
+            id: "typewriter",
+            label: "Typewriter",
+            fontFamily: '"Courier Prime", "Courier New", monospace',
+        },
+        {
+            id: "mono",
+            label: "Monospace",
+            fontFamily: '"Roboto Mono", "Courier New", monospace',
+        },
+        {
+            id: "fantasy",
+            label: "Fantasy",
+            fontFamily: '"Cinzel Decorative", Georgia, serif',
+        },
+        {
+            id: "magical",
+            label: "Magical",
+            fontFamily: '"Uncial Antiqua", Georgia, serif',
+        },
+        {
+            id: "adventure",
+            label: "Adventure",
+            fontFamily: '"Rye", Georgia, serif',
+        },
+        {
+            id: "retro",
+            label: "Retro",
+            fontFamily: '"Lobster", cursive',
+        },
+        {
+            id: "display",
+            label: "Story Display",
+            fontFamily: '"Abril Fatface", Georgia, serif',
+        },
     ],
 };
 
@@ -358,87 +501,6 @@ const CHARACTER_STEP = {
 };
 const ALL_STEPS = [...STEPS, CHARACTER_STEP];
 const THEME_DEPENDENT_CATEGORIES = new Set(["subject", "centralmsg"]);
-
-// OptionPager.jsx
-export default function OptionPager({
-  label,
-  icon,
-  options,
-  value,
-  onSelect,
-  pageSize = 2,
-}) {
-  const pageCount = Math.ceil(options.length / pageSize);
-
-  // Start on the page that contains the selected option
-  const selectedIndex = Math.max(0, options.findIndex((o) => o.id === value));
-  const [page, setPage] = useState(Math.floor(selectedIndex / pageSize));
-
-  useEffect(() => {
-    const idx = options.findIndex((o) => o.id === value);
-    if (idx >= 0) setPage(Math.floor(idx / pageSize));
-  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const visible = options.slice(page * pageSize, page * pageSize + pageSize);
-  const prev = () => setPage((p) => (p - 1 + pageCount) % pageCount);
-  const next = () => setPage((p) => (p + 1) % pageCount);
-
-  return (
-    <div className="min-w-0">
-      {/* Header: label + the 2 navigation buttons */}
-      <div className="mb-2 flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-          {icon}
-          {label}
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={prev}
-            aria-label={`Previous ${label}`}
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-indigo-100 text-slate-500 hover:bg-indigo-50"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <span className="w-10 text-center text-xs text-slate-400">
-            {page + 1}/{pageCount}
-          </span>
-          <button
-            type="button"
-            onClick={next}
-            aria-label={`Next ${label}`}
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-indigo-100 text-slate-500 hover:bg-indigo-50"
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* Fixed 2-column slot: layout never changes size */}
-      <div className="grid h-[50px] grid-cols-2 gap-3">
-        {visible.map((opt) => {
-          const active = value === opt.id;
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => onSelect(opt.id)}
-              className={`flex items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition ${
-                active
-                  ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-400"
-                  : "border-indigo-100 bg-white text-slate-600 hover:bg-indigo-50/50"
-              }`}
-            >
-              {opt.emoji && <span>{opt.emoji}</span>}
-              {opt.sample && <span className={opt.className}>{opt.sample}</span>}
-              <span className="truncate">{opt.label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 const getOptionsForCategory = (categoryId, selections) => {
     const source = STORY_OPTIONS[categoryId];
@@ -923,7 +985,6 @@ export const ManualMode = () => {
             }
         }
     };
-
     /* ------------------------------- Clear step ------------------------------ */
 
     const handleClearStep = (step) => {
@@ -1105,8 +1166,8 @@ export const ManualMode = () => {
                         {isSubmitting
                             ? "Creating your story..."
                             : isLastStep
-                              ? "Create My Story ✨"
-                              : "Next"}
+                                ? "Create My Story ✨"
+                                : "Next"}
                     </button>
                 </div>
             </div>

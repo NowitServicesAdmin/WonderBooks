@@ -21,7 +21,8 @@ import { expireOutdatedSubscriptions } from "./controllers/subscriptionControlle
 import OpenAI from "openai";
 import AudioCache from "./models/AudioCache.js";
 import AlertRoutes from "./routes/alertRoutes.js";
-
+import { ContactMessage } from "./models/ContactUs.js";
+import { sendContactEnquiryEmail } from "./services/otpService.js";
 const app = express();
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -65,6 +66,20 @@ app.post("/api/tts", async (req, res) => {
     res.status(500).json({ error: "Failed to generate speech" });
   }
 });
+app.post("/api/contact", async (req, res) => {
+  try {
+    const { name, email, contactNo, timeZone, preferredTime, message } = req.body;
+    if (!name || !email || !contactNo || !timeZone || !preferredTime || !message)
+      return res.status(400).json({ message: "All fields are required." });
+    await ContactMessage.create({ name, email, contactNo, timeZone, preferredTime, message });
+    await sendContactEnquiryEmail({ name, email, contactNo, timeZone, preferredTime, message });
+    res.status(201).json({ message: "Thanks! We'll reach out at your preferred time." });
+  } catch (err) {
+    console.log("Contact form submission error:", err.message);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+});
+
 app.use("/audio", express.static("uploads/audio"));
 app.use("/api/auth", authRoutes);
 app.use("/api/book", bookRoutes);

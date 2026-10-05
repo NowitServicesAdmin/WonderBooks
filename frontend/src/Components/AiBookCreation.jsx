@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState ,useContext} from "react";
 import {
     Sparkles,
     Mic,
@@ -20,6 +20,7 @@ import { PlanLimitAlert, getPlanLimitError } from "./PlanLimitAlert";
 import { canAddKind, CHARACTER_LIMITS } from "../Data/characterLimits";
 // NOTE: requires `export` added to `const STORY_OPTIONS = {...}` in ManualMode.jsx
 import { STORY_OPTIONS } from "./ManualMode";
+import { useAuth } from "../context/AuthContext";
 
 const AI_ROBOT_IMAGE =
     "https://res.cloudinary.com/djdct0pxu/image/upload/v1788501579/Screenshot_2026-09-04_112746-removebg-preview_etj2un.png";
@@ -317,7 +318,6 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
     const [ready, setReady] = useState(false);
     const [pickingPhoto, setPickingPhoto] = useState(false);
     const [photoCount, setPhotoCount] = useState(0);
-
     // Reactive mirror of store.current.state.storySettings, so the
     // Customize panel re-renders when the user swaps a card.
     const [storySettings, setStorySettings] = useState({});
