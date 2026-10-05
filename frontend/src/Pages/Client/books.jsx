@@ -501,7 +501,7 @@ export const Books = () => {
                 {/* =====================================
                     STATUS
                 ====================================== */}
-                <div className="absolute left-5 top-3 z-50">
+                <div className="absolute left-5 top-3 z-10">
                   <div
                     className="
                       flex items-center gap-1.5

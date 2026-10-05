@@ -3,7 +3,12 @@ import { Bell } from "lucide-react";
 import { HeaderAnimationSearch } from "./HeaderAnimationSearch";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./Notificationbell";
+<<<<<<< HEAD
 import { useNavigate } from "react-router-dom";
+=======
+import { CartButton } from "./CartButton";
+
+>>>>>>> ef0e2a1a89332a275cd2df6f86e5ac97e6e83b9a
 
 
 const imageUrls = {
@@ -75,6 +80,9 @@ export const Header = ({
                         </span>
                     )}
                 </button> */}
+                {/* Cart: regular users only */}
+                {userRole === "user" && <CartButton />}
+
                 <NotificationBell />
 
                 {/* Profile */}

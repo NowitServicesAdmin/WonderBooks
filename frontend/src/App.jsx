@@ -4,6 +4,7 @@ import { Router } from "./router";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import {AlertsProvider} from "./context/AlertsContext";
+import { CartProvider } from "./context/CartContext";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -13,7 +14,9 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <AlertsProvider>
-            <RouterProvider router={Router} />
+            <CartProvider>
+              <RouterProvider router={Router} />
+            </CartProvider>
           </AlertsProvider>
         </AuthProvider>
       </ThemeProvider>
