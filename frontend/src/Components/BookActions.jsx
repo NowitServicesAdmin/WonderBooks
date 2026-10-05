@@ -236,8 +236,9 @@ import {
   Volume2,
 } from "lucide-react";
 import { downloadBookPdf, printBook } from "../utils/bookExport";
-import { PrintOrderModal } from "./PrintOrderModal";
+import { useNavigate } from "react-router-dom";
 import { useTTS } from "../hooks/useTTs";
+import { useCart } from "../context/CartContext";
 
 const BTN =
   "inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 sm:px-4";
@@ -279,7 +280,13 @@ export const BookActions = ({ book, pages, currentPageIndex = 0 }) => {
   const [selectedVoice, setSelectedVoice] = useState(null); // voice id, stays selected after audio ends
   const voiceMenuRef = useRef(null);
 
-  const [orderModalOpen, setOrderModalOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const { addToCart, isInCart } = useCart();
+  const [addingToCart, setAddingToCart] = useState(false);
+  // Templates are previews, not saved books, so they can't be printed
+  const isTemplate = String(book._id).startsWith("template-");
+  const inCart = isInCart(book._id);
 
   const { speak, pause, resume, stop, status, voiceId: activeVoiceId, error: ttsError } = useTTS();
 
@@ -361,17 +368,25 @@ export const BookActions = ({ book, pages, currentPageIndex = 0 }) => {
     }
   };
 
+  const handleCart = async () => {
+    if (addingToCart) return;
+    if (inCart) {
+      navigate("/cart"); // already added: the button now takes you to the cart
+      return;
+    }
+    setAddingToCart(true);
+    const result = await addToCart(book._id);
+    setAddingToCart(false);
+    if (result.ok) flash("ok", "Added to your cart.");
+    else flash("error", result.message);
+  };
+
   const handlePrint = async () => {
     try {
       await printBook({ title: book.title, pages, language, font });
     } catch {
       flash("error", "Couldn't open the print dialog. Please try again.");
     }
-  };
-
-  const handleOrderSuccess = () => {
-    setOrderModalOpen(false);
-    flash("ok", `Order placed! We'll print "${book.title}" and ship it your way.`);
   };
 
   return (
@@ -395,12 +410,27 @@ export const BookActions = ({ book, pages, currentPageIndex = 0 }) => {
 
       <button
         type="button"
-        onClick={() => setOrderModalOpen(true)}
-        disabled={book.status !== "completed"}
-        title={book.status !== "completed" ? "Finish the book to order a printed copy" : "Order a printed copy"}
-        className={`${BTN} ${BTN_IDLE}`}
+        onClick={handleCart}
+        disabled={book.status !== "completed" || isTemplate || addingToCart}
+        aria-label={inCart ? "View cart" : "Add to cart"}
+        title={
+          isTemplate
+            ? "Templates can't be printed - create your own book to order a copy"
+            : book.status !== "completed"
+              ? "Finish the book to order a printed copy"
+              : inCart
+                ? "In your cart - view cart"
+                : "Add a printed copy to your cart"
+        }
+        className={`${BTN} ${inCart ? BTN_ACTIVE : BTN_IDLE}`}
       >
-        <ShoppingCartIcon size={17} />
+        {addingToCart ? (
+          <Loader2 size={17} className="animate-spin" />
+        ) : inCart ? (
+          <Check size={17} />
+        ) : (
+          <ShoppingCartIcon size={17} />
+        )}
       </button>
 
       {/* Play / Pause / Stop: shown once a voice has been picked */}
@@ -505,13 +535,6 @@ export const BookActions = ({ book, pages, currentPageIndex = 0 }) => {
           </div>
         )}
       </div>
-
-      <PrintOrderModal
-        book={book}
-        isOpen={orderModalOpen}
-        onClose={() => setOrderModalOpen(false)}
-        onSuccess={handleOrderSuccess}
-      />
     </div>
   );
 };

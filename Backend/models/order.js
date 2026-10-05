@@ -10,6 +10,13 @@ const ShippingAddressSchema = new mongoose.Schema(
         state: { type: String, required: true, trim: true },
         postalCode: { type: String, required: true, trim: true },
         country: { type: String, default: "India", trim: true },
+
+        // Extra detail from the saved-address / location picker flow (all optional)
+        addressType: { type: String, default: "" },
+        landmark: { type: String, default: "" },
+        latitude: { type: Number, default: null },
+        longitude: { type: Number, default: null },
+        placeId: { type: String, default: "" },
     },
     { _id: false }
 );
@@ -35,7 +42,13 @@ const OrderSchema = new mongoose.Schema(
 
         shippingAddress: { type: ShippingAddressSchema, required: true },
 
-        amount: { type: Number, required: true }, 
+        // Number of printed copies, price of one copy and delivery fee.
+        // Older orders don't have these; they read as 1 copy.
+        quantity: { type: Number, default: 1, min: 1 },
+        unitPrice: { type: Number, default: null },
+        shippingFee: { type: Number, default: 0 },
+
+        amount: { type: Number, required: true }, // total charged
         currency: { type: String, default: "INR" },
 
         status: {

@@ -16,6 +16,9 @@ import adminPlanRoutes from "./routes/adminPlans.js";
 import adminRoutes from "./routes/admin.js";
 import settingsRoutes from "./routes/settings.js";
 import orderRoutes from "./routes/orders.js";
+import cartRoutes from "./routes/cart.js";
+import addressRoutes from "./routes/addresses.js";
+import locationRoutes from "./routes/location.js";
 import { requireAuth } from "./middleware/auth.js";
 import { expireOutdatedSubscriptions } from "./controllers/subscriptionController.js";
 import OpenAI from "openai";
@@ -73,6 +76,9 @@ app.use("/api/admin", adminPlanRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/cart", cartRoutes);
+app.use("/api/addresses", addressRoutes);
+app.use("/api/location", locationRoutes);
 app.use("/api/alerts", AlertRoutes);
 const startServer = async () => {
   try {

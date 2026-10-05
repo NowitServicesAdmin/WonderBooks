@@ -4,8 +4,11 @@ export const getMyOrders = () => api.get("/orders");
 
 export const getOrderById = (orderId) => api.get(`/orders/${orderId}`);
 
-export const initiateOrder = (bookId, shippingAddress) =>
-  api.post("/orders/initiate", { bookId, shippingAddress });
+export const getOrderQuote = (bookId, quantity = 1) =>
+  api.get(`/orders/quote/${bookId}`, { params: { quantity } });
+
+export const initiateOrder = ({ bookId, addressId, quantity }) =>
+  api.post("/orders/initiate", bookId ? { bookId, addressId, quantity } : { addressId });
 
 export const verifyOrder = (data) => api.post("/orders/verify", data);
 

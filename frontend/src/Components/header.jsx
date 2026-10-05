@@ -3,6 +3,7 @@ import { Bell } from "lucide-react";
 import { HeaderAnimationSearch } from "./HeaderAnimationSearch";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./Notificationbell";
+import { CartButton } from "./CartButton";
 
 
 
@@ -74,6 +75,9 @@ export const Header = ({
                         </span>
                     )}
                 </button> */}
+                {/* Cart: regular users only */}
+                {userRole === "user" && <CartButton />}
+
                 <NotificationBell />
 
                 {/* Profile */}

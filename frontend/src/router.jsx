@@ -1,4 +1,4 @@
-import {createBrowserRouter} from 'react-router-dom'
+import {createBrowserRouter, Navigate} from 'react-router-dom'
 import { Layout } from './Layouts/ClientLayout'
 import { Auth } from './Pages/Auth/Auth'
 import {Dashboard} from './Pages/Client/Dashboard'
@@ -8,6 +8,8 @@ import {Orders} from './Pages/Client/Orders'
 import {CreateBook} from './Pages/Client/CreateBook'
 import { Books } from './Pages/Client/books'
 import { BookReader } from './Pages/Client/BookReader'
+import { PrintCart } from './Pages/Client/PrintCart'
+import { PrintOrderSuccess } from './Pages/Client/PrintOrderSuccess'
 import {Settings} from './Pages/Client/Settings'
 import {Help} from './Pages/Client/Help'
 import { BookCreation } from './Components/BookCreation'
@@ -70,6 +72,10 @@ export const Router=createBrowserRouter([
                                 element:<Orders />
                             },
                             {
+                                path:'/orders/success',
+                                element:<PrintOrderSuccess />
+                            },
+                            {
                                 path:'/create',
                                 element:<CreateBook />
                             },
@@ -80,6 +86,15 @@ export const Router=createBrowserRouter([
                             {
                                 path:'/books/:id',
                                 element:<BookReader />
+                            },
+                            {
+                                path:'/cart',
+                                element:<PrintCart />
+                            },
+                            {
+                                // old per-book cart links
+                                path:'/books/:id/cart',
+                                element:<Navigate to="/cart" replace />
                             },
                             {
                                 path:'/settings',
