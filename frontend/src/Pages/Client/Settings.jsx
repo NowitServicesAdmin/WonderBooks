@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams,useNavigate } from "react-router-dom";
 import { Sparkles, User, BookOpen, Bell, HelpCircle, ChevronRight, ChevronDown, Globe, Users, Mail, Camera, Trash2, FileText, Info, Check, Crown, Heart, MessageCircle, Lightbulb, Package, Megaphone, CalendarDays, ArrowRight, ShieldCheck, Download, TriangleAlert, Headset, CreditCard, Loader2, Phone } from "lucide-react";
 import ReactSelect from "react-select";
 import { useAuth } from "../../context/AuthContext";
@@ -37,6 +37,7 @@ const ABOUT_LIMIT = 200;
 const ROBOT_IMG =
     "https://res.cloudinary.com/djdct0pxu/image/upload/v1789624540/Screenshot_2026-09-17_063400-removebg-preview_nsy6e8.png";
 
+
 /* ---------------------------------------------------------------
    Small building blocks
 ----------------------------------------------------------------*/
@@ -58,12 +59,23 @@ function Toggle({ checked, onChange }) {
 }
 
 function Row({ icon: Icon, title, description, control }) {
+    const navigate = useNavigate();
+    const handleIconClick = () => {
+        if(title=="Terms of Service"){
+            navigate("/terms");
+        }
+        else if(title=="Privacy Policy"){
+            navigate("/privacy");
+        }
+    }
+
     return (
         <div className="flex items-start justify-between gap-4 py-4">
             <div className="flex items-start gap-3">
                 <div
                     className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
                     style={{ backgroundColor: tokens.purpleTint, color: tokens.purple }}
+                    
                 >
                     <Icon size={17} />
                 </div>
@@ -78,7 +90,9 @@ function Row({ icon: Icon, title, description, control }) {
                     )}
                 </div>
             </div>
-            <div className="shrink-0 pt-1">{control}</div>
+            <div className="shrink-0 pt-1"
+            onClick={() => handleIconClick(title)}
+            >{control}</div>
         </div>
     );
 }
@@ -90,7 +104,7 @@ function LinkRow({ icon, title, description, danger }) {
             title={title}
             description={description}
             control={
-                <ChevronRight size={18} style={{ color: danger ? tokens.danger : tokens.inkSoft }} />
+                <ChevronRight size={18} style={{ color: danger ? tokens.danger : tokens.inkSoft }}  />
             }
         />
     );

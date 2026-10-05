@@ -17,7 +17,7 @@ import { createBook } from "../services/bookService";
 import WonderAlertModal from "./WonderAlertModal";
 import { PlanLimitAlert, getPlanLimitError } from "./PlanLimitAlert";
 import { useNavigate } from "react-router-dom";
-
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export const STORY_OPTIONS = {
     age: [
@@ -357,12 +357,89 @@ const CHARACTER_STEP = {
     image: "https://res.cloudinary.com/djdct0pxu/image/upload/v1788760470/Screenshot_2026-09-07_111538-Photoroom_tehazn.png"
 };
 const ALL_STEPS = [...STEPS, CHARACTER_STEP];
-
-// Categories whose available options depend on the selected theme.
 const THEME_DEPENDENT_CATEGORIES = new Set(["subject", "centralmsg"]);
 
-// Returns the option list for a category, resolving theme-dependent ones
-// (subject / centralmsg) against the currently selected theme.
+// OptionPager.jsx
+export default function OptionPager({
+  label,
+  icon,
+  options,
+  value,
+  onSelect,
+  pageSize = 2,
+}) {
+  const pageCount = Math.ceil(options.length / pageSize);
+
+  // Start on the page that contains the selected option
+  const selectedIndex = Math.max(0, options.findIndex((o) => o.id === value));
+  const [page, setPage] = useState(Math.floor(selectedIndex / pageSize));
+
+  useEffect(() => {
+    const idx = options.findIndex((o) => o.id === value);
+    if (idx >= 0) setPage(Math.floor(idx / pageSize));
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visible = options.slice(page * pageSize, page * pageSize + pageSize);
+  const prev = () => setPage((p) => (p - 1 + pageCount) % pageCount);
+  const next = () => setPage((p) => (p + 1) % pageCount);
+
+  return (
+    <div className="min-w-0">
+      {/* Header: label + the 2 navigation buttons */}
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
+          {icon}
+          {label}
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={prev}
+            aria-label={`Previous ${label}`}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-indigo-100 text-slate-500 hover:bg-indigo-50"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="w-10 text-center text-xs text-slate-400">
+            {page + 1}/{pageCount}
+          </span>
+          <button
+            type="button"
+            onClick={next}
+            aria-label={`Next ${label}`}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-indigo-100 text-slate-500 hover:bg-indigo-50"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Fixed 2-column slot: layout never changes size */}
+      <div className="grid h-[50px] grid-cols-2 gap-3">
+        {visible.map((opt) => {
+          const active = value === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onSelect(opt.id)}
+              className={`flex items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition ${
+                active
+                  ? "border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-400"
+                  : "border-indigo-100 bg-white text-slate-600 hover:bg-indigo-50/50"
+              }`}
+            >
+              {opt.emoji && <span>{opt.emoji}</span>}
+              {opt.sample && <span className={opt.className}>{opt.sample}</span>}
+              <span className="truncate">{opt.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const getOptionsForCategory = (categoryId, selections) => {
     const source = STORY_OPTIONS[categoryId];
     if (!source) return [];
@@ -599,7 +676,6 @@ const ImageStyleCard = ({ option, isSelected, onSelect, index = 0 }) => {
         </button>
     );
 };
-
 
 const CategoryPanel = ({ categoryId, selections, onSelect, showHeader }) => {
     const meta = PANEL_META[categoryId];
