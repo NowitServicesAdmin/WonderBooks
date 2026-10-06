@@ -24,6 +24,7 @@ import { expireOutdatedSubscriptions } from "./controllers/subscriptionControlle
 import OpenAI from "openai";
 import AudioCache from "./models/AudioCache.js";
 import AlertRoutes from "./routes/alertRoutes.js";
+import shiprocketWebhookRoutes from "./routes/shiprocketWebhookRoutes.js";
 
 const app = express();
 
@@ -80,6 +81,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/alerts", AlertRoutes);
+app.use("/api/webhooks",shiprocketWebhookRoutes);
 const startServer = async () => {
   try {
     await connectDB();

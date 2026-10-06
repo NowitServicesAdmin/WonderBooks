@@ -13,6 +13,8 @@
     "@aws-sdk/s3-request-presigner": "^3.1129.0",
     "@google/genai": "^2.21.0",
     "@google/generative-ai": "^0.24.1",
+    "async-each": "^1.0.6",
+    "axios": "^1.20.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

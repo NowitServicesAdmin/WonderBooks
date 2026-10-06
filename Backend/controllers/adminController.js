@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { User } from "../models/user.js";
 import Book from "../models/book.js";
 import Order from "../models/order.js";
+import { schedulePickupForOrder, cancelShipmentIfUnused } from "../services/shipmentService.js";
 import Subscription from "../models/subscription.js";
 import { deleteFromS3, normalizeS3Url } from "../services/s3Service.js";
 
@@ -611,6 +612,17 @@ export const updateOrderStatus = async (req, res) => {
             order.cancelReason = String(reason || order.cancelReason || "Cancelled by admin").slice(0, 300);
         }
         await order.save();
+
+        if (status === "cancelled") await cancelShipmentIfUnused(order);
+
+        // Book is printed and handed over -> ask Shiprocket's courier to pick it up
+        if (status === "shipped") {
+            try {
+                await schedulePickupForOrder(order);
+            } catch (pickupError) {
+                console.error("schedulePickup error:", pickupError.response?.data || pickupError.message);
+            }
+        }
 
         await order.populate("user", "name email");
         res.json({ success: true, order: toAdminOrder(order.toObject()) });
