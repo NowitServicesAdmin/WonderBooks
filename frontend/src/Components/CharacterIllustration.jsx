@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import {
     CalendarDays,
     Heart,
@@ -57,7 +58,7 @@ const fieldBase = `
 const inputClass = `${fieldBase} h-11 px-4`;
 const textareaClass = `${fieldBase} min-h-[84px] resize-none px-4 py-3 text-[13px] leading-relaxed`;
 
-const SectionTitle = ({ icon: Icon, children, optional }) => (
+const SectionTitle = ({ icon: Icon, children, optional, count }) => (
     <div className="mb-3 flex items-center gap-2">
         <div className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-(--tint) text-[#6b4bd3]">
             <Icon size={15} />
@@ -66,6 +67,11 @@ const SectionTitle = ({ icon: Icon, children, optional }) => (
         {optional && (
             <span className="rounded-full bg-[#f4f0fa] px-2 py-0.5 text-[10px] font-medium text-[#9991a3]">
                 Optional
+            </span>
+        )}
+        {count && (
+            <span className="rounded-full bg-[#ece6fb] px-2 py-0.5 text-[10px] font-semibold text-[#6b4bd3]">
+                {count}
             </span>
         )}
     </div>
@@ -257,8 +263,10 @@ export const CharacterWorkspace = ({
     const [formData, setFormData] = useState(() => formFrom(ofType("person")[0]));
     const fileInputRef = useRef(null);
 
-    const getCharacterAt = (type, index, source = characters) =>
-        ofType(type, source)[index];
+    const getCharacterAt = (type, index, source = characters) => {
+        const list = ofType(type, source);
+        return list.find((item) => item.slot === index) ?? list.find((item) => item.slot === undefined && list.indexOf(item) === index);
+    };
 
     const handleChange = (field, value) => {
         setFormData((previous) => ({ ...previous, [field]: value }));
@@ -275,6 +283,7 @@ export const CharacterWorkspace = ({
             const character = {
                 id: existing ? existing.id : `${Date.now()}${Math.floor(Math.random() * 1000)}`,
                 type,
+                slot: index,
                 ...data,
                 // objects have no gender
                 gender: type === "object" ? "" : data.gender,
@@ -314,11 +323,8 @@ export const CharacterWorkspace = ({
         if (target.photo?.preview) URL.revokeObjectURL(target.photo.preview);
         setCharacters((previous) => previous.filter((item) => item.id !== target.id));
 
-        // later ones move up a slot; land on the one now sitting here, or an empty slot
-        const remaining = ofType(characterType).filter((item) => item.id !== target.id);
-        const nextSlot = Math.min(slot, remaining.length);
-        setFormData(formFrom(remaining[nextSlot]));
-        setSlot(nextSlot);
+        // stay on the same (now empty) slot
+        setFormData(emptyForm());
     };
 
     // photo upload
@@ -354,9 +360,16 @@ export const CharacterWorkspace = ({
     const currentCharacter = getCharacterAt(characterType, slot);
     const savedOfType = ofType(characterType);
     const typeLimit = limitFor(characterType);
-    // a later slot opens once the one before it is saved (or typed, so it auto-saves on the way)
-    const unlockedSlots =
-        savedOfType.length + (slot === savedOfType.length && formData.name.trim() ? 1 : 0);
+    // the slot being edited counts as soon as it has a name or a photo,
+    // even before "Add Character" is pressed
+    const hasDraft = Boolean(formData.name.trim() || formData.photo);
+    // each character takes exactly one reference photo
+    const photoCount = formData.photo ? 1 : 0;
+    const countFor = (type) => {
+        const saved = ofType(type).length;
+        if (type === characterType && !currentCharacter && hasDraft) return saved + 1;
+        return saved;
+    };
     const typeLabel =
         CHARACTER_TYPES.find((type) => type.id === characterType)?.label || "Character";
     const canSave = Boolean(formData.name.trim());
@@ -398,7 +411,7 @@ export const CharacterWorkspace = ({
                                     <Icon size={16} />
                                     {type.label}
                                     <span className={`text-[11px] font-medium ${isSelected ? "text-white/80" : "text-[#9a93a6]"}`}>
-                                        {ofType(type.id).length}/{limitFor(type.id)}
+                                        {countFor(type.id)}/{limitFor(type.id)}
                                     </span>
                                 </button>
                             );
@@ -410,30 +423,31 @@ export const CharacterWorkspace = ({
                 {typeLimit > 1 && (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                         {Array.from({ length: typeLimit }, (_, index) => {
-                            const saved = savedOfType[index];
+                            const saved = getCharacterAt(characterType, index);
                             const isActive = slot === index;
-                            const locked = index >= unlockedSlots && !saved;
+                            const hasPhoto = isActive ? Boolean(formData.photo) : Boolean(saved?.photo);
 
                             return (
                                 <button
                                     key={index}
                                     type="button"
-                                    disabled={locked}
                                     onClick={() => goTo(characterType, index)}
                                     className={`
                                         flex h-9 max-w-45 items-center gap-2 rounded-[11px] border px-3
-                                        text-[12px] font-semibold transition-all duration-200
+                                        text-[12px] font-semibold transition-all duration-200 cursor-pointer
                                         ${isActive
                                             ? "border-[#8062db] bg-(--tint) text-[#5e3ccc]"
                                             : "border-[#e2ddea] bg-white text-[#676174] hover:border-[#cbbdea]"
                                         }
-                                        ${locked ? "cursor-not-allowed opacity-45 hover:border-[#e2ddea]" : ""}
                                     `}
                                 >
                                     <span className="shrink-0">Person {index + 1}</span>
-                                    {saved && (
-                                        <span className="truncate font-medium text-[#8e8798]">{saved.name}</span>
+                                    {(isActive ? formData.name.trim() : saved?.name) && (
+                                        <span className="truncate font-medium text-[#8e8798]">
+                                            {isActive ? formData.name : saved.name}
+                                        </span>
                                     )}
+                                    {hasPhoto && <ImagePlus size={13} className="shrink-0 text-[#8062db]" />}
                                 </button>
                             );
                         })}
@@ -553,7 +567,11 @@ export const CharacterWorkspace = ({
 
                     {/* PHOTO */}
                     <div className="min-w-0 lg:border-l lg:border-dashed lg:border-[#e7e1ed] lg:pl-6">
-                        <SectionTitle icon={ImagePlus} optional>
+                        <SectionTitle
+                            icon={ImagePlus}
+                            optional
+                            count={`${photoCount}/1`}
+                        >
                             Reference photo
                         </SectionTitle>
 
@@ -582,7 +600,7 @@ export const CharacterWorkspace = ({
                                 <p className="text-[12px] font-semibold text-[#615b6d]">
                                     Add character photo
                                 </p>
-                                <p className="text-[10px] text-[#aaa4b0]">PNG, JPG or WEBP</p>
+                                <p className="text-[10px] text-[#aaa4b0]">PNG, JPG or WEBP · 1 photo per character</p>
                             </button>
                         ) : (
                             <div className="flex items-center gap-3 rounded-[15px] border border-[#ded5eb] bg-(--tint) p-2.5">
@@ -735,7 +753,9 @@ export const CharacterWorkspace = ({
                 <p className="text-[11px] text-[#8e8798]">
                     {currentCharacter
                         ? `${typeLabel} saved. You can update the details.`
-                        : "Add up to 3 people, 1 animal and 1 object."}
+                        : formData.photo && !formData.name.trim()
+                            ? "Photo added — enter a name to save this character."
+                            : "Add up to 3 people, 1 animal and 1 object."}
                 </p>
 
                 <div className="flex shrink-0 items-center gap-2">

@@ -15,12 +15,13 @@ import {
   Sparkles,
   CalendarDays,
   ChevronLeft,
+  Heart,
   X,
   ShoppingBagIcon,
 } from "lucide-react";
 import { templates } from "../../Data/Templatesdata";
 import { suggestionIdeas } from "../../Data/storyIdeas";
-import { getMyBooks } from "../../services/bookService";
+import { getMyBooks, toggleBookFavorite } from "../../services/bookService";
 import { ContinueCreating } from "../../Components/AnimatedBook";
 import { useNavigate } from "react-router-dom";
 
@@ -58,6 +59,7 @@ const toDashboardBook = (b) => {
     id: b._id,
     title: b.title,
     cover: b.coverImageUrl,
+    isFavorite: Boolean(b.isFavorite),
     theme: b.theme || null,
     createdFor: b.createdFor || null,
     pageCount,
@@ -118,6 +120,23 @@ export const Dashboard = () => {
   }, []);
 
   // Only the most recent MAX_DASHBOARD_BOOKS show up here - the full list lives on /books.
+  // Heart toggle: update instantly, save to the backend, undo if the save fails.
+  const handleToggleFavorite = async (id, next) => {
+    const setFavorite = (value) =>
+      setAllBooks((current) =>
+        current.map((b) => (b.id === id ? { ...b, isFavorite: value } : b))
+      );
+
+    setFavorite(next);
+
+    try {
+      await toggleBookFavorite(id, next);
+    } catch (err) {
+      console.error("Favorite toggle failed:", err);
+      setFavorite(!next);
+    }
+  };
+
   const dashboardBooks = useMemo(
     () => allBooks.slice(0, MAX_DASHBOARD_BOOKS),
     [allBooks]
@@ -170,6 +189,7 @@ export const Dashboard = () => {
                 loading={booksLoading}
                 error={booksError}
                 onViewAll={() => navigate("/books")}
+                onToggleFavorite={handleToggleFavorite}
               />
 
               {/* <TemplatesSection templates={templateCards} /> */}
@@ -194,7 +214,7 @@ export const Dashboard = () => {
 /*                                  MY BOOKS                                  */
 /* -------------------------------------------------------------------------- */
 
-const MyBooksSection = ({ books, loading, error, onViewAll }) => (
+const MyBooksSection = ({ books, loading, error, onViewAll, onToggleFavorite }) => (
   <section className="rounded-[20px] border border-(--border) bg-(--surface) px-5 py-5 shadow-[0_7px_24px_rgba(61,48,104,0.04)] sm:px-6">
     <SectionHeader
       icon={BookOpen}
@@ -240,6 +260,7 @@ const MyBooksSection = ({ books, loading, error, onViewAll }) => (
           <DashboardBookCard
             key={book.id}
             book={book}
+            onToggleFavorite={onToggleFavorite}
           />
         ))}
       </div>
@@ -247,15 +268,55 @@ const MyBooksSection = ({ books, loading, error, onViewAll }) => (
   </section>
 );
 
-const DashboardBookCard = ({ book }) => {
+const DashboardBookCard = ({ book, onToggleFavorite }) => {
   const navigate = useNavigate();
   const status = book.status || "Completed";
+  const [burst, setBurst] = useState(false);
+
+  const handleHeart = () => {
+    const next = !book.isFavorite;
+    onToggleFavorite?.(book.id, next);
+    if (next) {
+      setBurst(true);
+      setTimeout(() => setBurst(false), 1000);
+    }
+  };
 
   return (
+    <div className="relative min-w-0">
+    {/* FAVORITE HEART - top-right corner of the cover */}
+    <button
+      type="button"
+      onClick={handleHeart}
+      aria-label={book.isFavorite ? "Remove from favorites" : "Add to favorites"}
+      aria-pressed={book.isFavorite}
+      className="absolute left-[calc(50%+27px)] top-4 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-[0_3px_10px_rgba(0,0,0,0.18)] backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-90"
+    >
+      <Heart
+        size={15}
+        strokeWidth={1.8}
+        className={`transition-all duration-300 ${
+          book.isFavorite
+            ? "scale-110 fill-[#F05B78] text-[#F05B78]"
+            : "text-[#777387]"
+        }`}
+      />
+    </button>
+
+    {burst && (
+      <div className="pointer-events-none absolute inset-0 z-40 overflow-visible">
+        {[...Array(10)].map((_, index) => (
+          <span key={index} className={`heart-burst heart-${index}`}>
+            ♥
+          </span>
+        ))}
+      </div>
+    )}
+
     <button
       type="button"
       onClick={() => navigate(`/books/${book.id}`)}
-      className="group min-w-0 text-left"
+      className="group block w-full min-w-0 text-left"
     >
       <div className="flex h-47 items-end justify-center">
         <SmallBook book={book} />
@@ -281,6 +342,7 @@ const DashboardBookCard = ({ book }) => {
         </div>
       </div>
     </button>
+    </div>
   );
 };
 

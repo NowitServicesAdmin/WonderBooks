@@ -1,14 +1,10 @@
 import { useState } from "react";
-import { Bell } from "lucide-react";
 import { HeaderAnimationSearch } from "./HeaderAnimationSearch";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./Notificationbell";
-<<<<<<< HEAD
 import { useNavigate } from "react-router-dom";
-=======
 import { CartButton } from "./CartButton";
 
->>>>>>> ef0e2a1a89332a275cd2df6f86e5ac97e6e83b9a
 
 
 const imageUrls = {
@@ -36,7 +32,6 @@ export const Header = ({
     userName = "Arav",
     userRole = "Parent",
     avatarUrl,
-    notificationCount = 3,
 }) => {
     const [story, setStory] = useState("");
     const navigate = useNavigate();
@@ -61,7 +56,7 @@ export const Header = ({
             <div className="pointer-events-none absolute inset-0 z-1 bg-linear-to-r from-white/30 via-white/10 to-white/20" />
 
 
-            <div className="absolute right-3 top-3 z-30 flex items-center gap-2 md:right-5 md:top-4 md:gap-3">
+            <div className="absolute right-3 top-3 z-30 flex shrink-0 items-center gap-2 md:right-4 md:top-3 md:gap-2 lg:right-5 lg:top-4 lg:gap-3">
 
                 {/* Light / dark theme */}
                 <ThemeToggle />
@@ -116,7 +111,7 @@ export const Header = ({
                 MAIN HEADER CONTENT
             ===================================================== */}
 
-            <div className="relative z-10 flex w-full flex-col justify-center gap-2 px-3 py-3 sm:px-5 md:min-h-29.5 md:flex-row md:items-center md:gap-0 md:pr-50 xl:pr-82.5">
+            <div className="relative z-10 flex w-full flex-col justify-center gap-2 px-3 py-3 sm:px-5 md:min-h-29.5 md:flex-row md:items-center md:gap-0 md:pr-62.5 lg:pr-65 xl:pr-82.5">
 
                 {/* =================================================
                     LEFT ROBOT + MESSAGE
@@ -156,7 +151,7 @@ export const Header = ({
                     CENTER AI CREATION AREA
                 ================================================= */}
 
-                <div className="w-full min-w-0 md:ml-6 md:w-auto md:flex-1">
+                <div className="w-full min-w-0 md:ml-4 md:w-0 md:flex-1 lg:ml-6">
                     <HeaderAnimationSearch
                         story={story}
                         setStory={setStory}

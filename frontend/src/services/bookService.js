@@ -109,6 +109,12 @@ export const acknowledgeBookFailures = async (ids) => {
   await api.post("/book/failures/ack", { ids });
 };
 
+// Heart toggle on My Books. Resolves to the saved value.
+export const toggleBookFavorite = async (bookId, isFavorite) => {
+  const response = await api.patch(`/book/${bookId}/favorite`, { isFavorite });
+  return response.data.isFavorite;
+};
+
 export const getBookById = async (bookId) => {
   const response = await api.get(`/book/${bookId}`);
   return response.data.book;

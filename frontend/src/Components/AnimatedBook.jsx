@@ -149,8 +149,8 @@ export const ContinueCreating = ({ book, onGetIdeas, onCreateNew }) => {
 
             sm:px-7
 
-            md:grid-cols-[330px_minmax(0,1fr)]
-            md:gap-8
+            md:grid-cols-[290px_minmax(0,1fr)]
+            md:gap-5
 
             lg:grid-cols-[360px_minmax(0,1fr)]
             lg:gap-10
@@ -325,7 +325,7 @@ export const ContinueCreating = ({ book, onGetIdeas, onCreateNew }) => {
                 />
               </div>
 
-              <div>
+              <div className="min-w-0 flex-1">
                 <span
                   className="
                     text-[10px] font-bold uppercase
@@ -339,7 +339,7 @@ export const ContinueCreating = ({ book, onGetIdeas, onCreateNew }) => {
                 <h3
                   title={heading}
                   className="
-                    mt-0.5 max-w-95 truncate text-[24px]
+                    mt-0.5 line-clamp-2 wrap-break-word text-[20px] lg:text-[24px]
                     font-bold leading-tight
                     tracking-[-0.3px]
                     text-[#57419d]

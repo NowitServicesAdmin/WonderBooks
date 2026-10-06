@@ -6,7 +6,7 @@ import { notify } from "../services/alertService.js"; // ALERTS
 
 const ABOUT_LIMIT = 200;
 const ALLOWED_LANGUAGES = ["English", "Hindi", "Telugu", "Spanish"];
-const ALLOWED_AGE_GROUPS = ["3 – 5 years", "6 – 8 years", "9 – 12 years"];
+const ALLOWED_AGE_GROUPS = ["3 – 5 years", "6 – 8 years", "9 – 12 years", "13 – 18 years", "18+ years"];
 const ALLOWED_CHARACTERS = [
     "Animals",
     "Princess",

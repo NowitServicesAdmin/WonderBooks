@@ -150,6 +150,11 @@ const BookSchema = new mongoose.Schema(
             default: false
         },
 
+        isFavorite: {
+            type: Boolean,
+            default: false
+        },
+
         user: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
