@@ -88,7 +88,7 @@ export const Router=createBrowserRouter([
                                 element:<BookReader />
                             },
                             {
-                                path:'/cart',
+                                path:'/orders/cart',
                                 element:<PrintCart />
                             },
                             {

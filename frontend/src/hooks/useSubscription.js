@@ -54,6 +54,7 @@ export const useSubscription = (user, { enabled = true } = {}) => {
         if (!enabled) return;
         try {
             const { data } = await getMySubscription();
+            console.log("Fetched subscription:@j", data);
             setSubscription(data.subscription);
             setBookAccess(data.bookAccess || null);
         } catch (err) {
@@ -68,6 +69,9 @@ export const useSubscription = (user, { enabled = true } = {}) => {
     }, [refresh, enabled]);
 
     const hasLivePlan = isLive(subscription);
+    const hasCancelledActivePlan = Boolean(
+    hasLivePlan && subscription?.cancelRequested
+);
 
     const isCurrentPlan = useCallback(
         (planId) => isLive(subscription) && subscription?.planName === planId,
@@ -191,6 +195,7 @@ export const useSubscription = (user, { enabled = true } = {}) => {
         cancelPlan,
         restorePlan,
         refresh,
+        hasCancelledActivePlan
     };
 };
 

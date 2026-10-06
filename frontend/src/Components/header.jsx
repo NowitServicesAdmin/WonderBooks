@@ -63,7 +63,6 @@ export const Header = ({
 
                 {/* Notification */}
                 {/* <button
-                    type="button"
                     aria-label="Notifications"
                     className="relative flex h-10 w-10 items-center justify-center rounded-xl md:h-11.5 md:w-11.5 text-[#5426c7] transition-all duration-200 hover:bg-white/70 hover:scale-105"
                 >
@@ -107,15 +106,9 @@ export const Header = ({
                 </button>
             </div>
 
-            {/* =====================================================
-                MAIN HEADER CONTENT
-            ===================================================== */}
 
             <div className="relative z-10 flex w-full flex-col justify-center gap-2 px-3 py-3 sm:px-5 md:min-h-29.5 md:flex-row md:items-center md:gap-0 md:pr-62.5 lg:pr-65 xl:pr-82.5">
 
-                {/* =================================================
-                    LEFT ROBOT + MESSAGE
-                ================================================= */}
 
                 <div className="flex shrink-0 items-center gap-2 pl-11 md:gap-3 md:pl-0">
 
