@@ -691,6 +691,21 @@ const generateBookInBackground = async ({
 export const createBook = async (req, res) => {
     let bookId;
     try {
+        const inProgress = await book.exists({
+            user: req.userId,
+            status: "generating",
+            createdAt: { $gte: new Date(Date.now() - 45 * 60 * 1000) }
+        });
+
+        if (inProgress) {
+            return res.status(409).json({
+                success: false,
+                code: "BOOK_IN_PROGRESS",
+                message:
+                    "One book is already in progress. Please wait until it finishes before creating another story."
+            });
+        }
+
         // Plan limit (basic 1 / gold 5 / premium 10 books). Checked before
         // anything is created so a blocked request costs nothing.
         const access = await canAccessFeature({ userId: req.userId, component: "book" });
@@ -877,7 +892,7 @@ export const getMyBooks = async (req, res) => {
 
         const books = await book
             .find({ user: req.userId, status: { $ne: "failed" } })
-            .select("title mode status coverImageUrl storyData.theme storyData.characters.name pages.status createdAt updatedAt completedAt")
+            .select("title mode status isFavorite coverImageUrl storyData.theme storyData.characters.name pages.status createdAt updatedAt completedAt")
             .sort({ createdAt: -1 })
             .lean();
 
@@ -895,6 +910,7 @@ export const getMyBooks = async (req, res) => {
                     title: b.title,
                     mode: b.mode,
                     status: b.status,
+                    isFavorite: Boolean(b.isFavorite),
                     coverImageUrl: b.coverImageUrl || null,
                     theme: b.storyData?.theme || null,
                     createdFor: b.storyData?.characters?.[0]?.name || null,
@@ -936,6 +952,45 @@ export const acknowledgeFailures = async (req, res) => {
         return res.status(500).json({
             success: false,
             message: "Failed to update"
+        });
+    }
+};
+
+export const toggleFavorite = async (req, res) => {
+    try {
+        const { bookId } = req.params;
+
+        if (!mongoose.isValidObjectId(bookId)) {
+            return res.status(400).json({ success: false, message: "Invalid book id" });
+        }
+
+        const current = await book
+            .findOne({ _id: bookId, user: req.userId })
+            .select("isFavorite")
+            .lean();
+
+        if (!current) {
+            return res.status(404).json({ success: false, message: "Book not found" });
+        }
+
+        const isFavorite =
+            typeof req.body?.isFavorite === "boolean"
+                ? req.body.isFavorite
+                : !current.isFavorite;
+
+        await book.updateOne(
+            { _id: bookId, user: req.userId },
+            { $set: { isFavorite } },
+            { timestamps: false }
+        );
+
+        return res.json({ success: true, isFavorite });
+    } catch (error) {
+        console.error("Toggle favorite error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update favorite"
         });
     }
 };

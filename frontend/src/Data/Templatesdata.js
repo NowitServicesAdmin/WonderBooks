@@ -81,7 +81,6 @@ export const templates = [
   },
   {
     id: 9,
-    type:'premium',
     title: "Dreamland Adventures",
     category: "Bedtime",
     age: "Ages 3–7",

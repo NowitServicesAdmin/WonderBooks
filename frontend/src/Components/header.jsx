@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Bell } from "lucide-react";
 import { HeaderAnimationSearch } from "./HeaderAnimationSearch";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./Notificationbell";
+import { useNavigate } from "react-router-dom";
 import { CartButton } from "./CartButton";
 
 
@@ -32,9 +32,9 @@ export const Header = ({
     userName = "Arav",
     userRole = "Parent",
     avatarUrl,
-    notificationCount = 3,
 }) => {
     const [story, setStory] = useState("");
+    const navigate = useNavigate();
 
     return (
         <header className="relative isolate w-full shrink-0 overflow-hidden rounded-b-[20px] border border-[#ebe5ff] bg-[#fbf9ff] shadow-[0_4px_24px_rgba(84,38,199,0.06)] md:h-30 md:rounded-b-none md:rounded-r-3xl">
@@ -56,14 +56,13 @@ export const Header = ({
             <div className="pointer-events-none absolute inset-0 z-1 bg-linear-to-r from-white/30 via-white/10 to-white/20" />
 
 
-            <div className="absolute right-3 top-3 z-30 flex items-center gap-2 md:right-5 md:top-4 md:gap-3">
+            <div className="absolute right-3 top-3 z-30 flex shrink-0 items-center gap-2 md:right-4 md:top-3 md:gap-2 lg:right-5 lg:top-4 lg:gap-3">
 
                 {/* Light / dark theme */}
                 <ThemeToggle />
 
                 {/* Notification */}
                 {/* <button
-                    type="button"
                     aria-label="Notifications"
                     className="relative flex h-10 w-10 items-center justify-center rounded-xl md:h-11.5 md:w-11.5 text-[#5426c7] transition-all duration-200 hover:bg-white/70 hover:scale-105"
                 >
@@ -86,7 +85,12 @@ export const Header = ({
                     aria-label="Profile"
                     className="flex items-center justify-center rounded-full transition hover:scale-105"
                 >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full md:h-12.5 md:w-12.5 border-2 border-white bg-[#cfe8c1] shadow-[0_3px_12px_rgba(80,50,30,0.10)]">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full md:h-12.5 md:w-12.5 border-2 border-white bg-[#cfe8c1] shadow-[0_3px_12px_rgba(80,50,30,0.10)]"
+                    onClick={() => {
+                        // Handle profile click, e.g., navigate to profile page or open a dropdown
+                        // console.log("Profile button clicked");
+                        navigate("/settings"); // Example navigation to profile page
+                    }}>
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
@@ -102,15 +106,9 @@ export const Header = ({
                 </button>
             </div>
 
-            {/* =====================================================
-                MAIN HEADER CONTENT
-            ===================================================== */}
 
-            <div className="relative z-10 flex w-full flex-col justify-center gap-2 px-3 py-3 sm:px-5 md:min-h-29.5 md:flex-row md:items-center md:gap-0 md:pr-50 xl:pr-82.5">
+            <div className="relative z-10 flex w-full flex-col justify-center gap-2 px-3 py-3 sm:px-5 md:min-h-29.5 md:flex-row md:items-center md:gap-0 md:pr-62.5 lg:pr-65 xl:pr-82.5">
 
-                {/* =================================================
-                    LEFT ROBOT + MESSAGE
-                ================================================= */}
 
                 <div className="flex shrink-0 items-center gap-2 pl-11 md:gap-3 md:pl-0">
 
@@ -146,7 +144,7 @@ export const Header = ({
                     CENTER AI CREATION AREA
                 ================================================= */}
 
-                <div className="w-full min-w-0 md:ml-6 md:w-auto md:flex-1">
+                <div className="w-full min-w-0 md:ml-4 md:w-0 md:flex-1 lg:ml-6">
                     <HeaderAnimationSearch
                         story={story}
                         setStory={setStory}

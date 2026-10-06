@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Heart, Crown,} from "lucide-react";
+import { Search,} from "lucide-react";
 import { templates, categories, categoryThemes } from './../../Data/Templatesdata';
 import { useEffect } from "react";
 
@@ -34,8 +34,6 @@ export const Templates = () => {
 
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
-  const [favorites, setFavorites] = useState([]);
-  const [heartBursts, setHeartBursts] = useState({});
   const fullPlaceholder = "Search Templates";
   const [placeholder, setPlaceholder] = useState("");
 
@@ -106,18 +104,7 @@ export const Templates = () => {
     navigate(`/templates/${id}`);
   };
 
-  const toggleFavorite = (event, id) => {
-    event.stopPropagation();
-    setFavorites((current) =>
-      current.includes(id)
-        ? current.filter((favoriteId) => favoriteId !== id)
-        : [...current, id],
-    );
-    setHeartBursts((current) => ({ ...current, [id]: true }));
-    setTimeout(() => {
-      setHeartBursts((current) => ({ ...current, [id]: false }));
-    }, 700);
-  };
+
   return (
     <section className="w-full overflow-hidden rounded-2xl bg-transparent">
       <div className="p-3">
@@ -126,7 +113,7 @@ export const Templates = () => {
           <div>
             <div className="flex items-center gap-2.5">
               <h2 className="text-2xl font-extrabold tracking-tight text-(--text-heading) sm:text-3xl">
-                Templates
+                Samples
               </h2>
             </div>
 
@@ -327,49 +314,6 @@ export const Templates = () => {
                       </span>
                     </div>
                   </div>
-                  {/* FAVORITE BUTTON */}
-                  <button
-                    type="button"
-                    onClick={(event) => toggleFavorite(event, template.id)}
-                    className="
-              absolute right-3 top-3 z-40
-              flex h-10 w-10 items-center justify-center
-              rounded-full
-              bg-white/90
-              backdrop-blur-md
-              shadow-[0_4px_14px_rgba(0,0,0,0.16)]
-              transition-all duration-200
-              hover:scale-110
-              active:scale-90
-            "
-                    aria-label="Add to favorites"
-                  >
-                    <Heart
-                      size={19}
-                      strokeWidth={1.8}
-                      className={`
-                transition-all duration-300
-                ${favorites.includes(template.id)
-                          ? "fill-[#F05B78] text-[#F05B78] scale-110"
-                          : "text-[#777387]"
-                        }
-              `}
-                    />
-                  </button>
-
-                  {/* HEART BURST */}
-                  {heartBursts[template.id] && (
-                    <div className="pointer-events-none absolute inset-0 z-50 overflow-visible">
-                      {[...Array(10)].map((_, index) => (
-                        <span
-                          key={index}
-                          className={`heart-burst heart-${index}`}
-                        >
-                          ♥
-                        </span>
-                      ))}
-                    </div>
-                  )}
 
                   {/* ================= BOOK TITLE ================= */}
 
@@ -426,7 +370,7 @@ export const Templates = () => {
 
                   {/* ================= PREMIUM CROWN - BOTTOM RIGHT ================= */}
 
-                  {isPremium && (
+                  {/* {isPremium && (
                     <div
                       className="
                 absolute bottom-4 right-4 z-40
@@ -445,7 +389,6 @@ export const Templates = () => {
               "
                       title="Premium Book"
                     >
-                      {/* Inner highlight */}
                       <div
                         className="
                   absolute inset-0.75
@@ -460,10 +403,10 @@ export const Templates = () => {
                         className="relative z-10 text-[#70460b]"
                       />
                     </div>
-                  )}
+                  )} */}
 
                   {/* PREMIUM SUBTLE GLOW */}
-                  {isPremium && (
+                  {/* {isPremium && (
                     <div
                       className="
                 pointer-events-none
@@ -477,7 +420,7 @@ export const Templates = () => {
                           "radial-gradient(circle, #FFD15C 0%, transparent 70%)",
                       }}
                     />
-                  )}
+                  )} */}
 
                   {/* HOVER GLOW */}
                   <div

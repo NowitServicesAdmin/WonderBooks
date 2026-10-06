@@ -10,7 +10,7 @@ export const CartButton = () => {
     return (
         <button
             type="button"
-            onClick={() => navigate("/cart")}
+            onClick={() => navigate("/orders/cart")}
             aria-label={count > 0 ? `Cart, ${count} ${count === 1 ? "item" : "items"}` : "Cart"}
             title="Your cart"
             className="relative flex h-10 w-10 items-center justify-center rounded-xl text-[#5426c7] transition-all duration-200 hover:scale-105 hover:bg-white/70 md:h-11.5 md:w-11.5"

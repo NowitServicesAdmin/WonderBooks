@@ -189,7 +189,7 @@ export const Auth = () => {
     const navigate = useNavigate();
     const { isAuthenticated, loading, login } = useAuth();
 
-    const [mode, setMode] = useState("signup"); // "signup" | "login"
+    const [mode, setMode] = useState("login"); // "signup" | "login"
     const [step, setStep] = useState("details"); // login only: "details" | "otp"
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");

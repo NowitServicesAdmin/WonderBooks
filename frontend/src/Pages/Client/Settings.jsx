@@ -889,7 +889,8 @@ function HelpAboutPanel() {
                         </p>
                     </div>
                 </div>
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                {/* auto-fit: as many cards per row as fit at 250px+, so they never get squeezed on tablets */}
+                <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(250px,1fr))] gap-4">
                     {QUICK_HELP.map((h) => (
                         <button
                             key={h.id}

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import {
     CalendarDays,
     Heart,
@@ -12,9 +13,13 @@ import {
     X,
     Languages,
     Type,
+    Search,
+
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { CHARACTER_LIMITS, characterKind } from "../Data/characterLimits";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo } from "react";
 
 const CHARACTER_TYPES = [
     { id: "person", label: "Person", icon: UserRound },
@@ -53,7 +58,7 @@ const fieldBase = `
 const inputClass = `${fieldBase} h-11 px-4`;
 const textareaClass = `${fieldBase} min-h-[84px] resize-none px-4 py-3 text-[13px] leading-relaxed`;
 
-const SectionTitle = ({ icon: Icon, children, optional }) => (
+const SectionTitle = ({ icon: Icon, children, optional, count }) => (
     <div className="mb-3 flex items-center gap-2">
         <div className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-(--tint) text-[#6b4bd3]">
             <Icon size={15} />
@@ -64,9 +69,170 @@ const SectionTitle = ({ icon: Icon, children, optional }) => (
                 Optional
             </span>
         )}
+        {count && (
+            <span className="rounded-full bg-[#ece6fb] px-2 py-0.5 text-[10px] font-semibold text-[#6b4bd3]">
+                {count}
+            </span>
+        )}
     </div>
 );
 
+// OptionPager.jsx
+function OptionPager({
+    label,
+    icon,
+    options,
+    selected,
+    onSelect,
+    pageSize = 6,
+    showFontPreview = false,
+    searchable = true,
+}) {
+    const selectedId = selected?.id ?? selected;
+    const [query, setQuery] = useState("");
+    const [page, setPage] = useState(0);
+
+    const filtered = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return options;
+        return options.filter((o) => o.label.toLowerCase().includes(q));
+    }, [options, query]);
+
+    const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const safePage = Math.min(page, pageCount - 1);
+
+    // new search -> back to page 1
+    useEffect(() => {
+        setPage(0);
+    }, [query]);
+
+    // jump to the page containing the selected option
+    useEffect(() => {
+        const idx = filtered.findIndex((o) => o.id === selectedId);
+        if (idx >= 0) setPage(Math.floor(idx / pageSize));
+    }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const start = safePage * pageSize;
+    const visible = filtered.slice(start, start + pageSize);
+    const placeholders = Array.from({ length: pageSize - visible.length });
+
+    const prev = () => setPage((safePage - 1 + pageCount) % pageCount);
+    const next = () => setPage((safePage + 1) % pageCount);
+
+    const navBtn =
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#ddd6f3] bg-white text-[#5b5470] transition-all hover:border-[#cbbde0] hover:bg-(--tint) disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white";
+
+    return (
+        <div className="min-w-0">
+            {/* header: label left, [<] [search] 1/7 [>] right */}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-[13px] font-semibold text-[#4b4658]">
+                    {icon}
+                    {label}
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={prev}
+                        disabled={pageCount === 1}
+                        aria-label={`Previous ${label}`}
+                        className={navBtn}
+                    >
+                        <ChevronLeft size={16} />
+                    </button>
+
+                    {searchable && (
+                        <div className="relative w-32 sm:w-36">
+                            <Search
+                                size={14}
+                                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#7d7596]"
+                            />
+                            <input
+                                type="text"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                placeholder="Search..."
+                                aria-label={`Search ${label}`}
+                                className="h-9 w-full rounded-full border border-[#ddd6f3] bg-white pl-8 pr-7 text-[12px] text-[#4b4655] outline-none transition-all placeholder:text-[#9d96ad] focus:border-[#8062db] focus:ring-4 focus:ring-(--tint)"
+                            />
+                            {query && (
+                                <button
+                                    type="button"
+                                    onClick={() => setQuery("")}
+                                    aria-label="Clear search"
+                                    className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-[#9a93a6] hover:bg-(--tint)"
+                                >
+                                    <X size={12} />
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    <span className="min-w-8 text-center text-[12px] font-medium text-[#6f6884]">
+                        {safePage + 1}/{pageCount}
+                    </span>
+
+                    <button
+                        type="button"
+                        onClick={next}
+                        disabled={pageCount === 1}
+                        aria-label={`Next ${label}`}
+                        className={navBtn}
+                    >
+                        <ChevronRight size={16} />
+                    </button>
+                </div>
+            </div>
+
+            {/* fixed 2 x 3 grid */}
+            <div className="grid h-34 grid-cols-2 grid-rows-3 gap-2">
+                {visible.map((option) => {
+                    const isSelected = selectedId === option.id;
+
+                    return (
+                        <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => onSelect?.(option)}
+                            className={`
+                                flex h-full min-w-0 items-center justify-center gap-2 rounded-xl border px-2
+                                text-[12px] font-semibold transition-all duration-200
+                                ${isSelected
+                                    ? "border-(--accent-hover) bg-(--tint) text-[#5e3ccc] shadow-[0_6px_14px_rgba(105,71,215,0.14)]"
+                                    : "border-(--border) bg-(--surface) text-[#686171] hover:border-[#cbbde0] hover:bg-white"
+                                }
+                            `}
+                        >
+                            {option.emoji && (
+                                <span className="text-[16px] leading-none">{option.emoji}</span>
+                            )}
+                            {showFontPreview && (
+                                <span
+                                    style={{ fontFamily: option.fontFamily }}
+                                    className="text-[15px] font-bold leading-none"
+                                >
+                                    Aa
+                                </span>
+                            )}
+                            <span className="truncate">{option.label}</span>
+                        </button>
+                    );
+                })}
+
+                {filtered.length === 0 ? (
+                    <div className="col-span-2 row-span-3 flex items-center justify-center rounded-xl border border-dashed border-[#e2ddea] text-[12px] text-[#9a93a6]">
+                        No {label.toLowerCase()} matches "{query}"
+                    </div>
+                ) : (
+                    placeholders.map((_, i) => (
+                        <div key={`ph-${i}`} aria-hidden className="rounded-xl border border-dashed border-[#eee9f4]" />
+                    ))
+                )}
+            </div>
+        </div>
+    );
+}
 export const CharacterWorkspace = ({
     characters,
     setCharacters,
@@ -97,8 +263,10 @@ export const CharacterWorkspace = ({
     const [formData, setFormData] = useState(() => formFrom(ofType("person")[0]));
     const fileInputRef = useRef(null);
 
-    const getCharacterAt = (type, index, source = characters) =>
-        ofType(type, source)[index];
+    const getCharacterAt = (type, index, source = characters) => {
+        const list = ofType(type, source);
+        return list.find((item) => item.slot === index) ?? list.find((item) => item.slot === undefined && list.indexOf(item) === index);
+    };
 
     const handleChange = (field, value) => {
         setFormData((previous) => ({ ...previous, [field]: value }));
@@ -115,6 +283,7 @@ export const CharacterWorkspace = ({
             const character = {
                 id: existing ? existing.id : `${Date.now()}${Math.floor(Math.random() * 1000)}`,
                 type,
+                slot: index,
                 ...data,
                 // objects have no gender
                 gender: type === "object" ? "" : data.gender,
@@ -154,11 +323,8 @@ export const CharacterWorkspace = ({
         if (target.photo?.preview) URL.revokeObjectURL(target.photo.preview);
         setCharacters((previous) => previous.filter((item) => item.id !== target.id));
 
-        // later ones move up a slot; land on the one now sitting here, or an empty slot
-        const remaining = ofType(characterType).filter((item) => item.id !== target.id);
-        const nextSlot = Math.min(slot, remaining.length);
-        setFormData(formFrom(remaining[nextSlot]));
-        setSlot(nextSlot);
+        // stay on the same (now empty) slot
+        setFormData(emptyForm());
     };
 
     // photo upload
@@ -194,9 +360,16 @@ export const CharacterWorkspace = ({
     const currentCharacter = getCharacterAt(characterType, slot);
     const savedOfType = ofType(characterType);
     const typeLimit = limitFor(characterType);
-    // a later slot opens once the one before it is saved (or typed, so it auto-saves on the way)
-    const unlockedSlots =
-        savedOfType.length + (slot === savedOfType.length && formData.name.trim() ? 1 : 0);
+    // the slot being edited counts as soon as it has a name or a photo,
+    // even before "Add Character" is pressed
+    const hasDraft = Boolean(formData.name.trim() || formData.photo);
+    // each character takes exactly one reference photo
+    const photoCount = formData.photo ? 1 : 0;
+    const countFor = (type) => {
+        const saved = ofType(type).length;
+        if (type === characterType && !currentCharacter && hasDraft) return saved + 1;
+        return saved;
+    };
     const typeLabel =
         CHARACTER_TYPES.find((type) => type.id === characterType)?.label || "Character";
     const canSave = Boolean(formData.name.trim());
@@ -238,7 +411,7 @@ export const CharacterWorkspace = ({
                                     <Icon size={16} />
                                     {type.label}
                                     <span className={`text-[11px] font-medium ${isSelected ? "text-white/80" : "text-[#9a93a6]"}`}>
-                                        {ofType(type.id).length}/{limitFor(type.id)}
+                                        {countFor(type.id)}/{limitFor(type.id)}
                                     </span>
                                 </button>
                             );
@@ -250,30 +423,31 @@ export const CharacterWorkspace = ({
                 {typeLimit > 1 && (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                         {Array.from({ length: typeLimit }, (_, index) => {
-                            const saved = savedOfType[index];
+                            const saved = getCharacterAt(characterType, index);
                             const isActive = slot === index;
-                            const locked = index >= unlockedSlots && !saved;
+                            const hasPhoto = isActive ? Boolean(formData.photo) : Boolean(saved?.photo);
 
                             return (
                                 <button
                                     key={index}
                                     type="button"
-                                    disabled={locked}
                                     onClick={() => goTo(characterType, index)}
                                     className={`
                                         flex h-9 max-w-45 items-center gap-2 rounded-[11px] border px-3
-                                        text-[12px] font-semibold transition-all duration-200
+                                        text-[12px] font-semibold transition-all duration-200 cursor-pointer
                                         ${isActive
                                             ? "border-[#8062db] bg-(--tint) text-[#5e3ccc]"
                                             : "border-[#e2ddea] bg-white text-[#676174] hover:border-[#cbbdea]"
                                         }
-                                        ${locked ? "cursor-not-allowed opacity-45 hover:border-[#e2ddea]" : ""}
                                     `}
                                 >
                                     <span className="shrink-0">Person {index + 1}</span>
-                                    {saved && (
-                                        <span className="truncate font-medium text-[#8e8798]">{saved.name}</span>
+                                    {(isActive ? formData.name.trim() : saved?.name) && (
+                                        <span className="truncate font-medium text-[#8e8798]">
+                                            {isActive ? formData.name : saved.name}
+                                        </span>
                                     )}
+                                    {hasPhoto && <ImagePlus size={13} className="shrink-0 text-[#8062db]" />}
                                 </button>
                             );
                         })}
@@ -320,44 +494,44 @@ export const CharacterWorkspace = ({
                         </div>
 
                         {showGender && (
-                        <div className="mt-4">
-                            <label className={labelClass}>
-                                <Users size={14} className="text-[#8870c9]" />
-                                Gender
-                            </label>
+                            <div className="mt-4">
+                                <label className={labelClass}>
+                                    <Users size={14} className="text-[#8870c9]" />
+                                    Gender
+                                </label>
 
-                            <div className="grid h-11 grid-cols-3 gap-2">
-                                {GENDER_OPTIONS.map((option) => {
-                                    const isSelected = formData.gender === option.id;
+                                <div className="grid h-11 grid-cols-3 gap-2">
+                                    {GENDER_OPTIONS.map((option) => {
+                                        const isSelected = formData.gender === option.id;
 
-                                    return (
-                                        <button
-                                            key={option.id}
-                                            type="button"
-                                            onClick={() => handleChange("gender", option.id)}
-                                            className={`
+                                        return (
+                                            <button
+                                                key={option.id}
+                                                type="button"
+                                                onClick={() => handleChange("gender", option.id)}
+                                                className={`
                                                 flex min-w-0 items-center justify-center gap-2 rounded-[13px] border px-2
                                                 text-[12px] font-semibold transition-all duration-200
                                                 ${isSelected
-                                                    ? option.selectedClass
-                                                    : "border-(--border) bg-(--surface) text-[#686171] hover:border-[#cfc5de] hover:bg-white"
-                                                }
+                                                        ? option.selectedClass
+                                                        : "border-(--border) bg-(--surface) text-[#686171] hover:border-[#cfc5de] hover:bg-white"
+                                                    }
                                             `}
-                                        >
-                                            <span
-                                                className={`hidden h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 bg-white sm:flex ${option.dotClass}`}
                                             >
-                                                {isSelected && (
-                                                    <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                                                )}
-                                            </span>
-                                            <span className="text-[16px] leading-none">{option.emoji}</span>
-                                            <span className="truncate">{option.label}</span>
-                                        </button>
-                                    );
-                                })}
+                                                <span
+                                                    className={`hidden h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 bg-white sm:flex ${option.dotClass}`}
+                                                >
+                                                    {isSelected && (
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                                                    )}
+                                                </span>
+                                                <span className="text-[16px] leading-none">{option.emoji}</span>
+                                                <span className="truncate">{option.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                        </div>
                         )}
 
                         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -393,7 +567,11 @@ export const CharacterWorkspace = ({
 
                     {/* PHOTO */}
                     <div className="min-w-0 lg:border-l lg:border-dashed lg:border-[#e7e1ed] lg:pl-6">
-                        <SectionTitle icon={ImagePlus} optional>
+                        <SectionTitle
+                            icon={ImagePlus}
+                            optional
+                            count={`${photoCount}/1`}
+                        >
                             Reference photo
                         </SectionTitle>
 
@@ -422,7 +600,7 @@ export const CharacterWorkspace = ({
                                 <p className="text-[12px] font-semibold text-[#615b6d]">
                                     Add character photo
                                 </p>
-                                <p className="text-[10px] text-[#aaa4b0]">PNG, JPG or WEBP</p>
+                                <p className="text-[10px] text-[#aaa4b0]">PNG, JPG or WEBP · 1 photo per character</p>
                             </button>
                         ) : (
                             <div className="flex items-center gap-3 rounded-[15px] border border-[#ded5eb] bg-(--tint) p-2.5">
@@ -483,8 +661,14 @@ export const CharacterWorkspace = ({
                     </div>
 
                     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.4fr_1fr]">
+                        <OptionPager
+                            label="Language"
+                            options={languageOptions}
+                            selected={selections.language}
+                            onSelect={(option) => onSelect?.("language", option)}
+                        />
                         {/* LANGUAGE */}
-                        <div>
+                        {/* <div>
                             <label className={labelClass}>
                                 <Languages size={14} className="text-[#8870c9]" />
                                 Language
@@ -514,16 +698,23 @@ export const CharacterWorkspace = ({
                                     );
                                 })}
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* FONT */}
                         <div>
-                            <label className={labelClass}>
+                            {/* <label className={labelClass}>
                                 <Type size={14} className="text-[#8870c9]" />
                                 Font style
-                            </label>
+                            </label> */}
+                            <OptionPager
+                                label="Font"
+                                options={fontOptions}
+                                selected={selections.font}
+                                onSelect={(option) => onSelect?.("font", option)}
+                                showFontPreview={true}
+                            />
 
-                            <div className="grid grid-cols-2 gap-2">
+                            {/* <div className="grid grid-cols-2 gap-2">
                                 {fontOptions.map((option) => {
                                     const isSelected = selections?.font?.id === option.id;
 
@@ -551,7 +742,7 @@ export const CharacterWorkspace = ({
                                         </button>
                                     );
                                 })}
-                            </div>
+                            </div> */}
                         </div>
                     </div>
                 </div>
@@ -562,36 +753,38 @@ export const CharacterWorkspace = ({
                 <p className="text-[11px] text-[#8e8798]">
                     {currentCharacter
                         ? `${typeLabel} saved. You can update the details.`
-                        : "Add up to 3 people, 1 animal and 1 object."}
+                        : formData.photo && !formData.name.trim()
+                            ? "Photo added — enter a name to save this character."
+                            : "Add up to 3 people, 1 animal and 1 object."}
                 </p>
 
                 <div className="flex shrink-0 items-center gap-2">
-                {currentCharacter && (
+                    {currentCharacter && (
+                        <button
+                            type="button"
+                            onClick={handleRemoveCharacter}
+                            className="flex h-11 items-center rounded-[13px] border border-[#e2ddea] bg-white px-4 text-[13px] font-semibold text-[#8a5160] transition-all hover:border-[#e7b9c3] hover:bg-[#fff4f6]"
+                        >
+                            Remove
+                        </button>
+                    )}
+
                     <button
                         type="button"
-                        onClick={handleRemoveCharacter}
-                        className="flex h-11 items-center rounded-[13px] border border-[#e2ddea] bg-white px-4 text-[13px] font-semibold text-[#8a5160] transition-all hover:border-[#e7b9c3] hover:bg-[#fff4f6]"
-                    >
-                        Remove
-                    </button>
-                )}
-
-                <button
-                    type="button"
-                    onClick={handleSaveCharacter}
-                    disabled={!canSave}
-                    className={`
+                        onClick={handleSaveCharacter}
+                        disabled={!canSave}
+                        className={`
                         flex h-11 shrink-0 items-center gap-2 rounded-[13px] px-5
                         text-[13px] font-bold transition-all
                         ${canSave
-                            ? "bg-(--accent-hover) text-white shadow-[0_8px_18px_rgba(105,71,215,0.22)] hover:bg-[#5e3ccc]"
-                            : "cursor-not-allowed bg-[#eeebf4] text-[#aaa4b2]"
-                        }
+                                ? "bg-(--accent-hover) text-white shadow-[0_8px_18px_rgba(105,71,215,0.22)] hover:bg-[#5e3ccc]"
+                                : "cursor-not-allowed bg-[#eeebf4] text-[#aaa4b2]"
+                            }
                     `}
-                >
-                    <ImagePlus size={17} />
-                    {currentCharacter ? "Update Character" : "Add Character"}
-                </button>
+                    >
+                        <ImagePlus size={17} />
+                        {currentCharacter ? "Update Character" : "Add Character"}
+                    </button>
                 </div>
             </div>
         </section>

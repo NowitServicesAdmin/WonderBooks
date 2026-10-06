@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Clock, Search, Sparkles } from "lucide-react";
-import { getMyBookList, acknowledgeBookFailures } from "../../services/bookService";
+import { BookOpen, Clock, Heart, Search, Sparkles } from "lucide-react";
+import { getMyBookList, acknowledgeBookFailures, toggleBookFavorite } from "../../services/bookService";
 import WonderAlertModal from "../../Components/WonderAlertModal";
 
 const AnimatedSearch = ({ search, setSearch, placeholder }) => (
@@ -22,7 +22,7 @@ const POLL_INTERVAL_MS = 4000;
 
 // Same footprint as a real book card (cover + page block + meta line) so the
 // grid doesn't jump when the finished book replaces it.
-const BookSkeleton = () => (
+const BookSkeleton = ({ progress = 5 }) => (
   <div className="min-w-0" aria-busy="true" aria-label="Creating your story">
     <div className="relative flex justify-center py-2">
       <div className="relative w-[88%] sm:w-[90%]">
@@ -35,19 +35,34 @@ const BookSkeleton = () => (
           <div className="absolute inset-0 animate-pulse bg-linear-to-br from-[#ece8f8] via-[#e2dcf3] to-[#d6cfee]" />
           <div className="absolute inset-y-0 left-0 z-10 w-3.5 bg-[#c6bde6]" />
 
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 px-6 text-center">
-            <Sparkles size={26} className="animate-pulse text-[#7f6ad0]" />
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5 px-5 text-center">
+            <Sparkles size={24} className="animate-pulse text-[#7f6ad0]" />
             <p className="text-[13px] font-bold text-[#5f4da6]">
               Creating your story…
             </p>
-            <p className="text-[11px] font-medium text-[#8f84bd]">
-              This can take a few minutes
+            <p className="text-[28px] font-extrabold leading-none text-[#4d3a9e]">
+              {progress}%
+            </p>
+            <p className="text-[11px] font-medium leading-4 text-[#8f84bd]">
+              This may take a few minutes.
+              <br />
+              Please keep this page open.
             </p>
           </div>
 
-          <div className="absolute inset-x-8 bottom-9 z-10 space-y-2.5">
-            <div className="mx-auto h-3 w-4/5 animate-pulse rounded-full bg-white/60" />
-            <div className="mx-auto h-2 w-2/5 animate-pulse rounded-full bg-white/45" />
+          <div className="absolute inset-x-6 bottom-7 z-20">
+            <div
+              className="h-2 w-full overflow-hidden rounded-full bg-white/60"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
+            >
+              <div
+                className="h-full rounded-full bg-linear-to-r from-[#8a6ee0] to-[#5c3db4] transition-[width] duration-700 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
         </div>
 
@@ -117,9 +132,18 @@ export const Books = () => {
       id: b._id,
       title: b.title,
       cover: b.coverImageUrl,
+      isFavorite: Boolean(b.isFavorite),
       createdFor: b.createdFor ?? "",
       genre: b.theme ?? undefined,
       pages: b.pageCount ?? 0,
+      // Same maths as the dashboard: share of pages finished (kept under 100
+      // until the server marks the book completed).
+      progress:
+        b.status === "completed"
+          ? 100
+          : (b.pageCount ?? 0) > 0
+            ? Math.min(99, Math.max(5, Math.round(((b.completedPages ?? 0) / b.pageCount) * 100)))
+            : 5,
       updatedAt: formatUpdated(b.updatedAt ?? b.createdAt),
       status:
         b.status === "completed"
@@ -213,6 +237,32 @@ export const Books = () => {
 
   const handleBookClick = (id) => navigate(`/books/${id}`);
 
+  // Heart toggle: update instantly, save to the backend, undo if the save fails.
+  const [heartBursts, setHeartBursts] = useState({});
+
+  const handleToggleFavorite = async (event, id, next) => {
+    event.stopPropagation();
+
+    const setFavorite = (value) =>
+      setBooks((current) =>
+        current.map((b) => (b.id === id ? { ...b, isFavorite: value } : b))
+      );
+
+    setFavorite(next);
+
+    if (next) {
+      setHeartBursts((current) => ({ ...current, [id]: true }));
+      setTimeout(() => setHeartBursts((current) => ({ ...current, [id]: false })), 1000);
+    }
+
+    try {
+      await toggleBookFavorite(id, next);
+    } catch (err) {
+      console.error("Favorite toggle failed:", err);
+      setFavorite(!next);
+    }
+  };
+
   const currentFailure = failureQueue[0] ?? null;
 
   // Close the alert: mark it as seen on the server, then show the next one.
@@ -269,7 +319,7 @@ export const Books = () => {
   {filteredBooks.map((book) => {
     // Still being created -> loading skeleton (not clickable) until completed.
     if (book.status === "Generating") {
-      return <BookSkeleton key={book.id} />;
+      return <BookSkeleton key={book.id} progress={book.progress} />;
     }
 
     const primary = book.themeColor ?? "#7563C9";
@@ -299,7 +349,36 @@ export const Books = () => {
       "Adventure";
 
     return (
-      <div key={book.id} className="group min-w-0">
+      <div key={book.id} className="group relative min-w-0">
+        {/* FAVORITE HEART */}
+        <button
+          type="button"
+          onClick={(event) => handleToggleFavorite(event, book.id, !book.isFavorite)}
+          aria-label={book.isFavorite ? "Remove from favorites" : "Add to favorites"}
+          aria-pressed={book.isFavorite}
+          className="absolute right-[9%] top-5 z-30 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-[0_4px_14px_rgba(0,0,0,0.16)] backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-90"
+        >
+          <Heart
+            size={18}
+            strokeWidth={1.8}
+            className={`transition-all duration-300 ${
+              book.isFavorite
+                ? "scale-110 fill-[#F05B78] text-[#F05B78]"
+                : "text-[#777387]"
+            }`}
+          />
+        </button>
+
+        {heartBursts[book.id] && (
+          <div className="pointer-events-none absolute inset-0 z-40 overflow-visible">
+            {[...Array(10)].map((_, index) => (
+              <span key={index} className={`heart-burst heart-${index}`}>
+                ♥
+              </span>
+            ))}
+          </div>
+        )}
+
         <button
           type="button"
           onClick={() => handleBookClick(book.id)}

@@ -9,7 +9,6 @@ import {
   Truck,
   BookOpen,
   Pencil,
-  Download,
   Trash2,
   ShoppingBag,
   Loader2,
@@ -172,8 +171,8 @@ const BookCover = ({
         <div className="absolute inset-x-2 top-3 text-center">
           <p
             className={`font-semibold leading-tight text-[#f7b94e] drop-shadow ${size === "large"
-                ? "text-[16px]"
-                : "text-[10px]"
+              ? "text-[16px]"
+              : "text-[10px]"
               }`}
           >
             {book?.title}
@@ -205,7 +204,7 @@ export const OrderListItem = ({
         }
       `}
     >
-      <div className="flex min-h-36.25 items-center gap-5 px-6 py-4">
+      <div className="flex min-h-30.25 items-center gap-5 px-6 py-4">
         {/* Book */}
         <BookCover book={order.book} size="small" />
 
@@ -224,7 +223,6 @@ export const OrderListItem = ({
             <span className="mx-2">•</span>
             {order.time}
           </p>
-          {/* Progress */}
         </div>
 
         {/* Right */}
@@ -357,7 +355,9 @@ export const OrderDetails = ({
   const currentStep = order.statusStep;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[18px] border border-[#ebe9f2] bg-white shadow-[0_6px_25px_rgba(65,50,120,0.05)]">
+    // FIX: min-h-full (was h-full) so the card can grow taller than its
+    // container and the parent <section> scrolls instead of squeezing it.
+    <div className="flex min-h-full flex-col overflow-hidden rounded-[18px] border border-[#ebe9f2] bg-white shadow-[0_6px_25px_rgba(65,50,120,0.05)]">
 
       {/* -------------------------------------------------------------- */}
       {/* Top */}
@@ -629,7 +629,7 @@ export const OrderDetails = ({
 
             <DetailRow
               label="Size"
-              value='8 × 10 inches'
+              value="8 × 10 inches"
             />
 
             <DetailRow
@@ -675,11 +675,6 @@ export const OrderDetails = ({
       {/* -------------------------------------------------------------- */}
 
       <div className="mt-auto flex items-center justify-between border-t border-(--tint) px-8 py-5">
-        {/* <button className="flex items-center gap-2 rounded-[9px] border border-[#bcb0eb] px-4 py-2.5 text-[12px] font-semibold text-[#5743b2] transition hover:bg-[#f7f5ff]">
-          <Download size={16} />
-          Download Invoice
-        </button> */}
-
         {order.rawStatus === "confirmed" && (
           <button
             onClick={onCancel}
@@ -823,23 +818,21 @@ export const Orders = () => {
 
   const hasSelection = Boolean(selectedOrder);
 
+  // The list uses flex centering for loading / error / empty states,
+  // and a grid for the actual order cards.
+  const listIsCentered = loading || Boolean(error) || filteredOrders.length === 0;
+
   return (
-    <div className="min-h-screen bg-[#faf9fd] p-4 lg:p-5">
-
-      <main className="min-h-[calc(100vh-40px)] overflow-hidden rounded-[28px] border border-[#e6e3ee] bg-[#fcfbfe] shadow-[0_10px_40px_rgba(64,48,110,0.06)]">
-
-        {/* ============================================================ */}
+    <div className="h-full min-h-0 bg-[#faf9fd] p-4 lg:p-5">
+      <main className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#e6e3ee] bg-[#fcfbfe] shadow-[0_10px_40px_rgba(64,48,110,0.06)]">
         {/* HEADER */}
-        {/* ============================================================ */}
-
-        <header className="flex flex-col gap-5 border-[#ebe9f0] px-7 py-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14.5 w-14.5 items-center justify-center rounded-[18px] bg-linear-to-br from-[#f1effb] to-[#e7e3f8] text-[#513cb0]">
+        <header className="shrink-0 flex flex-col gap-5  px-7 py-2 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-4  border-[#e6e3ee]">
+            {/* <div className="flex h-14.5 w-14.5 items-center justify-center rounded-[18px] bg-linear-to-br from-[#f1effb] to-[#e7e3f8] text-[#513cb0]">
               <ShoppingBag size={26} strokeWidth={1.8} />
-            </div>
-
+            </div> */}
             <div>
-              <h1 className="text-[26px] font-bold tracking-[-0.5px] text-[#25294c]">
+              <h1 className="text-[20px] font-bold tracking-[-0.5px] text-[#25294c]">
                 Orders
               </h1>
 
@@ -848,16 +841,11 @@ export const Orders = () => {
               </p>
             </div>
           </div>
-
-
+          <CartButton />  
         </header>
 
-        {/* ============================================================ */}
-        {/* CONTENT */}
-        {/* ============================================================ */}
-
         <div
-          className={`grid min-h-212.5 grid-cols-1 ${hasSelection ? "lg:grid-cols-[50%_50%]" : ""
+          className={`grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] ${hasSelection ? "lg:grid-cols-[50%_50%]" : ""
             }`}
         >
 
@@ -866,14 +854,12 @@ export const Orders = () => {
           {/* ======================================================== */}
 
           <section
-            className={
-              hasSelection ? "border-r border-(--tint)" : ""
-            }
+            className={`flex min-h-0 flex-col overflow-hidden ${hasSelection ? "border-r border-(--tint)" : ""
+              }`}
           >
+            {/* Tabs */}
 
-            {/* Tabs + search */}
-
-            <div className="flex flex-col gap-4 border-b border-[#eceaf1] px-7 pt-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="shrink-0 flex flex-col gap-4 border-b border-[#eceaf1] px-7 pt-4 lg:flex-row lg:items-center lg:justify-between">
 
               <div className="flex gap-7 overflow-x-auto">
                 {tabs.map((tab) => (
@@ -893,8 +879,6 @@ export const Orders = () => {
                   >
                     {tab.label}
 
-
-
                     {activeTab === tab.label && (
                       <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-[#654bc7]" />
                     )}
@@ -905,7 +889,7 @@ export const Orders = () => {
 
             {/* Search */}
 
-            <div className="flex gap-4 px-7 py-4">
+            <div className="shrink-0 flex gap-4 px-7 py-4">
               <div className="relative flex-1">
                 <Search
                   size={18}
@@ -921,27 +905,42 @@ export const Orders = () => {
                   className="h-10.75 w-full rounded-full border border-[#e1deea] bg-white pl-11 pr-4 text-[12px] text-[#3c4160] outline-none transition placeholder:text-[#9a9aad] focus:border-[#917ee0] focus:ring-2 focus:ring-[#eeeaff]"
                 />
               </div>
-
-
             </div>
 
-            {/* Orders */}
+            {/* Orders (the only part of the left column that scrolls) */}
+            {/* FIX: the old class string was `pb-5  border${...}` — no space  */}
+            {/* before the template, so it produced `borderflex` / `bordergrid` */}
+            {/* and neither `grid` nor `gap-3` ever applied.                    */}
 
             <div
-              className={`grid gap-3 px-7 pb-5 ${hasSelection
-                  ? "grid-cols-1"
-                  : "grid-cols-1 lg:grid-cols-2"
+              className={`min-h-0 flex-1 overflow-y-auto px-7 pb-5 ${listIsCentered
+                ? "flex items-center justify-center"
+                : hasSelection
+                  ? "grid grid-cols-1 content-start gap-3"
+                  : "grid grid-cols-1 content-start gap-3 lg:grid-cols-2"
                 }`}
             >
               {loading ? (
-                <div className="col-span-full flex min-h-75 flex-col items-center justify-center text-center">
-                  <Loader2 size={32} className="animate-spin text-[#8066d7]" />
-                  <p className="mt-4 text-[12px] text-[#7b8098]">Loading your orders...</p>
+                <div className="flex h-full w-full flex-col items-center justify-center text-center">
+                  <Loader2
+                    size={32}
+                    className="animate-spin text-[#8066d7]"
+                  />
+
+                  <p className="mt-4 text-[12px] text-[#7b8098]">
+                    Loading your orders...
+                  </p>
                 </div>
               ) : error ? (
-                <div className="col-span-full flex min-h-75 flex-col items-center justify-center text-center">
-                  <Package size={40} className="text-[#b4afc8]" />
-                  <h3 className="mt-4 text-[16px] font-bold text-[#3d4262]">{error}</h3>
+                <div className="flex h-full w-full flex-col items-center justify-center text-center">
+                  <Package
+                    size={40}
+                    className="text-[#b4afc8]"
+                  />
+
+                  <h3 className="mt-4 text-[16px] font-bold text-[#3d4262]">
+                    {error}
+                  </h3>
                 </div>
               ) : filteredOrders.length > 0 ? (
                 filteredOrders.map((order) => (
@@ -949,16 +948,13 @@ export const Orders = () => {
                     key={order.orderId}
                     order={order}
                     selected={
-                      selectedOrder?.orderId ===
-                      order.orderId
+                      selectedOrder?.orderId === order.orderId
                     }
-                    onClick={() =>
-                      setSelectedOrder(order)
-                    }
+                    onClick={() => setSelectedOrder(order)}
                   />
                 ))
               ) : (
-                <div className="col-span-full flex min-h-75 flex-col items-center justify-center text-center">
+                <div className="flex flex-col items-center justify-center text-center p-5">
                   <Package
                     size={40}
                     className="text-[#b4afc8]"
@@ -978,46 +974,52 @@ export const Orders = () => {
             </div>
 
             {/* Pagination */}
+            {/* FIX: removed the stray `div` attribute and added shrink-0 so   */}
+            {/* the bar is always pinned to the bottom of the left column.     */}
 
-            <div className="flex items-center justify-between border-t border-[#eeecf2] px-7 py-5">
-              <p className="text-[12px] text-[#666d89]">
-                Showing 1-{filteredOrders.length} of{" "}
-                {orders.length} orders
-              </p>
+            {orders.length > 0 && (
+              <div className="flex shrink-0 items-center justify-between border-t border-[#eeecf2] px-7 py-2">
+                <p className="text-[12px] text-[#666d89]">
+                  Showing 1-{filteredOrders.length} of{" "}
+                  {orders.length} orders
+                </p>
 
-              <div className="flex items-center gap-2">
-                <button className="flex h-9.5 w-9.5 items-center justify-center rounded-full text-[#817b9b] hover:bg-[#f1eef8]">
-                  <ChevronRight
-                    size={17}
-                    className="rotate-180"
-                  />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button className="flex h-9.5 w-9.5 items-center justify-center rounded-full text-[#817b9b] hover:bg-[#f1eef8]">
+                    <ChevronRight
+                      size={17}
+                      className="rotate-180"
+                    />
+                  </button>
 
-                <button className="flex h-9.5 w-9.5 items-center justify-center rounded-xl bg-[#f0ecfa] text-[12px] font-semibold text-[#5943b2]">
-                  1
-                </button>
+                  <button className="flex h-9.5 w-9.5 items-center justify-center rounded-xl bg-[#f0ecfa] text-[12px] font-semibold text-[#5943b2]">
+                    1
+                  </button>
 
-                <button className="flex h-9.5 w-7.5 items-center justify-center text-[12px] font-semibold text-[#4d4675]">
-                  2
-                </button>
+                  <button className="flex h-9.5 w-7.5 items-center justify-center text-[12px] font-semibold text-[#4d4675]">
+                    2
+                  </button>
 
-                <button className="flex h-9.5 w-7.5 items-center justify-center text-[12px] font-semibold text-[#4d4675]">
-                  3
-                </button>
+                  <button className="flex h-9.5 w-7.5 items-center justify-center text-[12px] font-semibold text-[#4d4675]">
+                    3
+                  </button>
 
-                <button className="flex h-9.5 w-9.5 items-center justify-center rounded-full text-[#5843ae] hover:bg-[#f1eef8]">
-                  <ChevronRight size={17} />
-                </button>
+                  <button className="flex h-9.5 w-9.5 items-center justify-center rounded-full text-[#5843ae] hover:bg-[#f1eef8]">
+                    <ChevronRight size={17} />
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           {/* ======================================================== */}
           {/* RIGHT - ORDER DETAILS */}
           {/* ======================================================== */}
 
+          {/* FIX: min-h-0 + overflow-y-auto so the details panel scrolls on its own. */}
+
           {hasSelection && (
-            <section className="min-h-full bg-[#fcfbfe] p-3">
+            <section className="min-h-0 overflow-y-auto bg-[#fcfbfe] p-3">
               <OrderDetails
                 order={selectedOrder}
                 onClose={() =>
@@ -1032,4 +1034,4 @@ export const Orders = () => {
       </main>
     </div>
   );
-}
+};

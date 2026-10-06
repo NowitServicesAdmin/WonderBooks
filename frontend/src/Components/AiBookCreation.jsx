@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState ,useContext} from "react";
 import {
     Sparkles,
     Mic,
@@ -13,6 +13,7 @@ import {
     ChevronRight,
     Palette,
     Check,
+    Pencil,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { chatBook, createBook } from "../services/bookService";
@@ -20,6 +21,7 @@ import { PlanLimitAlert, getPlanLimitError } from "./PlanLimitAlert";
 import { canAddKind, CHARACTER_LIMITS } from "../Data/characterLimits";
 // NOTE: requires `export` added to `const STORY_OPTIONS = {...}` in ManualMode.jsx
 import { STORY_OPTIONS } from "./ManualMode";
+import { useAuth } from "../context/AuthContext";
 
 const AI_ROBOT_IMAGE =
     "https://res.cloudinary.com/djdct0pxu/image/upload/v1788501579/Screenshot_2026-09-04_112746-removebg-preview_etj2un.png";
@@ -310,6 +312,7 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
     const [limitInfo, setLimitInfo] = useState(null);
 
     const [storyIdea, setStoryIdea] = useState("");
+    const [otherMode, setOtherMode] = useState(false); // "Other" chip clicked: user is typing their own answer
     const [messages, setMessages] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -317,7 +320,6 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
     const [ready, setReady] = useState(false);
     const [pickingPhoto, setPickingPhoto] = useState(false);
     const [photoCount, setPhotoCount] = useState(0);
-
     // Reactive mirror of store.current.state.storySettings, so the
     // Customize panel re-renders when the user swaps a card.
     const [storySettings, setStorySettings] = useState({});
@@ -352,9 +354,15 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
     useEffect(() => {
         const ta = textareaRef.current;
         if (!ta) return;
+        // Empty box: drop the inline height so the CSS min-height keeps it one centred line
+        // (a stale height from an earlier, longer placeholder is what pushed the text to the top).
+        if (!storyIdea) {
+            ta.style.height = "";
+            return;
+        }
         ta.style.height = "auto";
         ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
-    }, [storyIdea]);
+    }, [storyIdea, ready, messages.length, otherMode, companionPrompt]);
 
     // An idea typed in the header is sent as the first chat message.
     useEffect(() => {
@@ -374,6 +382,7 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
         const s = store.current;
         setMessages((prev) => [...prev, { role: "user", content: message }]);
         setStoryIdea("");
+        setOtherMode(false);
         setChips([]);
         setReady(false);
         setPickingPhoto(false);
@@ -882,6 +891,20 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                                     </button>
                                 ))}
 
+                                {chips.length > 0 && (
+                                    <button
+                                        onClick={() => {
+                                            setOtherMode(true);
+                                            textareaRef.current?.focus();
+                                            textareaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                                        }}
+                                        className={`flex items-center gap-1.5 rounded-full border border-dashed px-4 py-2 text-[14px] font-medium transition-all hover:-translate-y-0.5 ${otherMode ? "border-[#7654d8] bg-[#f3efff] text-[#4d36a5]" : "border-[#B9A7E8] bg-white text-[#5A39C7] hover:bg-[#faf8ff]"}`}
+                                    >
+                                        <Pencil size={14} />
+                                        Other
+                                    </button>
+                                )}
+
                                 {ready && !pickingPhoto && (
                                     <>
                                         <button
@@ -935,20 +958,20 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
 
                 {/* ================= PROMPT INPUT ================= */}
                 <div className="mx-auto mt-4 w-full max-w-275 shrink-0">
-                    <div className="flex items-center rounded-[22px] border border-[#DED9EE] bg-white px-5 py-2 shadow-[0_12px_35px_rgba(120,100,180,0.08)] transition-all duration-300 focus-within:border-[#B9A7E8] focus-within:shadow-[0_16px_40px_rgba(74,50,145,0.12)]">
+                    <div className="flex items-center gap-1 rounded-[18px] border border-[#DED9EE] bg-white px-2.5 py-2 shadow-[0_12px_35px_rgba(120,100,180,0.08)] sm:gap-0 sm:rounded-[22px] sm:px-5 sm:py-2 transition-all duration-300 focus-within:border-[#B9A7E8] focus-within:shadow-[0_16px_40px_rgba(74,50,145,0.12)]">
                         {/* Left AI Icon */}
-                        <div className="mr-4 flex h-11.5 w-11.5 shrink-0 items-center justify-center rounded-[14px] bg-linear-to-br from-[#F0EAFF] to-[#E3D7FF] text-(--accent)">
+                        <div className="mr-4 hidden h-11.5 w-11.5 shrink-0 items-center justify-center rounded-[14px] sm:flex bg-linear-to-br from-[#F0EAFF] to-[#E3D7FF] text-(--accent)">
                             <Sparkles size={23} />
                         </div>
 
                         {/* + menu: Add character / Add pet / Add object / Add photo */}
-                        <div className="relative mr-2 shrink-0">
+                        <div className="relative shrink-0 sm:mr-2">
                             <button
                                 type="button"
                                 onClick={() => setShowAddMenu((v) => !v)}
                                 disabled={isLoading || busy || !!companionPrompt}
                                 aria-label="Add to your story"
-                                className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-40 ${showAddMenu ? "bg-[#EFE8FF] text-[#4323B2]" : "text-[#5B3BC4] hover:bg-[#F3EFFF]"
+                                className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 sm:h-11 sm:w-11 disabled:cursor-not-allowed disabled:opacity-40 ${showAddMenu ? "bg-[#EFE8FF] text-[#4323B2]" : "text-[#5B3BC4] hover:bg-[#F3EFFF]"
                                     }`}
                             >
                                 <Plus size={22} className={`transition-transform duration-200 ${showAddMenu ? "rotate-45" : ""}`} />
@@ -1004,7 +1027,9 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                             placeholder={
                                 companionPrompt
                                     ? "Finish adding it above first…"
-                                    : ready
+                                    : otherMode && chips.length > 0
+                                        ? "Type your own answer here…"
+                                        : ready
                                         ? "Want to change something? Type it here…"
                                         : hasChat
                                             ? "Type your reply…"
@@ -1012,30 +1037,30 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                             }
                             rows={1}
                             disabled={isLoading || busy || !!companionPrompt}
-                            className="min-h-12.5 max-h-30 flex-1 resize-none overflow-y-auto bg-transparent py-3 text-[17px] text-[#38345F] outline-none placeholder:text-[#9693A8] disabled:opacity-60"
+                            className="min-h-11 min-w-0 max-h-30 flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2.5 text-[15px] sm:min-h-12.5 sm:px-0 sm:py-3 sm:text-[17px] text-[#38345F] outline-none placeholder:text-[#9693A8] disabled:opacity-60"
                         />
 
-                        <div className="mx-3 h-9 w-px bg-[#E7E3EF]" />
+                        <div className="mx-3 hidden h-9 w-px bg-[#E7E3EF] sm:block" />
 
                         <button
                             type="button"
-                            className="mr-3 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#5B3BC4] transition-all duration-200 hover:bg-[#F3EFFF] hover:text-[#4323B2]"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[#5B3BC4] sm:mr-3 sm:h-11 sm:w-11 transition-all duration-200 hover:bg-[#F3EFFF] hover:text-[#4323B2]"
                             aria-label="Voice input"
                         >
-                            <Mic size={24} />
+                            <Mic size={22} />
                         </button>
 
                         <button
                             onClick={() => handleSubmit()}
                             disabled={!storyIdea.trim() || isLoading || busy || !!companionPrompt}
-                            className="flex h-13 w-14.5 shrink-0 items-center justify-center rounded-[10px] bg-linear-to-r from-[#6539D5] to-(--accent-hover) text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)] active:translate-y-0 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] sm:h-13 sm:w-14.5 sm:rounded-[10px] bg-linear-to-r from-[#6539D5] to-(--accent-hover) text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)] active:translate-y-0 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
                             aria-label="Send"
                         >
                             <Send size={22} strokeWidth={2.3} />
                         </button>
                     </div>
 
-                    <p className="mt-4 text-center text-[13px] text-[#777A9B]">
+                    <p className="mt-3 px-2 text-center text-[12px] leading-5 text-[#777A9B] sm:mt-4 sm:text-[13px]">
                         {busy
                             ? "Creating your book — this can take a few minutes, please keep this page open."
                             : "You can tell me anything — characters, theme, age group or even a simple idea."}

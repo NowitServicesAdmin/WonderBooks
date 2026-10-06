@@ -29,6 +29,11 @@ body,
   min-height: 100%;
 }
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem; /* sticky landing header height, so anchors do not hide under it */
+}
+
 body {
   margin: 0;
   font-family:

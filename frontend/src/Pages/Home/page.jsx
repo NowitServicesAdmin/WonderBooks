@@ -32,10 +32,12 @@ import dino from "../../assets/wonder-books/template-dino.png";
 import shareIdeas from "../../assets/wonder-books/step-share-ideas.png";
 import aiCreates from "../../assets/wonder-books/step-ai-creates.png";
 import getBook from "../../assets/wonder-books/step-get-book.png";
-import girlBook from "../../assets/wonder-books/girl-book-clean.png";
+// import girlBook from "../../assets/wonder-books/girl-book-clean.png";
 import logo from "../../assets/wonder-books/wonderbook-logo.png";
-import { User, Image } from "lucide-react";
+import { Menu, User, X } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
+import ContactForm from "../../Components/ContactForm";
+import PricingSection from "../../Components/PricingSection";
 
 const templates = [
     {
@@ -178,11 +180,70 @@ function Logo({ stacked = false, light = false }) {
     );
 }
 
+// Header links, in the same order the sections appear on the page.
+// (Our Story is left out because its section is commented out below.)
+const NAV_ITEMS = [
+    { id: "home", label: "Home" },
+    { id: "templates", label: "Book Templates" },
+    { id: "how-it-works", label: "How It Works" },
+    { id: "pricing", label: "Pricing" },
+    { id: "contact", label: "Contact" },
+];
+
 export default function HomePage() {
     const [reviewIndex, setReviewIndex] = useState(0);
     const [isReviewPaused, setIsReviewPaused] = useState(false);
     const [reviewTransition, setReviewTransition] = useState(true);
     const navigate = useNavigate();
+    const [scrolled, setScrolled] = useState(false);
+    const [activeSection, setActiveSection] = useState("home");
+    const [menuOpen, setMenuOpen] = useState(false);
+
+    useEffect(() => {
+        const onScroll = () => {
+            setScrolled(window.scrollY > 10);
+
+            const line = 120; // just under the sticky header
+            let current = "home";
+            for (const { id } of NAV_ITEMS) {
+                if (id === "home") continue;
+                const el = document.getElementById(id);
+                if (el && el.getBoundingClientRect().top <= line) current = id;
+            }
+            setActiveSection(current);
+        };
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive: true });
+        window.addEventListener("resize", onScroll);
+        return () => {
+            window.removeEventListener("scroll", onScroll);
+            window.removeEventListener("resize", onScroll);
+        };
+    }, []);
+
+    // Close the mobile/tablet menu when the screen grows to desktop
+    useEffect(() => {
+        const onResize = () => { if (window.innerWidth >= 1024) setMenuOpen(false); };
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
+
+    const goToSection = (e, id) => {
+        e.preventDefault();
+        setMenuOpen(false);
+        setActiveSection(id);
+        if (id === "home") {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            return;
+        }
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
+    // Pricing buttons (Start Free / Get Started / Choose Yearly) -> Contact section
+    const handleSelectPlan = () => {
+        setActiveSection("contact");
+        document.getElementById("contact")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
 
     const reviewSlides = useMemo(() => [...testimonials, ...testimonials, ...testimonials], []);
 
@@ -205,42 +266,109 @@ export default function HomePage() {
     const nextReview = () => { setReviewTransition(true); setReviewIndex((c) => (c + 1) % testimonials.length); };
     const previousReview = () => { setReviewTransition(true); setReviewIndex((c) => (c - 1 + testimonials.length) % testimonials.length); };
 
-    // nav link: underline grows from 0 to full width on hover
-    const navLink = "relative py-1 font-semibold transition-colors hover:text-[#4a1fe0] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-0 after:rounded-full after:bg-[#4a1fe0] after:transition-all after:duration-300 hover:after:w-full";
+    const navLink = (id) =>
+        `relative py-1 font-semibold transition-colors duration-300 after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:rounded-full after:bg-linear-to-r after:from-[#4a1fe0]/20 after:to-[#4a1fe0] after:transition-all after:duration-300 hover:text-[#4a1fe0] ${activeSection === id
+            ? "text-[#4a1fe0] after:w-full"
+            : "after:w-0 hover:after:w-full"
+        }`;
 
     // footer link: slides right slightly and turns white on hover
     const footerLink = "block transition duration-200 hover:translate-x-1 hover:text-white";
 
     return (
-        <div className="min-h-screen overflow-x-clip bg-white text-[#171653]">
-            {/* Header */}
-            <header className="sticky top-0 z-50 border-b border-[#ece6fb] bg-white/95 backdrop-blur">
+        <div className="lg:min-h-screen overflow-x-clip bg-white text-[#171653]">
+            {/* Header: white with rounded bottom corners + soft shadow. On mobile/tablet it expands into a dropdown menu. */}
+            <header
+                className={`sticky top-0 z-50 rounded-b-3xl shadow-[0_8px_28px_rgba(74,31,224,0.14)] transition-all duration-300 ease-out ${scrolled && !menuOpen
+                    ? "bg-white/95 backdrop-blur-md"
+                    : "bg-white"
+                    }`}
+            >
                 <div className="mx-auto flex h-20 w-full items-center justify-between px-4 sm:px-6">
                     <Logo />
+
+                    {/* Desktop nav */}
                     <nav className="hidden items-center gap-8 text-[15px] font-semibold text-[#2f2a6b] lg:flex">
-                        <a href="#home" className="relative py-1 text-[#4a1fe0] after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-full after:rounded-full after:bg-[#4a1fe0]">Home</a>
-                        <a href="#how-it-works" className={navLink}>How It Works</a>
-                        <a href="#templates" className={navLink}>Book Templates</a>
-                        <a href="#our-story" className={navLink}>Our Story</a>
-                        {/* <a href="#pricing" className={navLink}>Pricing</a> */}
-                        {/* <a href="#faqs" className={navLink}>FAQs</a> */}
+                        {NAV_ITEMS.map(({ id, label }) => (
+                            <a
+                                key={id}
+                                href={`#${id}`}
+                                onClick={(e) => goToSection(e, id)}
+                                aria-current={activeSection === id ? "page" : undefined}
+                                className={navLink(id)}
+                            >
+                                {label}
+                            </a>
+                        ))}
                     </nav>
+
                     <div className="flex items-center gap-2">
                         {/* <button onClick={() => navigate("/auth")} className="hidden rounded-full border border-[#cdbff5] px-5 py-1.5 text-[11px] font-bold text-[#4a1fe0] transition hover:bg-[#f3ecff] sm:block">Login</button> */}
+
+                        {/* Desktop CTA */}
                         <button
                             onClick={() => navigate("/auth")}
-                            className="rounded-full bg-[#5b2df0] px-5 py-1.5 text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(74,31,224,.3)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#4a1fe0] hover:shadow-[0_10px_22px_rgba(74,31,224,.45)] active:translate-y-0 active:scale-95"
+                            className="hidden rounded-full bg-[#5b2df0] px-5 py-1.5 text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(74,31,224,.3)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#4a1fe0] hover:shadow-[0_10px_22px_rgba(74,31,224,.45)] active:translate-y-0 active:scale-95 lg:block"
                         >
                             Get Started
                         </button>
+
+                        {/* Mobile / tablet toggle */}
+                        <button
+                            type="button"
+                            onClick={() => setMenuOpen((o) => !o)}
+                            aria-label={menuOpen ? "Close menu" : "Open menu"}
+                            aria-expanded={menuOpen}
+                            className="flex h-10 w-10 items-center justify-center rounded-full text-[#2f2a6b] transition hover:bg-[#f3ecff] active:scale-95 lg:hidden"
+                        >
+                            {menuOpen ? <X size={24} /> : <Menu size={24} />}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Mobile / tablet dropdown */}
+                <div
+                    aria-hidden={!menuOpen}
+                    className={`grid transition-all duration-300 ease-out lg:hidden ${menuOpen ? "visible grid-rows-[1fr] opacity-100" : "invisible grid-rows-[0fr] opacity-0"
+                        }`}
+                >
+                    <div className="overflow-hidden">
+                        <nav className="space-y-1 px-4 pb-5 pt-1 sm:px-6">
+                            {NAV_ITEMS.map(({ id, label }) => {
+                                const active = activeSection === id;
+                                return (
+                                    <a
+                                        key={id}
+                                        href={`#${id}`}
+                                        onClick={(e) => goToSection(e, id)}
+                                        aria-current={active ? "page" : undefined}
+                                        className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition-colors duration-200 ${active
+                                            ? "bg-[#f1ebff] text-[#4a1fe0]"
+                                            : "text-[#2f2a6b] hover:bg-[#f7f3ff]"
+                                            }`}
+                                    >
+                                        {label}
+                                        {active && <span className="h-1.5 w-1.5 rounded-full bg-[#4a1fe0]" />}
+                                    </a>
+                                );
+                            })}
+
+                            <button
+                                onClick={() => { setMenuOpen(false); navigate("/auth"); }}
+                                className="mt-3 w-full rounded-xl bg-[#5b2df0] py-3 text-sm font-bold text-white shadow-[0_6px_16px_rgba(74,31,224,.3)] transition duration-300 hover:bg-[#4a1fe0] active:scale-[0.98]"
+                            >
+                                Get Started
+                            </button>
+                        </nav>
                     </div>
                 </div>
             </header>
 
-            <main id="home">
-                {/* Hero */}
+            {/* -mt-20 pulls the hero up behind the header (h-20) so the rounded corners show the hero, not white */}
+            <main id="home" className="relative isolate -mt-20 overflow-hidden bg-violet-100">
+                {/* Hero (box-content + pt-20 keeps the hero's own height/content position exactly as before) */}
                 <section
-                    className="relative isolate overflow-hidden bg-[#2a1270] bg-cover bg-position-[70%_center] bg-no-repeat sm:bg-center"
+                    className=" relative isolate box-content overflow-hidden pt-20 min-h-162.5 sm:min-h-175 md:min-h-187.5 lg:min-h-200 xl:min-h-212.5 2xl:min-h-screen bg-[#2a1270] bg-cover bg-position-[65%_center] sm:bg-position-[60%_center] md:bg-position-[55%_center] lg:bg-position-[60%_center] xl:bg-position-[65%_center] 2xl:bg-center bg-no-repeat"
                     style={{ backgroundImage: `url(${heroImage})` }}
                 >
                     <div className="pointer-events-none absolute inset-0 -z-10 bg-linear-to-r from-[#24105f]/70 via-[#24105f]/30 to-transparent lg:hidden" />
@@ -258,13 +386,14 @@ export default function HomePage() {
                                 Create personalized stories with AI, beautiful illustrations, and lasting memories for the little ones you love.
                             </p>
                             <div className="mt-6 flex flex-wrap items-center gap-3">
-                                <button onClick={() => navigate("/auth")}
+                                <a
                                     type="button"
+                                    href="#contact"
                                     className="group flex items-center gap-2 rounded-full bg-[#ffd447] px-6 py-2.5 text-xs font-extrabold text-[#2b1a6b] shadow-[0_10px_28px_rgba(255,212,71,0.3)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#ffdc62] hover:shadow-[0_14px_32px_rgba(255,212,71,0.5)] active:translate-y-0 active:scale-95"
                                 >
                                     Create Your Storybook
                                     <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
-                                </button>
+                                </a>
                                 <button
                                     type="button"
                                     className="group flex items-center gap-2 rounded-full border border-white/60 bg-white/5 px-6 py-2.5 text-xs font-bold text-white backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-white hover:bg-white/20 active:scale-95"
@@ -350,12 +479,12 @@ export default function HomePage() {
                             </div>
 
                             <div className="mt-8 text-center">
-                                <button
-                                    onClick={() => navigate("/auth")}
+                                <a
+                                    href="#contact"
                                     className="group inline-flex items-center gap-2 rounded-full bg-[#5b2df0] px-7 py-2.5 text-xs font-bold text-white shadow-[0_10px_26px_rgba(91,45,240,0.35)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#4a1fe0] hover:shadow-[0_14px_32px_rgba(91,45,240,0.5)] active:translate-y-0 active:scale-95"
                                 >
                                     Browse All Templates <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-1" />
-                                </button>
+                                </a>
                             </div>
                         </div>
                     </section>
@@ -390,7 +519,7 @@ export default function HomePage() {
                     </section>
 
                     {/* Story value */}
-                    <section id="our-story" className="relative">
+                    {/* <section id="our-story" className="relative">
                         <div className="relative z-10 mx-auto grid max-w-250 items-center lg:min-h-75 lg:grid-cols-2">
                             <div className="relative flex h-80 items-end justify-center overflow-hidden lg:h-75">
                                 <img
@@ -418,7 +547,7 @@ export default function HomePage() {
                                 </div>
                             </div>
                         </div>
-                    </section>
+                    </section> */}
 
                     {/* Testimonials */}
                     <section
@@ -487,6 +616,9 @@ export default function HomePage() {
                         </div>
                     </section>
 
+                    <PricingSection onSelectPlan={handleSelectPlan} />
+                    <ContactForm />
+
                     {/* CTA */}
                     {/* <section className="relative overflow-hidden">
                         <div className="relative mx-auto min-h-[280px] max-w-[1000px] overflow-hidden">
@@ -520,71 +652,27 @@ export default function HomePage() {
             </main>
 
             {/* Footer */}
-            <footer className="bg-[#211457] px-5 pb-6 pt-12 text-white">
-                <div className="mx-auto grid max-w-250 grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-[1.5fr_1fr_1fr_1fr] md:gap-8">
+            <footer
+                className="relative bg-[#211457] px-5 pb-6 pt-10 text-white sm:px-8 lg:px-10"
+                style={{
+                    backgroundImage:
+                        "repeating-linear-gradient(135deg, rgba(255,255,255,0.09) 0 1px, transparent 1px 90px)",
+                }}
+            >
+                <div className="mx-auto grid max-w-350 grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr_1fr] lg:gap-8">
                     {/* Brand */}
-                    <div className="col-span-2 flex flex-col items-center text-center md:col-span-1 md:items-start md:text-left">
-                        <Logo stacked light />
-                        <p className="mt-3 max-w-[220px] text-[13px] leading-5 text-[#bdb5dd]">
-                            Stories for a brighter tomorrow.
+                    <div className="sm:col-span-2 lg:col-span-1">
+                        <Logo light />
+                        <p className="mt-5 max-w-sm text-[15px] leading-7 text-[#e4defa] sm:max-w-lg lg:max-w-sm">
+                            WonderBooks turns your child's imagination into personalized, beautifully
+                            illustrated storybooks that families treasure forever.
                         </p>
-                    </div>
-
-                    {/* Quick Links */}
-                    <div>
-                        <h3 className="text-[14px] font-extrabold tracking-wide">Quick Links</h3>
-                        <div className="mt-4 space-y-2.5 text-[13px] text-[#bdb5dd]">
-                            <a href="#home" className={footerLink}>Home</a>
-                            <a href="#templates" className={footerLink}>Templates</a>
-                            <a href="#our-story" className={footerLink}>Story</a>
-                            {/* <a href="#faqs" className={footerLink}>FAQs</a> */}
-                        </div>
-                    </div>
-
-                    {/* Company */}
-                    <div>
-                        <h3 className="text-[14px] font-extrabold tracking-wide">Company</h3>
-                        <div>
-                           
-                            <div className="mt-4 space-y-2.5 text-[13px] text-[#bdb5dd]">
-                                <a
-                                    href="https://nowitservices.com/"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={footerLink}
-                                >
-                                    About Us
-                                </a>
-
-                                <a
-                                    href="https://nowitservices.com/"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={footerLink}
-                                >
-                                    Contact
-                                </a>
-
-                                <Link to="/privacy" className={footerLink}>
-                                    Privacy Policy
-                                </Link>
-
-                                <Link to="/terms" className={footerLink}>
-                                    Terms of Service
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Follow Us */}
-                    <div className="col-span-2 md:col-span-1">
-                        <h3 className="text-[14px] font-extrabold tracking-wide">Follow Us</h3>
-                        <div className="mt-4 flex gap-3">
+                        <div className="mt-6 flex gap-3">
                             {[
                                 [Instagram, "Instagram", "https://www.instagram.com/_nowitservices_/"],
-                                [Facebook, "Facebook", "https://www.facebook.com/p/NOWIT-Services-61559601166623/"],
-                                [Youtube, "YouTube", "https://www.youtube.com/@nowitservicesltd"],
                                 [LinkedIn, "LinkedIn", "https://www.linkedin.com/company/nowitservices/posts/?feedView=all"],
+                                [Youtube, "YouTube", "https://www.youtube.com/@nowitservicesltd"],
+                                [Facebook, "Facebook", "https://www.facebook.com/p/NOWIT-Services-61559601166623/"],
                             ].map(([Icon, label, url]) => (
                                 <a
                                     key={label}
@@ -592,17 +680,50 @@ export default function HomePage() {
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     aria-label={label}
-                                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 transition duration-300 hover:-translate-y-1 hover:bg-[#ffd447] hover:text-[#2b1a6b]"
+                                    className="flex h-11 w-11 items-center justify-center rounded-full border border-white/40 text-white transition duration-300 hover:-translate-y-1 hover:border-[#ffd447] hover:bg-[#ffd447] hover:text-[#2b1a6b]"
                                 >
                                     <Icon className="h-4 w-4" />
                                 </a>
                             ))}
                         </div>
                     </div>
+
+                    {/* Site Map + Resources (side by side on every breakpoint) */}
+                    <div className="grid grid-cols-2 gap-6 sm:col-span-2 sm:gap-10 lg:col-span-2 lg:gap-8">
+                        {/* Site Map */}
+                        <div>
+                            <h3 className="text-lg font-extrabold">Site Map</h3>
+                            <span className="mt-2 block h-0.75 w-10 rounded-full bg-[#ffd447]" />
+                            <div className="mt-6 space-y-3.5 text-[15px] text-[#d6cff1]">
+                                <a href="#home" onClick={(e) => goToSection(e, "home")} className={footerLink}>Homepage</a>
+                                <a href="#templates" onClick={(e) => goToSection(e, "templates")} className={footerLink}>Templates</a>
+                                <a href="#how-it-works" onClick={(e) => goToSection(e, "how-it-works")} className={footerLink}>How It Works</a>
+                                <a href="#pricing" onClick={(e) => goToSection(e, "pricing")} className={footerLink}>Pricing</a>
+                                <a href="#contact" onClick={(e) => goToSection(e, "contact")} className={footerLink}>Contact Us</a>
+                            </div>
+                        </div>
+
+                        {/* Resources */}
+                        <div>
+                            <h3 className="text-lg font-extrabold">Resources</h3>
+                            <span className="mt-2 block h-0.75 w-10 rounded-full bg-[#ffd447]" />
+                            <div className="mt-6 space-y-3.5 text-[15px] text-[#d6cff1]">
+                                <a href="https://nowitservices.com/" target="_blank" rel="noopener noreferrer" className={footerLink}>About Us</a>
+                                <Link to="/terms" className={footerLink}>Terms &amp; Conditions</Link>
+                                <Link to="/privacy" className={footerLink}>Privacy Policy</Link>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Badge / certification slot (optional, desktop only while empty) */}
+                    <div className="hidden items-start justify-start lg:flex lg:justify-center">
+                        {/* <img src={certBadge} alt="Certified" className="h-36 w-36 object-contain" /> */}
+                    </div>
                 </div>
 
-                <div className="mx-auto mt-10 max-w-250 border-t border-white/10 pt-5 text-center text-[12px] text-[#aaa2cb]">
-                    &copy; 2026 WonderBooks. All rights reserved.
+                {/* Divider + copyright */}
+                <div className="mx-auto mt-10 max-w-350 border-t border-white/10 pt-6 text-center text-[14px] text-[#aaa2cb]">
+                    &copy; 2026 <span className="font-bold text-white">NOWIT SERVICES Pvt Ltd</span> . All rights reserved.
                 </div>
             </footer>
         </div>
