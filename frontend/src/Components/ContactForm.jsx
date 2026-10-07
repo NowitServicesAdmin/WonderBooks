@@ -15,6 +15,7 @@ import {
     CheckCircle2,
     AlertCircle,
 } from "lucide-react";
+import BrandText from "./BrandText";
 
 // 👉 Put your background image (robot + boy + books + castle) here
 import contactBg from "../assets/wonder-books/contact-bg.png";
@@ -146,7 +147,7 @@ function Dropdown({ id, name, value, options, onChange, icon: Icon, placeholder 
                 onKeyDown={onKeyDown}
                 className={`flex h-11.5 w-full items-center rounded-xl border bg-white pl-10 pr-9 text-left text-[13px] outline-none transition ${triggerBorder} ${selected ? "font-medium text-[#1a1560]" : "text-[#9a98b5]"}`}
             >
-                <span className="truncate">{selected ? selected.label : placeholder}</span>
+                <span key={selected ? selected.value : "placeholder"} className="truncate">{selected ? selected.label : placeholder}</span>
             </button>
             <ChevronDown
                 className={`pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6890] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
@@ -281,7 +282,7 @@ export default function ContactSection() {
     const border = (key) => (errors[key] ? "border-red-400 focus:border-red-500" : "border-[#e1def0] hover:border-[#c9c5e3]");
     const label = "mb-1.5 block text-sm font-bold text-[#1a1560]";
     const iconLeft = "pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6890]";
-    const err = (key) => errors[key] && <p className="mt-1 text-xs font-medium text-red-500">{errors[key]}</p>;
+    const err = (key) => errors[key] && <p key={errors[key]} className="mt-1 text-xs font-medium text-red-500">{errors[key]}</p>;
 
     return (
         <section id="contact" className="relative overflow-hidden bg-[#efe9ff]">
@@ -306,12 +307,12 @@ export default function ContactSection() {
                 <div className="lg:max-w-[min(34rem,30vw)] lg:min-w-88">
                     <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#5b2fe0]">Get in touch</p>
                     <h1 className="mt-5 text-5xl font-extrabold leading-[1.05] text-[#140f5c] sm:text-6xl">
-                        We&rsquo;re Here
-                        <br />
+                        We&rsquo;re Here{" "}
+                        <br className="wb-br" />
                         to <span className="text-[#5b2fe0]">Help You</span>
                     </h1>
                     <p className="mt-6 max-w-136 text-base leading-7 text-[#2f2b68] sm:text-lg">
-                        Have a question, need support, or want to know more about WonderBooks? Our team is happy to help.
+                        <BrandText>Have a question, need support, or want to know more about WonderBooks? Our team is happy to help.</BrandText>
                     </p>
 
                     <ul className="mt-7 space-y-4">
@@ -346,7 +347,7 @@ export default function ContactSection() {
                         <div>
                             <h2 className="text-2xl font-extrabold text-[#140f5c] sm:text-[1.7rem]">Send Us a Message</h2>
                             <p className="mt-0.5 text-sm text-[#3f3b78]">
-                                Tell us how we can help with your WonderBooks experience.
+                                <BrandText>Tell us how we can help with your WonderBooks experience.</BrandText>
                             </p>
                         </div>
                     </div>
@@ -383,6 +384,7 @@ export default function ContactSection() {
                                     value={form.email}
                                     onChange={handleChange}
                                     placeholder="you@example.com"
+                                    translate="no"
                                     autoComplete="email"
                                     className={`${field} ${border("email")} h-11.5 pl-10 pr-3`}
                                 />
@@ -402,6 +404,7 @@ export default function ContactSection() {
                                     value={form.contactNo}
                                     onChange={handleChange}
                                     placeholder="+91 98765 43210"
+                                    translate="no"
                                     autoComplete="tel"
                                     className={`${field} ${border("contactNo")} h-11.5 pl-10 pr-3`}
                                 />
@@ -412,7 +415,7 @@ export default function ContactSection() {
                         {/* Time Zone */}
                         <div>
                             <label htmlFor="timeZone" className={label}>Time Zone</label>
-                            <div className="relative">
+                            <div className="relative notranslate">
                                 <Dropdown
                                     id="timeZone"
                                     name="timeZone"
@@ -451,6 +454,7 @@ export default function ContactSection() {
                                             onBlur={padOnBlur("hour")}
                                             onFocus={(e) => e.target.select()}
                                             placeholder="00"
+                                            translate="no"
                                             className="w-8 bg-transparent text-center text-sm font-medium text-[#1a1560] outline-none placeholder:text-[#a5a3bf]"
                                         />
                                         <span className="font-semibold text-[#6b6890]">:</span>
@@ -467,6 +471,7 @@ export default function ContactSection() {
                                             onKeyDown={handleMinuteKeyDown}
                                             onFocus={(e) => e.target.select()}
                                             placeholder="00"
+                                            translate="no"
                                             className="w-8 bg-transparent text-center text-sm font-medium text-[#1a1560] outline-none placeholder:text-[#a5a3bf]"
                                         />
                                     </div>
@@ -474,6 +479,7 @@ export default function ContactSection() {
                                         type="button"
                                         onClick={togglePeriod}
                                         aria-label={`Switch AM or PM (currently ${form.period})`}
+                                        translate="no"
                                         className="h-8 min-w-12 rounded-lg bg-[#5b2fe0] px-3 text-xs font-bold tracking-wide text-white transition hover:bg-[#6d42ee] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5b2fe0]/40"
                                     >
                                         {form.period}
@@ -497,7 +503,7 @@ export default function ContactSection() {
                                     rows={4}
                                     className={`${field} ${border("message")} h-26 resize-none py-3.5 pb-8 pl-10 pr-3`}
                                 />
-                                <span className="absolute bottom-2.5 right-3 text-xs font-medium text-[#7c7a9d]">
+                                <span translate="no" className="notranslate absolute bottom-2.5 right-3 text-xs font-medium text-[#7c7a9d]">
                                     {form.message.length}/{MAX_MESSAGE}
                                 </span>
                             </div>
@@ -512,11 +518,11 @@ export default function ContactSection() {
                     >
                         {status === "loading" ? (
                             <>
-                                <Loader2 className="h-5 w-5 animate-spin" /> Sending...
+                                <Loader2 className="h-5 w-5 animate-spin" /> <span key="sending">Sending...</span>
                             </>
                         ) : (
                             <>
-                                <Send className="h-5 w-5" strokeWidth={1.8} /> Send Message
+                                <Send className="h-5 w-5" strokeWidth={1.8} /> <span key="send">Send Message</span>
                             </>
                         )}
                     </button>
@@ -525,12 +531,12 @@ export default function ContactSection() {
                     <div aria-live="polite">
                         {status === "success" && (
                             <p className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-50/95 px-4 py-3 text-sm font-medium text-emerald-700">
-                                <CheckCircle2 className="h-4 w-4 shrink-0" /> {serverMsg}
+                                <CheckCircle2 className="h-4 w-4 shrink-0" /> <span key={serverMsg}>{serverMsg}</span>
                             </p>
                         )}
                         {status === "error" && (
                             <p className="mt-4 flex items-center gap-2 rounded-lg bg-red-50/95 px-4 py-3 text-sm font-medium text-red-600">
-                                <AlertCircle className="h-4 w-4 shrink-0" /> {serverMsg}
+                                <AlertCircle className="h-4 w-4 shrink-0" /> <span key={serverMsg}>{serverMsg}</span>
                             </p>
                         )}
                     </div>
@@ -539,4 +545,3 @@ export default function ContactSection() {
         </section>
     );
 }
-

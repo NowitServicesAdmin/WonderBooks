@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Check, Crown } from "lucide-react";
+import BrandText from "./BrandText";
 
 // 👉 Export these 3 illustrations from your design as transparent PNGs
 // import freeIllustration from "../assets/wonder-books/pricing-free.png"; // open book + star
@@ -17,7 +18,7 @@ const PLANS = [
         variant: "outline",
         billing: {
             monthly: { price: "₹0", suffix: "", note: "No credit card required" },
-            yearly: { price: "₹0", suffix: "", note: "No credit card required" },
+            yearly: { price: "₹4,999", suffix: "/ year", note: "Save ₹1,000 with yearly plan", noteIsLink: true },
         },
         features: [
             "1 AI Storybook / month",
@@ -39,7 +40,7 @@ const PLANS = [
         billing: {
             monthly: { price: "₹999", suffix: "/ month", note: "" },
             // ⚠️ Placeholder yearly price — change to your real number
-            yearly: { price: "₹9,999", suffix: "/ year", note: "" },
+            yearly: { price: "₹9,999", suffix: "/ year", note: "Money saved with yearly plan", noteIsLink: true },
         },
         features: [
             "10 AI Storybooks / month",
@@ -60,8 +61,8 @@ const PLANS = [
         cta: "Choose Yearly",
         variant: "dark",
         billing: {
-            monthly: { price: "₹4,999", suffix: "/ year", note: "Save more with yearly plan", noteIsLink: true },
-            yearly: { price: "₹4,999", suffix: "/ year", note: "Save more with yearly plan", noteIsLink: true },
+            monthly: { price: "₹1,999", suffix: "/ month", },
+            yearly: { price: "₹11,999", suffix: "/ year", note: "Save more with yearly plan", noteIsLink: true },
         },
         features: [
             "Unlimited AI Storybooks",
@@ -100,7 +101,7 @@ export default function PricingSection({ onSelectPlan = () => {} }) {
                 className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(91,47,224,0.07),transparent)]"
             /> */}
 
-            <div className="relative mx-auto max-w-[1000px]">
+            <div className="relative mx-auto max-w-250">
                 {/* Heading */}
                 <div className="text-center">
                     <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#6335d8]">Pricing</p>
@@ -169,20 +170,21 @@ export default function PricingSection({ onSelectPlan = () => {} }) {
 
                                     <h3 className="text-xl font-extrabold text-[#1a1560] sm:text-2xl">{plan.name}</h3>
                                     <p className="mt-1 max-w-[60%] text-xs leading-5 text-[#4d4a80]">
-                                        {plan.tagline}
+                                        <BrandText>{plan.tagline}</BrandText>
                                     </p>
 
-                                    <div className="mt-4 flex items-baseline gap-1.5">
-                                        <span className="text-3xl font-extrabold leading-none text-[#5b2fe0] sm:text-4xl">
+                                    <div className="mt-4 flex items-baseline  gap-1.5">
+                                        <span key={`price-${cycle}`} className="text-3xl notranslate font-extrabold leading-none text-[#5b2fe0] sm:text-4xl">
                                             {info.price}
                                         </span>
                                         {info.suffix && (
-                                            <span className="text-xs text-[#6b6890] sm:text-sm">{info.suffix}</span>
+                                            <span key={`suffix-${cycle}`} className="text-xs text-[#6b6890] sm:text-sm">{info.suffix}</span>
                                         )}
                                     </div>
 
                                     {/* Reserve the note row so buttons line up across cards */}
                                     <p
+                                        key={`note-${cycle}`}
                                         className={`mt-1.5 min-h-5 text-xs ${
                                             info.noteIsLink ? "text-[#5b2fe0]" : "text-[#4d4a80]"
                                         }`}
