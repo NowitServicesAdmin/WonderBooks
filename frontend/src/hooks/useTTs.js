@@ -110,555 +110,623 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// const API_BASE =
+const API_BASE =
     import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-// const API_BASE ="http://localhost:5000";
+
+const CHUNK_SIZE = 300;
+const PREFETCH_COUNT = 2;
 
 export const useTTS = () => {
     const audioRef = useRef(null);
-    const abortRef = useRef(null);
+
+    // Current request generation.
+    // Every new speak/stop invalidates older requests.
     const reqIdRef = useRef(0);
 
-    // Cache completed audio as Blob URLs
-    const blobUrlCache = useRef(new Map());
+    // Abort controllers for currently generating chunks.
+    const controllersRef = useRef(new Set());
 
-    // Streaming references
-    const mediaSourceRef = useRef(null);
-    const sourceBufferRef = useRef(null);
-    const streamReaderRef = useRef(null);
-    const pendingChunksRef = useRef([]);
-    const streamFinishedRef = useRef(false);
+    // Cache:
+    // key -> object URL
+    //
+    // Example:
+    // bookId/pageId/voice/language/chunkIndex
+    const chunkCacheRef = useRef(new Map());
+
+    // Current playback queue.
+    const queueRef = useRef([]);
+
+    // Current playback index.
+    const currentIndexRef = useRef(0);
+
+    // Current page/session information.
+    const sessionRef = useRef(null);
 
     const [status, setStatus] = useState("idle");
     const [voiceId, setVoiceId] = useState(null);
     const [error, setError] = useState("");
 
     // -------------------------------------------------------
-    // Cleanup
+    // Split text into playable TTS chunks
+    // -------------------------------------------------------
+
+    const splitTextIntoChunks = useCallback((text) => {
+        if (!text || !text.trim()) {
+            return [];
+        }
+
+        const normalizedText = text
+            .replace(/\s+/g, " ")
+            .trim();
+
+        if (normalizedText.length <= CHUNK_SIZE) {
+            return [normalizedText];
+        }
+
+        /*
+         * First split by sentence boundaries.
+         *
+         * Example:
+         *
+         * "Tom woke up early. He opened the door.
+         *  The sun was shining."
+         *
+         * becomes:
+         *
+         * [
+         *   "Tom woke up early.",
+         *   "He opened the door.",
+         *   "The sun was shining."
+         * ]
+         */
+        const sentences =
+            normalizedText.match(
+                /[^.!?。！？]+[.!?。！？]+|[^.!?。！？]+$/g
+            ) || [normalizedText];
+
+        const chunks = [];
+        let current = "";
+
+        for (const sentence of sentences) {
+            const cleanSentence = sentence.trim();
+
+            if (!cleanSentence) {
+                continue;
+            }
+
+            /*
+             * If adding this sentence keeps the chunk
+             * reasonably small, keep it together.
+             */
+            if (
+                current &&
+                `${current} ${cleanSentence}`.length <= CHUNK_SIZE
+            ) {
+                current = `${current} ${cleanSentence}`;
+                continue;
+            }
+
+            /*
+             * Save the existing chunk.
+             */
+            if (current) {
+                chunks.push(current);
+                current = "";
+            }
+
+            /*
+             * If one sentence itself is larger than CHUNK_SIZE,
+             * split it by words.
+             */
+            if (cleanSentence.length > CHUNK_SIZE) {
+                const words = cleanSentence.split(" ");
+                let wordChunk = "";
+
+                for (const word of words) {
+                    if (
+                        wordChunk &&
+                        `${wordChunk} ${word}`.length > CHUNK_SIZE
+                    ) {
+                        chunks.push(wordChunk);
+                        wordChunk = word;
+                    } else {
+                        wordChunk = wordChunk
+                            ? `${wordChunk} ${word}`
+                            : word;
+                    }
+                }
+
+                if (wordChunk) {
+                    current = wordChunk;
+                }
+            } else {
+                current = cleanSentence;
+            }
+        }
+
+        if (current) {
+            chunks.push(current);
+        }
+
+        return chunks.filter(Boolean);
+    }, []);
+
+    // -------------------------------------------------------
+    // Build cache key
+    // -------------------------------------------------------
+
+    const getChunkCacheKey = useCallback(
+        ({
+            bookId,
+            pageId,
+            voiceId: vid,
+            language,
+            chunkIndex,
+        }) => {
+            return [
+                bookId,
+                pageId,
+                vid,
+                language || "english",
+                chunkIndex,
+            ].join("/");
+        },
+        []
+    );
+
+    // -------------------------------------------------------
+    // Abort all active requests
+    // -------------------------------------------------------
+
+    const abortAllRequests = useCallback(() => {
+        controllersRef.current.forEach((controller) => {
+            try {
+                controller.abort();
+            } catch {
+                // Ignore
+            }
+        });
+
+        controllersRef.current.clear();
+    }, []);
+
+    // -------------------------------------------------------
+    // Stop current audio
+    // -------------------------------------------------------
+
+    const stopCurrentAudio = useCallback(() => {
+        if (!audioRef.current) {
+            return;
+        }
+
+        try {
+            audioRef.current.pause();
+            audioRef.current.onended = null;
+            audioRef.current.onerror = null;
+            audioRef.current.removeAttribute("src");
+            audioRef.current.load();
+        } catch {
+            // Ignore cleanup errors
+        }
+
+        audioRef.current = null;
+    }, []);
+
+    // -------------------------------------------------------
+    // Cleanup current playback session
     // -------------------------------------------------------
 
     const teardown = useCallback(() => {
         reqIdRef.current += 1;
 
-        // Abort fetch
-        abortRef.current?.abort();
-        abortRef.current = null;
+        abortAllRequests();
 
-        // Cancel stream reader
-        if (streamReaderRef.current) {
+        stopCurrentAudio();
+
+        queueRef.current = [];
+        currentIndexRef.current = 0;
+        sessionRef.current = null;
+    }, [abortAllRequests, stopCurrentAudio]);
+
+    // -------------------------------------------------------
+    // Fetch one TTS chunk
+    // -------------------------------------------------------
+
+    const fetchChunk = useCallback(
+        async ({
+            bookId,
+            pageId,
+            text,
+            voiceId: vid,
+            language,
+            chunkIndex,
+            requestId,
+        }) => {
+            if (requestId !== reqIdRef.current) {
+                throw new DOMException(
+                    "TTS request cancelled",
+                    "AbortError"
+                );
+            }
+
+            const cacheKey = getChunkCacheKey({
+                bookId,
+                pageId,
+                voiceId: vid,
+                language,
+                chunkIndex,
+            });
+
+            /*
+             * Browser cache hit.
+             */
+            const cachedUrl =
+                chunkCacheRef.current.get(cacheKey);
+
+            if (cachedUrl) {
+                console.log("[TTS] CHUNK CACHE HIT", {
+                    chunkIndex,
+                });
+
+                return cachedUrl;
+            }
+
+            const controller = new AbortController();
+
+            controllersRef.current.add(controller);
+
+            const startTime = performance.now();
+
             try {
-                streamReaderRef.current.cancel();
-            } catch {
-                // ignore
-            }
+                console.log("[TTS] CHUNK REQUEST", {
+                    chunkIndex,
+                    textLength: text.length,
+                });
 
-            streamReaderRef.current = null;
-        }
-
-        // Stop audio
-        if (audioRef.current) {
-            try {
-                audioRef.current.pause();
-                audioRef.current.removeAttribute("src");
-                audioRef.current.load();
-            } catch {
-                // ignore
-            }
-
-            audioRef.current = null;
-        }
-
-        // Reset MediaSource
-        mediaSourceRef.current = null;
-        sourceBufferRef.current = null;
-        pendingChunksRef.current = [];
-        streamFinishedRef.current = false;
-    }, []);
-
-    // -------------------------------------------------------
-    // Stop
-    // -------------------------------------------------------
-
-    const stop = useCallback(() => {
-        teardown();
-        setStatus("idle");
-    }, [teardown]);
-
-    // -------------------------------------------------------
-    // Add chunk to SourceBuffer
-    // -------------------------------------------------------
-
-    
-    // -------------------------------------------------------
-    // Process pending chunks
-    // -------------------------------------------------------
-
-    const processPendingChunks = useCallback(() => {
-        const sourceBuffer = sourceBufferRef.current;
-
-        if (!sourceBuffer || sourceBuffer.updating) {
-            return;
-        }
-
-        const next = pendingChunksRef.current.shift();
-
-        if (!next) {
-            if (
-                streamFinishedRef.current &&
-                mediaSourceRef.current?.readyState === "open"
-            ) {
-                try {
-                    mediaSourceRef.current.endOfStream();
-                } catch {
-                    // ignore
-                }
-            }
-
-            return;
-        }
-
-        try {
-            sourceBuffer.appendBuffer(next.chunk);
-
-            const cleanup = () => {
-                sourceBuffer.removeEventListener(
-                    "updateend",
-                    cleanup
+                const response = await fetch(
+                    `${API_BASE}/tts/chunk`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${
+                                localStorage.getItem(
+                                    "wb_token"
+                                ) || ""
+                            }`,
+                        },
+                        body: JSON.stringify({
+                            bookId,
+                            pageId,
+                            chunkIndex,
+                            text,
+                            voiceId: vid,
+                            language,
+                        }),
+                        signal: controller.signal,
+                    }
                 );
 
-                next.resolve();
+                if (!response.ok) {
+                    const detail = await response
+                        .json()
+                        .catch(() => ({}));
 
-                processPendingChunks();
-            };
+                    throw new Error(
+                        detail.error ||
+                            `Failed to generate TTS chunk ${
+                                chunkIndex + 1
+                            }`
+                    );
+                }
 
-            sourceBuffer.addEventListener("updateend", cleanup, {
-                once: true,
-            });
-        } catch (err) {
-            next.reject(err);
-        }
-    }, []);
+                const blob = await response.blob();
 
-    const appendChunk = useCallback((chunk) => {
-        return new Promise((resolve, reject) => {
-            const sourceBuffer = sourceBufferRef.current;
+                if (!blob.size) {
+                    throw new Error(
+                        `TTS chunk ${
+                            chunkIndex + 1
+                        } returned empty audio`
+                    );
+                }
 
-            if (!sourceBuffer) {
-                reject(new Error("Audio source buffer is not available."));
+                const url =
+                    URL.createObjectURL(blob);
+
+                chunkCacheRef.current.set(
+                    cacheKey,
+                    url
+                );
+
+                console.log("[TTS] CHUNK READY", {
+                    chunkIndex,
+                    bytes: blob.size,
+                    time: `${(
+                        performance.now() -
+                        startTime
+                    ).toFixed(0)} ms`,
+                });
+
+                return url;
+            } finally {
+                controllersRef.current.delete(
+                    controller
+                );
+            }
+        },
+        [getChunkCacheKey]
+    );
+
+    // -------------------------------------------------------
+    // Prefetch chunks
+    // -------------------------------------------------------
+
+    const prefetchChunks = useCallback(
+        async ({
+            chunks,
+            startIndex,
+            bookId,
+            pageId,
+            voiceId: vid,
+            language,
+            requestId,
+        }) => {
+            const indexes = [];
+
+            for (
+                let i = startIndex;
+                i <
+                Math.min(
+                    startIndex + PREFETCH_COUNT,
+                    chunks.length
+                );
+                i++
+            ) {
+                indexes.push(i);
+            }
+
+            if (!indexes.length) {
                 return;
             }
 
-            const append = () => {
-                try {
-                    sourceBuffer.appendBuffer(chunk);
-                } catch (err) {
-                    reject(err);
+            /*
+             * Generate multiple chunks in parallel.
+             *
+             * Chunk 1 can be playing while chunks 2 and 3
+             * are being generated.
+             */
+            await Promise.allSettled(
+                indexes.map((index) =>
+                    fetchChunk({
+                        bookId,
+                        pageId,
+                        text: chunks[index],
+                        voiceId: vid,
+                        language,
+                        chunkIndex: index,
+                        requestId,
+                    })
+                )
+            );
+        },
+        [fetchChunk]
+    );
+
+    // -------------------------------------------------------
+    // Play one chunk
+    // -------------------------------------------------------
+
+    const playChunk = useCallback(
+        async ({
+            index,
+            requestId,
+        }) => {
+            const session = sessionRef.current;
+
+            if (
+                !session ||
+                requestId !== reqIdRef.current
+            ) {
+                return;
+            }
+
+            const {
+                chunks,
+                bookId,
+                pageId,
+                voiceId: vid,
+                language,
+            } = session;
+
+            if (index >= chunks.length) {
+                console.log("[TTS] ALL CHUNKS PLAYED");
+
+                setStatus("idle");
+
+                return;
+            }
+
+            currentIndexRef.current = index;
+
+            /*
+             * Get this chunk.
+             *
+             * If it was prefetched, this resolves immediately.
+             * Otherwise we generate it now.
+             */
+            let url;
+
+            try {
+                url = await fetchChunk({
+                    bookId,
+                    pageId,
+                    text: chunks[index],
+                    voiceId: vid,
+                    language,
+                    chunkIndex: index,
+                    requestId,
+                });
+            } catch (err) {
+                if (
+                    err?.name === "AbortError" ||
+                    requestId !== reqIdRef.current
+                ) {
                     return;
                 }
 
-                const cleanup = () => {
-                    sourceBuffer.removeEventListener("updateend", cleanup);
-                    sourceBuffer.removeEventListener("error", onError);
-                    resolve();
-                };
+                throw err;
+            }
 
-                const onError = (event) => {
-                    sourceBuffer.removeEventListener(
-                        "updateend",
-                        cleanup
+            if (requestId !== reqIdRef.current) {
+                return;
+            }
+
+            /*
+             * Create a completely independent Audio element
+             * for this complete MP3 chunk.
+             */
+            const audio = new Audio(url);
+
+            audio.preload = "auto";
+
+            audioRef.current = audio;
+
+            audio.onended = async () => {
+                if (
+                    requestId !== reqIdRef.current
+                ) {
+                    return;
+                }
+
+                console.log(
+                    "[TTS] CHUNK PLAYBACK ENDED",
+                    {
+                        chunkIndex: index,
+                    }
+                );
+
+                const nextIndex = index + 1;
+
+                if (
+                    nextIndex >=
+                    chunks.length
+                ) {
+                    setStatus("idle");
+
+                    audioRef.current = null;
+
+                    return;
+                }
+
+                /*
+                 * Start generating/preloading later chunks
+                 * while we move to the next one.
+                 */
+                prefetchChunks({
+                    chunks,
+                    startIndex: nextIndex + 1,
+                    bookId,
+                    pageId,
+                    voiceId: vid,
+                    language,
+                    requestId,
+                }).catch(() => {});
+
+                try {
+                    await playChunk({
+                        index: nextIndex,
+                        requestId,
+                    });
+                } catch (err) {
+                    if (
+                        requestId !==
+                        reqIdRef.current
+                    ) {
+                        return;
+                    }
+
+                    console.error(
+                        "[TTS] NEXT CHUNK ERROR",
+                        err
                     );
-                    sourceBuffer.removeEventListener("error", onError);
-                    reject(event);
-                };
 
-                sourceBuffer.addEventListener("updateend", cleanup, {
-                    once: true,
-                });
+                    setError(
+                        err?.message ||
+                            "Couldn't continue the voice."
+                    );
 
-                sourceBuffer.addEventListener("error", onError, {
-                    once: true,
-                });
+                    setStatus("idle");
+                }
             };
 
-            if (sourceBuffer.updating) {
-                pendingChunksRef.current.push({
-                    chunk,
-                    resolve,
-                    reject,
-                });
-            } else {
-                append();
-            }
-        });
-    }, []);
+            audio.onerror = () => {
+                if (
+                    requestId !== reqIdRef.current
+                ) {
+                    return;
+                }
 
+                console.error(
+                    "[TTS] AUDIO PLAYBACK ERROR",
+                    {
+                        chunkIndex: index,
+                    }
+                );
+
+                setError(
+                    "Couldn't play the audio."
+                );
+
+                setStatus("idle");
+            };
+
+            console.log(
+                "[TTS] STARTING PLAYBACK",
+                {
+                    chunkIndex: index,
+                    totalChunks: chunks.length,
+                }
+            );
+
+            try {
+                await audio.play();
+
+                if (
+                    requestId ===
+                    reqIdRef.current
+                ) {
+                    setStatus("playing");
+
+                    console.log(
+                        "[TTS] PLAYBACK STARTED",
+                        {
+                            chunkIndex: index,
+                        }
+                    );
+                }
+            } catch (err) {
+                if (
+                    requestId !== reqIdRef.current
+                ) {
+                    return;
+                }
+
+                console.error(
+                    "[TTS] PLAY ERROR",
+                    err
+                );
+
+                throw new Error(
+                    "Browser blocked audio playback. Please click the play button again."
+                );
+            }
+        },
+        [fetchChunk, prefetchChunks]
+    );
 
     // -------------------------------------------------------
     // Speak
     // -------------------------------------------------------
-
-    // const speak = useCallback(
-    //     async ({
-    //         bookId,
-    //         pageId,
-    //         text,
-    //         voiceId: vid,
-    //         language,
-    //     }) => {
-    //         teardown();
-
-    //         setError("");
-    //         setVoiceId(vid);
-    //         setStatus("loading");
-
-    //         const myReq = reqIdRef.current;
-
-    //         try {
-    //             const key = `${bookId}/${pageId}/${vid}/${language || "english"}`;
-
-    //             // =================================================
-    //             // CACHE HIT
-    //             // =================================================
-
-    //             const cachedUrl = blobUrlCache.current.get(key);
-
-    //             if (cachedUrl) {
-    //                 if (myReq !== reqIdRef.current) {
-    //                     return;
-    //                 }
-
-    //                 const audio = new Audio(cachedUrl);
-
-    //                 audioRef.current = audio;
-
-    //                 audio.onended = () => {
-    //                     if (myReq === reqIdRef.current) {
-    //                         setStatus("idle");
-    //                     }
-    //                 };
-
-    //                 audio.onerror = () => {
-    //                     if (myReq === reqIdRef.current) {
-    //                         setError("Couldn't play the audio.");
-    //                         setStatus("idle");
-    //                     }
-    //                 };
-
-    //                 await audio.play();
-
-    //                 if (myReq === reqIdRef.current) {
-    //                     setStatus("playing");
-    //                 }
-
-    //                 return;
-    //             }
-
-    //             // =================================================
-    //             // BROWSER SUPPORT
-    //             // =================================================
-
-    //             if (!window.MediaSource) {
-    //                 throw new Error(
-    //                     "Streaming audio is not supported in this browser."
-    //                 );
-    //             }
-
-    //             /*
-    //              * Your backend must return an MP3 stream.
-    //              *
-    //              * Browser support for MediaSource + MP3 varies.
-    //              */
-    //             const mimeType = "audio/mpeg";
-
-    //             if (!MediaSource.isTypeSupported(mimeType)) {
-    //                 throw new Error(
-    //                     "This browser does not support streaming MP3 audio."
-    //                 );
-    //             }
-
-    //             // =================================================
-    //             // CREATE MEDIA SOURCE
-    //             // =================================================
-
-    //             const mediaSource = new MediaSource();
-
-    //             mediaSourceRef.current = mediaSource;
-
-    //             const audio = new Audio();
-
-    //             audioRef.current = audio;
-
-    //             audio.preload = "auto";
-
-    //             const mediaUrl = URL.createObjectURL(mediaSource);
-
-    //             audio.src = mediaUrl;
-
-    //             // -------------------------------------------------
-    //             // Audio events
-    //             // -------------------------------------------------
-
-    //             audio.onended = () => {
-    //                 if (myReq === reqIdRef.current) {
-    //                     setStatus("idle");
-    //                 }
-    //             };
-
-    //             audio.onerror = () => {
-    //                 if (myReq === reqIdRef.current) {
-    //                     setError("Couldn't play the audio.");
-    //                     setStatus("idle");
-    //                 }
-    //             };
-
-    //             // =================================================
-    //             // MEDIA SOURCE OPEN
-    //             // =================================================
-
-    //             await new Promise((resolve, reject) => {
-    //                 const handleOpen = () => {
-    //                     mediaSource.removeEventListener(
-    //                         "sourceopen",
-    //                         handleOpen
-    //                     );
-
-    //                     resolve();
-    //                 };
-
-    //                 const handleError = (event) => {
-    //                     mediaSource.removeEventListener(
-    //                         "sourceopen",
-    //                         handleOpen
-    //                     );
-
-    //                     reject(event);
-    //                 };
-
-    //                 mediaSource.addEventListener(
-    //                     "sourceopen",
-    //                     handleOpen
-    //                 );
-
-    //                 mediaSource.addEventListener(
-    //                     "error",
-    //                     handleError,
-    //                     { once: true }
-    //                 );
-    //             });
-
-    //             if (myReq !== reqIdRef.current) {
-    //                 URL.revokeObjectURL(mediaUrl);
-    //                 return;
-    //             }
-
-    //             // =================================================
-    //             // SOURCE BUFFER
-    //             // =================================================
-
-    //             const sourceBuffer =
-    //                 mediaSource.addSourceBuffer(mimeType);
-
-    //             sourceBufferRef.current = sourceBuffer;
-
-    //             // =================================================
-    //             // FETCH STREAM
-    //             // =================================================
-
-    //             const controller = new AbortController();
-
-    //             abortRef.current = controller;
-
-    //             const res = await fetch(`${API_BASE}/api/tts`, {
-    //                 method: "POST",
-    //                 headers: {
-    //                     "Content-Type": "application/json",
-    //                     Authorization: `Bearer ${
-    //                         localStorage.getItem("wb_token") || ""
-    //                     }`,
-    //                 },
-    //                 body: JSON.stringify({
-    //                     bookId,
-    //                     pageId,
-    //                     text,
-    //                     voiceId: vid,
-    //                     language,
-    //                 }),
-    //                 signal: controller.signal,
-    //             });
-
-    //             if (!res.ok) {
-    //                 const detail = await res
-    //                     .json()
-    //                     .catch(() => ({}));
-
-    //                 throw new Error(
-    //                     detail.error ||
-    //                         "Couldn't generate the voice. Please try again."
-    //                 );
-    //             }
-
-    //             if (!res.body) {
-    //                 throw new Error(
-    //                     "The TTS server did not return an audio stream."
-    //                 );
-    //             }
-
-    //             const reader = res.body.getReader();
-
-    //             streamReaderRef.current = reader;
-
-    //             // =================================================
-    //             // READ STREAM
-    //             // =================================================
-
-    //             let hasStartedPlaying = false;
-
-    //             while (true) {
-    //                 if (myReq !== reqIdRef.current) {
-    //                     try {
-    //                         await reader.cancel();
-    //                     } catch {
-    //                         // ignore
-    //                     }
-
-    //                     return;
-    //                 }
-
-    //                 const { done, value } =
-    //                     await reader.read();
-
-    //                 if (done) {
-    //                     break;
-    //                 }
-
-    //                 if (!value || value.length === 0) {
-    //                     continue;
-    //                 }
-
-    //                 /*
-    //                  * Copy Uint8Array because the browser may reuse
-    //                  * the underlying stream buffer.
-    //                  */
-    //                 const chunk = value.slice();
-
-    //                 // Wait until SourceBuffer is available
-    //                 if (sourceBuffer.updating) {
-    //                     await new Promise((resolve) => {
-    //                         const handleUpdate = () => {
-    //                             sourceBuffer.removeEventListener(
-    //                                 "updateend",
-    //                                 handleUpdate
-    //                             );
-
-    //                             resolve();
-    //                         };
-
-    //                         sourceBuffer.addEventListener(
-    //                             "updateend",
-    //                             handleUpdate,
-    //                             { once: true }
-    //                         );
-    //                     });
-    //                 }
-
-    //                 if (myReq !== reqIdRef.current) {
-    //                     return;
-    //                 }
-
-    //                 sourceBuffer.appendBuffer(chunk);
-
-    //                 /*
-    //                  * Start playback as soon as the first chunk
-    //                  * has been appended.
-    //                  */
-    //                 if (!hasStartedPlaying) {
-    //                     await new Promise((resolve) => {
-    //                         const handleUpdate = () => {
-    //                             sourceBuffer.removeEventListener(
-    //                                 "updateend",
-    //                                 handleUpdate
-    //                             );
-
-    //                             resolve();
-    //                         };
-
-    //                         sourceBuffer.addEventListener(
-    //                             "updateend",
-    //                             handleUpdate,
-    //                             { once: true }
-    //                         );
-    //                     });
-
-    //                     if (myReq !== reqIdRef.current) {
-    //                         return;
-    //                     }
-
-    //                     try {
-    //                         await audio.play();
-
-    //                         hasStartedPlaying = true;
-
-    //                         if (myReq === reqIdRef.current) {
-    //                             setStatus("playing");
-    //                         }
-    //                     } catch (playError) {
-    //                         console.error(
-    //                             "Audio play error:",
-    //                             playError
-    //                         );
-
-    //                         throw new Error(
-    //                             "Browser blocked audio playback. Please click the play button again."
-    //                         );
-    //                     }
-    //                 }
-    //             }
-
-    //             streamFinishedRef.current = true;
-
-    //             // End MediaSource after final chunk
-    //             if (
-    //                 mediaSource.readyState === "open" &&
-    //                 !sourceBuffer.updating
-    //             ) {
-    //                 try {
-    //                     mediaSource.endOfStream();
-    //                 } catch {
-    //                     // ignore
-    //                 }
-    //             }
-
-    //             streamReaderRef.current = null;
-
-    //             /*
-    //              * IMPORTANT:
-    //              *
-    //              * We intentionally don't store this streamed response
-    //              * in blobUrlCache because it wasn't collected into a
-    //              * complete Blob.
-    //              *
-    //              * Your backend handles server-side caching.
-    //              */
-    //         } catch (err) {
-    //             console.error("TTS error:", err);
-
-    //             if (
-    //                 err?.name === "AbortError" ||
-    //                 myReq !== reqIdRef.current
-    //             ) {
-    //                 return;
-    //             }
-
-    //             setError(
-    //                 err?.message ||
-    //                     "Something went wrong with the voice."
-    //             );
-
-    //             setStatus("idle");
-    //         }
-    //     },
-    //     [teardown]
-    // );
 
     const speak = useCallback(
         async ({
@@ -668,484 +736,140 @@ export const useTTS = () => {
             voiceId: vid,
             language,
         }) => {
+            /*
+             * Stop any previous story/page playback.
+             */
             teardown();
 
             setError("");
             setVoiceId(vid);
             setStatus("loading");
 
-            const myReq = reqIdRef.current;
+            const requestId =
+                reqIdRef.current;
 
             try {
-                const key = `${bookId}/${pageId}/${vid}/${language || "english"}`;
+                const chunks =
+                    splitTextIntoChunks(text);
 
-                // =================================================
-                // CACHE HIT
-                // =================================================
-
-                const cachedUrl = blobUrlCache.current.get(key);
-
-                if (cachedUrl) {
-                    if (myReq !== reqIdRef.current) {
-                        return;
-                    }
-
-                    console.log("TTS CACHE HIT", {
-                        bookId,
-                        pageId,
-                        voiceId: vid,
-                        language,
-                    });
-
-                    const audio = new Audio(cachedUrl);
-
-                    audioRef.current = audio;
-
-                    audio.onended = () => {
-                        if (myReq === reqIdRef.current) {
-                            setStatus("idle");
-                        }
-                    };
-
-                    audio.onerror = () => {
-                        if (myReq === reqIdRef.current) {
-                            setError("Couldn't play the audio.");
-                            setStatus("idle");
-                        }
-                    };
-
-                    await audio.play();
-
-                    if (myReq === reqIdRef.current) {
-                        setStatus("playing");
-                    }
-
-                    return;
-                }
-
-                // =================================================
-                // BROWSER SUPPORT
-                // =================================================
-
-                if (!window.MediaSource) {
+                if (!chunks.length) {
                     throw new Error(
-                        "Streaming audio is not supported in this browser."
+                        "No text available for voice generation."
                     );
                 }
 
-                const mimeType = "audio/mpeg";
+                console.log(
+                    "================================="
+                );
 
-                if (!MediaSource.isTypeSupported(mimeType)) {
-                    throw new Error(
-                        "This browser does not support streaming MP3 audio."
-                    );
-                }
+                console.log(
+                    "[TTS] NEW PLAYBACK SESSION"
+                );
 
-                // =================================================
-                // CREATE MEDIA SOURCE
-                // =================================================
-
-                const mediaSource = new MediaSource();
-
-                mediaSourceRef.current = mediaSource;
-
-                const audio = new Audio();
-
-                audioRef.current = audio;
-                audio.preload = "auto";
-
-                const mediaUrl = URL.createObjectURL(mediaSource);
-
-                audio.src = mediaUrl;
-
-                // -------------------------------------------------
-                // Audio events
-                // -------------------------------------------------
-
-                audio.onended = () => {
-                    if (myReq === reqIdRef.current) {
-                        console.log("TTS AUDIO ENDED");
-                        setStatus("idle");
-                    }
-
-                    URL.revokeObjectURL(mediaUrl);
-                };
-
-                audio.onerror = () => {
-                    if (myReq === reqIdRef.current) {
-                        console.error("TTS AUDIO PLAYBACK ERROR");
-
-                        setError("Couldn't play the audio.");
-                        setStatus("idle");
-                    }
-
-                    URL.revokeObjectURL(mediaUrl);
-                };
-
-                // =================================================
-                // MEDIA SOURCE OPEN
-                // =================================================
-
-                await new Promise((resolve, reject) => {
-                    const handleOpen = () => {
-                        mediaSource.removeEventListener(
-                            "sourceopen",
-                            handleOpen
-                        );
-
-                        resolve();
-                    };
-
-                    const handleError = (event) => {
-                        mediaSource.removeEventListener(
-                            "sourceopen",
-                            handleOpen
-                        );
-
-                        reject(event);
-                    };
-
-                    mediaSource.addEventListener(
-                        "sourceopen",
-                        handleOpen
-                    );
-
-                    mediaSource.addEventListener(
-                        "error",
-                        handleError,
-                        { once: true }
-                    );
-                });
-
-                if (myReq !== reqIdRef.current) {
-                    URL.revokeObjectURL(mediaUrl);
-                    return;
-                }
-
-                // =================================================
-                // SOURCE BUFFER
-                // =================================================
-
-                const sourceBuffer =
-                    mediaSource.addSourceBuffer(mimeType);
-
-                sourceBufferRef.current = sourceBuffer;
-
-                // =================================================
-                // FETCH STREAM
-                // =================================================
-
-                const controller = new AbortController();
-
-                abortRef.current = controller;
-
-                console.log("TTS REQUEST STARTED", {
+                console.log({
                     bookId,
                     pageId,
                     voiceId: vid,
                     language,
-                    textLength: text?.length || 0,
+                    textLength:
+                        text?.length || 0,
+                    chunks: chunks.length,
+                    chunkSize: CHUNK_SIZE,
                 });
 
-                const requestStart = performance.now();
+                console.log(
+                    "================================="
+                );
 
-                const res = await fetch(`${API_BASE}/api/tts`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${localStorage.getItem("wb_token") || ""
-                            }`,
-                    },
-                    body: JSON.stringify({
-                        bookId,
-                        pageId,
-                        text,
-                        voiceId: vid,
-                        language,
-                    }),
-                    signal: controller.signal,
-                });
+                sessionRef.current = {
+                    bookId,
+                    pageId,
+                    chunks,
+                    voiceId: vid,
+                    language,
+                };
 
-                if (!res.ok) {
-                    const detail = await res
-                        .json()
-                        .catch(() => ({}));
-
-                    throw new Error(
-                        detail.error ||
-                        "Couldn't generate the voice. Please try again."
+                queueRef.current =
+                    chunks.map(
+                        (_, index) => index
                     );
-                }
 
-                if (!res.body) {
-                    throw new Error(
-                        "The TTS server did not return an audio stream."
-                    );
-                }
+                currentIndexRef.current = 0;
 
-                console.log("TTS RESPONSE RECEIVED", {
-                    status: res.status,
-                    contentType: res.headers.get("content-type"),
-                    contentLength: res.headers.get("content-length"),
-                    transferEncoding: res.headers.get(
-                        "transfer-encoding"
-                    ),
-                    timeToResponse: `${(
-                        performance.now() - requestStart
-                    ).toFixed(0)} ms`,
+                /*
+                 * IMPORTANT:
+                 *
+                 * Generate ONLY the first chunk immediately.
+                 *
+                 * This is what gives us fast first-audio
+                 * playback.
+                 */
+                console.log(
+                    "[TTS] GENERATING FIRST CHUNK"
+                );
+
+                await playChunk({
+                    index: 0,
+                    requestId,
                 });
-
-                const reader = res.body.getReader();
-
-                streamReaderRef.current = reader;
-
-                // =================================================
-                // READ STREAM
-                // =================================================
-
-                let hasStartedPlaying = false;
-
-                let chunkCount = 0;
-                let totalBytes = 0;
-
-                const streamStartTime = performance.now();
-
-                while (true) {
-                    if (myReq !== reqIdRef.current) {
-                        try {
-                            await reader.cancel();
-                        } catch {
-                            // ignore
-                        }
-
-                        return;
-                    }
-
-                    const { done, value } = await reader.read();
-
-                    // -------------------------------------------------
-                    // STREAM COMPLETE
-                    // -------------------------------------------------
-
-                    if (done) {
-                        const totalTime =
-                            performance.now() - streamStartTime;
-
-                        console.log("=================================");
-                        console.log("TTS STREAM COMPLETE");
-                        console.log("Chunks:", chunkCount);
-                        console.log(
-                            "Total bytes:",
-                            totalBytes
-                        );
-                        console.log(
-                            "Total time:",
-                            `${totalTime.toFixed(0)} ms`
-                        );
-                        console.log("=================================");
-
-                        break;
-                    }
-
-                    if (!value || value.byteLength === 0) {
-                        continue;
-                    }
-
-                    // -------------------------------------------------
-                    // CHUNK RECEIVED
-                    // -------------------------------------------------
-
-                    chunkCount++;
-
-                    const chunkSize = value.byteLength;
-
-                    totalBytes += chunkSize;
-
-                    const elapsed =
-                        performance.now() - streamStartTime;
-
-                    console.log("TTS CHUNK RECEIVED", {
-                        chunk: chunkCount,
-                        bytes: chunkSize,
-                        totalBytes,
-                        elapsed: `${elapsed.toFixed(0)} ms`,
-                    });
-
-                    /*
-                     * Copy Uint8Array because the stream may reuse
-                     * its underlying buffer.
-                     */
-                    const chunk = value.slice();
-
-                    // -------------------------------------------------
-                    // WAIT FOR SOURCE BUFFER
-                    // -------------------------------------------------
-
-                    if (sourceBuffer.updating) {
-                        await new Promise((resolve) => {
-                            const handleUpdate = () => {
-                                sourceBuffer.removeEventListener(
-                                    "updateend",
-                                    handleUpdate
-                                );
-
-                                resolve();
-                            };
-
-                            sourceBuffer.addEventListener(
-                                "updateend",
-                                handleUpdate,
-                                { once: true }
-                            );
-                        });
-                    }
-
-                    if (myReq !== reqIdRef.current) {
-                        return;
-                    }
-
-                    // -------------------------------------------------
-                    // APPEND CHUNK
-                    // -------------------------------------------------
-
-                    try {
-                        sourceBuffer.appendBuffer(chunk);
-                    } catch (appendError) {
-                        console.error(
-                            "TTS SourceBuffer append error:",
-                            appendError
-                        );
-
-                        throw appendError;
-                    }
-
-                    // -------------------------------------------------
-                    // START PLAYBACK AFTER FIRST CHUNK
-                    // -------------------------------------------------
-
-                    if (!hasStartedPlaying) {
-                        await new Promise((resolve, reject) => {
-                            const handleUpdate = () => {
-                                sourceBuffer.removeEventListener(
-                                    "updateend",
-                                    handleUpdate
-                                );
-
-                                sourceBuffer.removeEventListener(
-                                    "error",
-                                    handleError
-                                );
-
-                                resolve();
-                            };
-
-                            const handleError = (event) => {
-                                sourceBuffer.removeEventListener(
-                                    "updateend",
-                                    handleUpdate
-                                );
-
-                                sourceBuffer.removeEventListener(
-                                    "error",
-                                    handleError
-                                );
-
-                                reject(event);
-                            };
-
-                            sourceBuffer.addEventListener(
-                                "updateend",
-                                handleUpdate,
-                                { once: true }
-                            );
-
-                            sourceBuffer.addEventListener(
-                                "error",
-                                handleError,
-                                { once: true }
-                            );
-                        });
-
-                        if (myReq !== reqIdRef.current) {
-                            return;
-                        }
-
-                        try {
-                            await audio.play();
-
-                            hasStartedPlaying = true;
-
-                            console.log(
-                                "TTS PLAYBACK STARTED",
-                                {
-                                    firstChunk: chunkCount,
-                                    firstChunkBytes: totalBytes,
-                                    timeToPlayback: `${(
-                                        performance.now() -
-                                        streamStartTime
-                                    ).toFixed(0)} ms`,
-                                }
-                            );
-
-                            if (myReq === reqIdRef.current) {
-                                setStatus("playing");
-                            }
-                        } catch (playError) {
-                            console.error(
-                                "Audio play error:",
-                                playError
-                            );
-
-                            throw new Error(
-                                "Browser blocked audio playback. Please click the play button again."
-                            );
-                        }
-                    }
-                }
-
-                // =================================================
-                // STREAM FINISHED
-                // =================================================
-
-                streamFinishedRef.current = true;
 
                 if (
-                    mediaSource.readyState === "open" &&
-                    !sourceBuffer.updating
-                ) {
-                    try {
-                        mediaSource.endOfStream();
-                    } catch {
-                        // ignore
-                    }
-                }
-
-                streamReaderRef.current = null;
-
-                console.log("TTS FINISHED", {
-                    chunks: chunkCount,
-                    totalBytes,
-                });
-
-            } catch (err) {
-                console.error("TTS error:", err);
-
-                if (
-                    err?.name === "AbortError" ||
-                    myReq !== reqIdRef.current
+                    requestId !==
+                    reqIdRef.current
                 ) {
                     return;
                 }
 
+                /*
+                 * While chunk 1 is playing, generate
+                 * chunks 2 and 3 in parallel.
+                 */
+                prefetchChunks({
+                    chunks,
+                    startIndex: 1,
+                    bookId,
+                    pageId,
+                    voiceId: vid,
+                    language,
+                    requestId,
+                }).catch((err) => {
+                    if (
+                        requestId ===
+                        reqIdRef.current
+                    ) {
+                        console.warn(
+                            "[TTS] PREFETCH ERROR",
+                            err
+                        );
+                    }
+                });
+            } catch (err) {
+                if (
+                    err?.name === "AbortError" ||
+                    requestId !== reqIdRef.current
+                ) {
+                    return;
+                }
+
+                console.error(
+                    "[TTS] SPEAK ERROR",
+                    err
+                );
+
                 setError(
                     err?.message ||
-                    "Something went wrong with the voice."
+                        "Something went wrong with the voice."
                 );
 
                 setStatus("idle");
             }
         },
-        [teardown]
+        [
+            teardown,
+            splitTextIntoChunks,
+            playChunk,
+            prefetchChunks,
+        ]
     );
 
     // -------------------------------------------------------
@@ -1158,7 +882,16 @@ export const useTTS = () => {
             status === "playing"
         ) {
             audioRef.current.pause();
+
             setStatus("paused");
+
+            console.log(
+                "[TTS] PAUSED",
+                {
+                    chunkIndex:
+                        currentIndexRef.current,
+                }
+            );
         }
     }, [status]);
 
@@ -1173,10 +906,19 @@ export const useTTS = () => {
         ) {
             try {
                 await audioRef.current.play();
+
                 setStatus("playing");
+
+                console.log(
+                    "[TTS] RESUMED",
+                    {
+                        chunkIndex:
+                            currentIndexRef.current,
+                    }
+                );
             } catch (err) {
                 console.error(
-                    "Resume audio error:",
+                    "[TTS] RESUME ERROR",
                     err
                 );
 
@@ -1186,6 +928,18 @@ export const useTTS = () => {
             }
         }
     }, [status]);
+
+    // -------------------------------------------------------
+    // Stop
+    // -------------------------------------------------------
+
+    const stop = useCallback(() => {
+        console.log("[TTS] STOP");
+
+        teardown();
+
+        setStatus("idle");
+    }, [teardown]);
 
     // -------------------------------------------------------
     // Component unmount
@@ -1198,18 +952,30 @@ export const useTTS = () => {
     }, [teardown]);
 
     // -------------------------------------------------------
-    // Free cached Blob URLs
+    // Free cached object URLs
     // -------------------------------------------------------
 
     useEffect(() => {
         return () => {
-            blobUrlCache.current.forEach((url) => {
-                URL.revokeObjectURL(url);
-            });
+            chunkCacheRef.current.forEach(
+                (url) => {
+                    try {
+                        URL.revokeObjectURL(
+                            url
+                        );
+                    } catch {
+                        // Ignore
+                    }
+                }
+            );
 
-            blobUrlCache.current.clear();
+            chunkCacheRef.current.clear();
         };
     }, []);
+
+    // -------------------------------------------------------
+    // Return API
+    // -------------------------------------------------------
 
     return {
         speak,
