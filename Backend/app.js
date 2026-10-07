@@ -19,7 +19,6 @@ import orderRoutes from "./routes/orders.js";
 import cartRoutes from "./routes/cart.js";
 import addressRoutes from "./routes/addresses.js";
 import locationRoutes from "./routes/location.js";
-import { requireAuth } from "./middleware/auth.js";
 import { expireOutdatedSubscriptions } from "./controllers/subscriptionController.js";
 import OpenAI from "openai";
 import AudioCache from "./models/AudioCache.js";
@@ -42,35 +41,151 @@ app.use("/audio", express.static(path.join(process.cwd(), "uploads", "audio")));
 const audioMemoryCache = new Map(); // key -> Buffer
 const MAX_CACHE_ENTRIES = 200;
 
+// app.post("/api/tts", async (req, res) => {
+//   try {
+//     const { bookId, pageId, text, voiceId, language } = req.body;
+//     if (!bookId || pageId === undefined || pageId === null || !text || !voiceId) {
+//       return res.status(400).json({ error: "bookId, pageId, text and voiceId are required" });
+//     }
+//     const cacheKey = `${bookId}:${pageId}:${voiceId}:${language || "english"}`;
+
+//     let audioBuffer = audioMemoryCache.get(cacheKey);
+//     if (!audioBuffer) {
+//       audioBuffer = await generateAudio({ text, voiceId, language });
+
+//       if (audioMemoryCache.size >= MAX_CACHE_ENTRIES) {
+//         audioMemoryCache.delete(audioMemoryCache.keys().next().value);
+//       }
+//       audioMemoryCache.set(cacheKey, audioBuffer);
+//     }
+
+//     res.set({
+//       "Content-Type": "audio/mpeg",
+//       "Content-Length": audioBuffer.length,
+//       "Cache-Control": "no-store",
+//     });
+//     res.send(audioBuffer);
+//   } catch (err) {
+//     console.error("TTS error:", err.message, err.cause?.code || err.cause);
+//     res.status(500).json({ error: "Failed to generate speech" });
+//   }
+// })
+
 app.post("/api/tts", async (req, res) => {
   try {
-    const { bookId, pageId, text, voiceId, language } = req.body;
-    if (!bookId || pageId === undefined || pageId === null || !text || !voiceId) {
-      return res.status(400).json({ error: "bookId, pageId, text and voiceId are required" });
+    const {
+      bookId,
+      pageId,
+      text,
+      voiceId,
+      language,
+    } = req.body;
+
+    if (
+      !bookId ||
+      pageId === undefined ||
+      pageId === null ||
+      !text ||
+      !voiceId
+    ) {
+      return res.status(400).json({
+        error: "bookId, pageId, text and voiceId are required",
+      });
     }
+
     const cacheKey = `${bookId}:${pageId}:${voiceId}:${language || "english"}`;
 
-    let audioBuffer = audioMemoryCache.get(cacheKey);
-    if (!audioBuffer) {
-      audioBuffer = await generateAudio({ text, voiceId, language });
+    const cachedAudio = audioMemoryCache.get(cacheKey);
 
-      if (audioMemoryCache.size >= MAX_CACHE_ENTRIES) {
-        audioMemoryCache.delete(audioMemoryCache.keys().next().value);
+    // -----------------------------------------
+    // CACHE HIT
+    // -----------------------------------------
+
+    if (cachedAudio) {
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Content-Length", cachedAudio.length);
+      res.setHeader("Cache-Control", "public, max-age=3600");
+
+      // Send cached audio in chunks
+      const CHUNK_SIZE = 64 * 1024;
+
+      for (
+        let offset = 0;
+        offset < cachedAudio.length;
+        offset += CHUNK_SIZE
+      ) {
+        const chunk = cachedAudio.subarray(
+          offset,
+          Math.min(offset + CHUNK_SIZE, cachedAudio.length)
+        );
+
+        res.write(chunk);
       }
-      audioMemoryCache.set(cacheKey, audioBuffer);
+
+      return res.end();
     }
 
-    res.set({
-      "Content-Type": "audio/mpeg",
-      "Content-Length": audioBuffer.length,
-      "Cache-Control": "no-store",
+    // -----------------------------------------
+    // CACHE MISS
+    // -----------------------------------------
+
+    const audioStream = await generateAudio({
+      text,
+      voiceId,
+      language,
     });
-    res.send(audioBuffer);
+
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Transfer-Encoding", "chunked");
+    res.setHeader("Cache-Control", "no-cache");
+
+    const chunks = [];
+
+    for await (const chunk of audioStream) {
+      const buffer = Buffer.from(chunk);
+
+      // Save chunks so we can cache the completed audio
+      chunks.push(buffer);
+
+      // Immediately send chunk to browser
+      res.write(buffer);
+    }
+
+    // -----------------------------------------
+    // SAVE COMPLETE AUDIO TO CACHE
+    // -----------------------------------------
+
+    const completeAudio = Buffer.concat(chunks);
+
+    if (audioMemoryCache.size >= MAX_CACHE_ENTRIES) {
+      const firstKey = audioMemoryCache.keys().next().value;
+
+      if (firstKey) {
+        audioMemoryCache.delete(firstKey);
+      }
+    }
+
+    audioMemoryCache.set(cacheKey, completeAudio);
+
+    res.end();
+
   } catch (err) {
-    console.error("TTS error:", err.message, err.cause?.code || err.cause);
-    res.status(500).json({ error: "Failed to generate speech" });
+    console.error(
+      "TTS error:",
+      err.message,
+      err.cause?.code || err.cause
+    );
+
+    if (!res.headersSent) {
+      return res.status(500).json({
+        error: "Failed to generate speech",
+      });
+    }
+
+    res.end();
   }
 });
+
 app.post("/api/contact", async (req, res) => {
   try {
     const { name, email, contactNo, timeZone, preferredTime, message } = req.body;
