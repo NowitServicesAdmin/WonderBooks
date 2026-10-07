@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
     FaArrowRight as ArrowRight,
-    FaBookOpen as BookOpen,
+    // FaBookOpen as BookOpen,
     FaCampground as Tent,
     FaChevronLeft as ChevronLeft,
     FaChevronRight as ChevronRight,
@@ -22,8 +22,8 @@ import {
     FaYoutube as Youtube,
 } from "react-icons/fa";
 import heroImage from "../../assets/wonder-books/hero.png";
-import templatesStarLeft from "../../assets/wonder-books/star-left.png";
-import templatesStarRight from "../../assets/wonder-books/star-right.png";
+// import templatesStarLeft from "../../assets/wonder-books/star-left.png";
+// import templatesStarRight from "../../assets/wonder-books/star-right.png";
 import braveExplorer from "../../assets/wonder-books/template-brave-explorer.png";
 import magicForest from "../../assets/wonder-books/template-magic-forest.png";
 import specialFamily from "../../assets/wonder-books/template-special-family.png";
@@ -35,9 +35,13 @@ import getBook from "../../assets/wonder-books/step-get-book.png";
 // import girlBook from "../../assets/wonder-books/girl-book-clean.png";
 import logo from "../../assets/wonder-books/wonderbook-logo.png";
 import { Menu, User, X } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, } from "react-router-dom";
 import ContactForm from "../../Components/ContactForm";
 import PricingSection from "../../Components/PricingSection";
+import LanguageSelector from "../../Components/LanguageSelector";
+import BrandText from "../../Components/BrandText";
+import { changeLandingLanguage, getSavedLanguage, startLandingTranslate } from "../../utils/landingTranslate";
+import { createPortal } from 'react-dom';
 
 const templates = [
     {
@@ -133,12 +137,12 @@ const features = [
     },
 ];
 
-const values = [
-    ["Builds Confidence", Star, "bg-[#fff0c2] text-[#d9962b]"],
-    ["Encourages Reading", BookOpen, "bg-[#d9f4ea] text-[#1f9a72]"],
-    ["Teaches Life Values", Heart, "bg-[#ffe0f0] text-[#e0449a]"],
-    ["A Unique Gift", Gift, "bg-[#eadcff] text-[#8a4fe0]"],
-];
+// const values = [
+//     ["Builds Confidence", Star, "bg-[#fff0c2] text-[#d9962b]"],
+//     ["Encourages Reading", BookOpen, "bg-[#d9f4ea] text-[#1f9a72]"],
+//     ["Teaches Life Values", Heart, "bg-[#ffe0f0] text-[#e0449a]"],
+//     ["A Unique Gift", Gift, "bg-[#eadcff] text-[#8a4fe0]"],
+// ];
 
 const testimonials = [
     { text: "My daughter was so excited to see her name in the story! The illustrations are beautiful and the quality is amazing.", name: "Priya S." },
@@ -148,21 +152,21 @@ const testimonials = [
     { text: "The illustrations are magical and the story feels like it was made just for our family.", name: "Vikram P." },
 ];
 
-function Sparkles({ leftClass = "left-[3%] top-10", rightClass = "right-[3%] top-24" }) {
-    return (
-        <>
-            <img src={templatesStarLeft} alt="" className={`pointer-events-none absolute hidden w-27.5 select-none lg:block xl:w-32.5 ${leftClass}`} />
-            <img src={templatesStarRight} alt="" className={`pointer-events-none absolute hidden w-22.5 select-none lg:block xl:w-27.5 ${rightClass}`} />
-        </>
-    );
-}
+// function Sparkles({ leftClass = "left-[3%] top-10", rightClass = "right-[3%] top-24" }) {
+//     return (
+//         <>
+//             <img src={templatesStarLeft} alt="" className={`pointer-events-none absolute hidden w-27.5 select-none lg:block xl:w-32.5 ${leftClass}`} />
+//             <img src={templatesStarRight} alt="" className={`pointer-events-none absolute hidden w-22.5 select-none lg:block xl:w-27.5 ${rightClass}`} />
+//         </>
+//     );
+// }
 
 function SectionHeading({ eyebrow, children, sub }) {
     return (
         <div className="mx-auto max-w-3xl text-center">
             <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#6335d8]">{eyebrow}</p>
             <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-[#1a1560] sm:text-3xl lg:text-[34px] lg:leading-[1.15]">{children}</h2>
-            {sub && <p className="mt-2 text-sm text-[#4d4a80]">{sub}</p>}
+            {sub && <p className="mt-2 text-sm text-[#4d4a80]"><BrandText>{sub}</BrandText></p>}
         </div>
     );
 }
@@ -175,8 +179,35 @@ function Logo({ stacked = false, light = false }) {
                 alt="WonderBooks Logo"
                 className={`shrink-0 object-contain transition duration-300 group-hover:-rotate-6 group-hover:scale-110 ${stacked ? "h-15 w-15" : "h-9 w-9"}`}
             />
-            <span className={`text-2xl font-extrabold tracking-tight ${light ? "text-white" : "text-[#3a1fb5]"}`}>WonderBooks</span>
+            <span translate="no" className={`notranslate text-2xl font-extrabold tracking-tight ${light ? "text-white" : "text-[#3a1fb5]"}`}>WonderBooks</span>
         </a>
+    );
+}
+
+function VideoModal({ onClose }) {
+    useEffect(() => {
+        const onKey = (e) => e.key === "Escape" && onClose();
+        document.addEventListener("keydown", onKey);
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden"; // stop page scrolling behind the modal
+        return () => {
+            document.removeEventListener("keydown", onKey);
+            document.body.style.overflow = prevOverflow;
+        };
+    }, [onClose]);
+
+    return createPortal(
+        <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="relative w-full max-w-4xl overflow-hidden rounded-2xl bg-black shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <button type="button" onClick={onClose} aria-label="Close video" className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/70 text-xl text-white transition hover:bg-black">
+                    ×
+                </button>
+                <div className="aspect-video w-full">
+                    <iframe className="h-full w-full" src="https://www.youtube.com/embed/9Ylge7xJmQ4?autoplay=1" title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen />
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 }
 
@@ -198,6 +229,12 @@ export default function HomePage() {
     const [scrolled, setScrolled] = useState(false);
     const [activeSection, setActiveSection] = useState("home");
     const [menuOpen, setMenuOpen] = useState(false);
+    const [showVideoModal, setShowVideoModal] = useState(false);
+
+    // Landing-page-only translation (Google Translate). Starts on mount, restores English on leave.
+    const [langCode, setLangCode] = useState(getSavedLanguage);
+    useEffect(() => startLandingTranslate(getSavedLanguage()), []);
+    const handleLanguageChange = (code) => { setLangCode(code); changeLandingLanguage(code); };
 
     useEffect(() => {
         const onScroll = () => {
@@ -305,6 +342,8 @@ export default function HomePage() {
                     <div className="flex items-center gap-2">
                         {/* <button onClick={() => navigate("/auth")} className="hidden rounded-full border border-[#cdbff5] px-5 py-1.5 text-[11px] font-bold text-[#4a1fe0] transition hover:bg-[#f3ecff] sm:block">Login</button> */}
 
+                        <LanguageSelector value={langCode} onChange={handleLanguageChange} />
+
                         {/* Desktop CTA */}
                         <button
                             onClick={() => navigate("/auth")}
@@ -376,10 +415,10 @@ export default function HomePage() {
                         <div className="max-w-115">
                             <p className="mb-4 text-[9px] font-bold uppercase tracking-[0.25em] text-[#cbb8ff]">Personalized Storybooks with AI</p>
                             <h1 className="text-[44px] font-black leading-[1.05] tracking-[-0.02em] text-white sm:text-[52px] lg:text-[clamp(40px,3.6vw,56px)]">
-                                Turn Their
-                                <br />
-                                Imagination
-                                <br />
+                                Turn Their{" "}
+                                <br className="wb-br" />
+                                Imagination{" "}
+                                <br className="wb-br" />
                                 into a <span className="text-[#ffd447]">Real Book</span>
                             </h1>
                             <p className="mt-5 max-w-90 text-sm leading-6 text-[#efe8ff]">
@@ -396,6 +435,7 @@ export default function HomePage() {
                                 </a>
                                 <button
                                     type="button"
+                                    onClick={() => setShowVideoModal(true)}
                                     className="group flex items-center gap-2 rounded-full border border-white/60 bg-white/5 px-6 py-2.5 text-xs font-bold text-white backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-white hover:bg-white/20 active:scale-95"
                                 >
                                     <Play className="h-3 w-3 transition-transform duration-300 group-hover:scale-125" />
@@ -464,8 +504,8 @@ export default function HomePage() {
                                                     className="h-47.5 w-auto max-w-full object-contain mix-blend-multiply drop-shadow-[0_14px_14px_rgba(54,25,105,0.25)] transition duration-500 group-hover:-translate-y-1 group-hover:scale-[1.03]"
                                                 />
                                                 <h3 className={`mt-4 text-[12px] font-bold leading-4 ${book.text}`}>
-                                                    {book.lines[0]}
-                                                    <br />
+                                                    {book.lines[0]}{" "}
+                                                    <br className="wb-br" />
                                                     {book.lines[1]}
                                                 </h3>
                                                 <span className={`mt-3 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[11px] font-bold transition duration-300 group-hover:-translate-y-0.5 group-hover:shadow-md ${book.pill}`}>
@@ -555,14 +595,14 @@ export default function HomePage() {
                         onMouseEnter={() => setIsReviewPaused(true)}
                         onMouseLeave={() => setIsReviewPaused(false)}
                     >
-                        <div className="relative z-10 mx-auto max-w-250">
+                        <div className="relative z-10 mx-auto ">
                             <SectionHeading eyebrow="Loved By Families" sub="See what parents and kids are saying about WonderBooks.">
                                 Stories That Create Smiles
                             </SectionHeading>
 
                             <div className="relative mt-8 overflow-hidden px-1 pb-3">
                                 <div
-                                    className={`flex gap-4 [--review-card-width:100%] md:[--review-card-width:calc((100%-2rem)/3)] ${reviewTransition ? "transition-transform duration-700 ease-in-out" : ""}`}
+                                    className={`flex gap-4 m-10 [--review-card-width:100%] md:[--review-card-width:calc((100%-2rem)/3)] ${reviewTransition ? "transition-transform duration-700 ease-in-out" : ""}`}
                                     style={{
                                         transform: "translateX(calc(-1 * var(--review-index) * (var(--review-card-width) + 1rem)))",
                                         "--review-index": reviewIndex,
@@ -571,13 +611,13 @@ export default function HomePage() {
                                     {reviewSlides.map((review, index) => (
                                         <article
                                             key={`${review.name}-${index}`}
-                                            className="flex w-full shrink-0 gap-3 rounded-xl border border-[#eee8fb] bg-white p-4 shadow-[0_6px_22px_rgba(120,80,220,0.08)] transition-shadow duration-300 hover:shadow-[0_12px_28px_rgba(120,80,220,0.18)] md:w-[calc((100%-2rem)/3)]"
+                                            className="flex w-full shrink-0 gap-3 rounded-xl border border-[#eee8fb] bg-white p-10 md:p-4 lg:p-10 shadow-[0_6px_22px_rgba(120,80,220,0.08)] transition-shadow duration-300 hover:shadow-[0_12px_28px_rgba(120,80,220,0.18)] md:w-[calc((100%-2rem)/3)]"
                                         >
                                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-[#e8dcff] to-[#f8eaff] text-[#6335d8]">
                                                 <Users className="h-4 w-4" />
                                             </div>
                                             <div>
-                                                <p className="min-h-16 text-[11px] leading-4 text-[#5d5a8c]">&ldquo;{review.text}&rdquo;</p>
+                                                <p className="min-h-16 text-[11px] leading-4 text-[#5d5a8c]">&ldquo;<BrandText>{review.text}</BrandText>&rdquo;</p>
                                                 <p className="mt-2 text-xs font-extrabold text-[#292468]">{review.name}</p>
                                                 <div className="mt-1 flex gap-0.5 text-[#ffbd25]">
                                                     {Array.from({ length: 5 }).map((_, i) => <Star key={i} className="h-3 w-3" />)}
@@ -603,7 +643,7 @@ export default function HomePage() {
                                 </button>
                             </div>
 
-                            <div className="mt-4 flex justify-center gap-1.5">
+                            {/* <div className="mt-4 flex justify-center gap-1.5">
                                 {testimonials.slice(0, 3).map((_, index) => (
                                     <button
                                         key={index}
@@ -612,7 +652,7 @@ export default function HomePage() {
                                         className={`h-1.5 w-1.5 rounded-full transition-all hover:scale-150 hover:bg-[#8552e8] ${visibleReviewIndex === index ? "bg-[#6335d8]" : "bg-[#d8d1ed]"}`}
                                     />
                                 ))}
-                            </div>
+                            </div> */}
                         </div>
                     </section>
 
@@ -648,6 +688,7 @@ export default function HomePage() {
                             </div>
                         </div>
                     </section> */}
+                    {showVideoModal && <VideoModal onClose={() => setShowVideoModal(false)} />}
                 </div>
             </main>
 
@@ -664,8 +705,9 @@ export default function HomePage() {
                     <div className="sm:col-span-2 lg:col-span-1">
                         <Logo light />
                         <p className="mt-5 max-w-sm text-[15px] leading-7 text-[#e4defa] sm:max-w-lg lg:max-w-sm">
-                            WonderBooks turns your child's imagination into personalized, beautifully
-                            illustrated storybooks that families treasure forever.
+                            <BrandText>
+                                {"WonderBooks turns your child's imagination into personalized, beautifully illustrated storybooks that families treasure forever."}
+                            </BrandText>
                         </p>
                         <div className="mt-6 flex gap-3">
                             {[
@@ -723,9 +765,9 @@ export default function HomePage() {
 
                 {/* Divider + copyright */}
                 <div className="mx-auto mt-10 max-w-350 border-t border-white/10 pt-6 text-center text-[14px] text-[#aaa2cb]">
-                    &copy; 2026 <span className="font-bold text-white">NOWIT SERVICES Pvt Ltd</span> . All rights reserved.
+                    &copy; 2026 <span translate="no" className="notranslate font-bold text-white">NOWIT SERVICES Pvt Ltd</span> . All rights reserved.
                 </div>
-            </footer>
+            </footer>           
         </div>
     );
 }
