@@ -65,3 +65,37 @@ export const getCartTotals = (lines = []) => {
         maxBooks: MAX_CART_ITEMS,
     };
 };
+
+/*
+|--------------------------------------------------------------------------
+| GST + delivery (read from .env at call time, so dotenv load order is safe)
+|--------------------------------------------------------------------------
+| GST_PERCENT             e.g. 18
+| SHIPROCKET_EXTRA_CHARGE e.g. 50  (added on top of Shiprocket's rate)
+*/
+const readNumber = (name, fallback) => {
+    const raw = process.env[name];
+    if (raw === undefined || String(raw).trim() === "") return fallback;
+    const value = Number(raw);
+    return Number.isFinite(value) && value >= 0 ? value : fallback;
+};
+
+export const getGstPercent = () => readNumber("GST_PERCENT", 0);
+
+export const getDeliveryExtraCharge = () => readNumber("SHIPROCKET_EXTRA_CHARGE", 50);
+// console.log("GST_PERCENT:", getGstPercent(), "SHIPROCKET_EXTRA_CHARGE:", getDeliveryExtraCharge());
+
+// subtotal + delivery charge, then GST on both. All amounts are whole rupees.
+export const getCheckoutTotals = (subtotal, deliveryCharge = 0) => {
+    const gstPercent = getGstPercent();
+    const taxable = subtotal + deliveryCharge;
+    const gstAmount = Math.round((taxable * gstPercent) / 100);
+    return {
+        subtotal,
+        deliveryCharge,
+        gstPercent,
+        gstAmount,
+        total: taxable + gstAmount,
+        currency: PRINT_CURRENCY,
+    };
+};

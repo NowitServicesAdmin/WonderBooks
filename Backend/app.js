@@ -26,6 +26,8 @@ import AudioCache from "./models/AudioCache.js";
 import AlertRoutes from "./routes/alertRoutes.js";
 import { ContactMessage } from "./models/ContactUs.js";
 import { sendContactEnquiryEmail } from "./services/otpService.js";
+import shiprocketWebhookRoutes from "./routes/shiprocketWebhookRoutes.js";
+
 const app = express();
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -95,6 +97,7 @@ app.use("/api/cart", cartRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/alerts", AlertRoutes);
+app.use("/api/webhooks",shiprocketWebhookRoutes);
 const startServer = async () => {
   try {
     await connectDB();

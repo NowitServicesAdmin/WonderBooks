@@ -14,8 +14,12 @@ import {
   Loader2,
 } from "lucide-react";
 
-import { getMyOrders, cancelOrder as cancelOrderRequest } from "../../services/orderService";
-import {CartButton} from "../../Components/CartButton";
+import {
+  getMyOrders,
+  getOrderTracking,
+  cancelOrder as cancelOrderRequest,
+} from "../../services/orderService";
+
 /* -------------------------------------------------------------------------- */
 /*                                  ORDER DATA                                */
 /* -------------------------------------------------------------------------- */
@@ -41,6 +45,13 @@ const mapOrder = (apiOrder) => {
     date: created.toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" }),
     time: created.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
     price: apiOrder.amount,
+    subtotal:
+      apiOrder.subtotal ??
+      apiOrder.amount - (apiOrder.shippingFee || 0) - (apiOrder.gstAmount || 0),
+    shippingFee: apiOrder.shippingFee || 0,
+    gstPercent: apiOrder.gstPercent || 0,
+    gstAmount: apiOrder.gstAmount || 0,
+    shipment: apiOrder.shipment || null,
     statusStep: apiOrder.statusStep,
     shippingAddress: apiOrder.shippingAddress,
     book: {
@@ -243,6 +254,90 @@ export const OrderListItem = ({
 };
 
 /* ========================================================================== */
+/*                              SHIPMENT TRACKING                             */
+/* ========================================================================== */
+
+const prettyStatus = (value) =>
+  String(value || "")
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/^\w|\s\w/g, (c) => c.toUpperCase());
+
+const ShipmentCard = ({ order }) => {
+  const [live, setLive] = useState(null);
+  const [activities, setActivities] = useState([]);
+
+  const awb = order.shipment?.awbCode;
+
+  // refresh from Shiprocket whenever an order with an AWB is opened
+  useEffect(() => {
+    if (!awb) return undefined;
+    let cancelled = false;
+    getOrderTracking(order._id)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setLive(data.shipment || null);
+        setActivities(data.activities || []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [order._id, awb]);
+
+  if (!awb) return null;
+
+  const shipment = live || order.shipment;
+  const days = shipment.estimatedDeliveryDays;
+
+  return (
+    <div className="mx-8 mt-4 rounded-xl border border-(--tint) p-5">
+      <div className="flex items-center justify-between">
+        <h4 className="text-[12px] font-bold text-[#2f3456]">Shipment tracking</h4>
+        {shipment.trackUrl && (
+          <a
+            href={shipment.trackUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[11px] font-semibold text-[#6147bf]"
+          >
+            Track on courier site
+          </a>
+        )}
+      </div>
+
+      <div className="mt-3 space-y-2 text-[11px] text-[#5f6682]">
+        <p>
+          Status:{" "}
+          <span className="font-semibold text-[#4c536f]">
+            {shipment.shiprocketStatus || prettyStatus(shipment.status)}
+          </span>
+        </p>
+        {shipment.courierName && <p>Courier: {shipment.courierName}</p>}
+        <p>Tracking number (AWB): {awb}</p>
+        {shipment.estimatedDelivery ? (
+          <p>Expected delivery: {shipment.estimatedDelivery}</p>
+        ) : (
+          days && <p>Expected delivery: about {days} days after dispatch</p>
+        )}
+      </div>
+
+      {activities.length > 0 && (
+        <ul className="mt-4 space-y-2 border-t border-(--tint) pt-3 text-[11px] text-[#5f6682]">
+          {activities.slice(0, 6).map((a, i) => (
+            <li key={`${a.date}-${i}`}>
+              <span className="font-semibold text-[#4c536f]">{a.activity || a.status}</span>
+              {a.location ? ` · ${a.location}` : ""}
+              <span className="block text-[10px] text-[#8a90a8]">{a.date}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+/* ========================================================================== */
 /*                         REUSABLE COMPONENT 2                               */
 /*                              ORDER DETAILS                                 */
 /* ========================================================================== */
@@ -439,6 +534,8 @@ export const OrderDetails = ({
         </div>
       )}
 
+      {!isCancelled && <ShipmentCard order={order} />}
+
       {/* -------------------------------------------------------------- */}
       {/* Shipping + payment */}
       {/* -------------------------------------------------------------- */}
@@ -483,15 +580,24 @@ export const OrderDetails = ({
           <div className="mt-4 space-y-3 text-[11px]">
             <div className="flex justify-between text-[#626984]">
               <span>Book Price</span>
-              <span>₹{order.price}</span>
+              <span>₹{order.subtotal}</span>
             </div>
 
             <div className="flex justify-between text-[#626984]">
-              <span>Shipping</span>
-              <span className="font-semibold text-[#41805f]">
-                FREE
-              </span>
+              <span>Delivery</span>
+              {order.shippingFee > 0 ? (
+                <span>₹{order.shippingFee}</span>
+              ) : (
+                <span className="font-semibold text-[#41805f]">FREE</span>
+              )}
             </div>
+
+            {order.gstAmount > 0 && (
+              <div className="flex justify-between text-[#626984]">
+                <span>GST ({order.gstPercent}%)</span>
+                <span>₹{order.gstAmount}</span>
+              </div>
+            )}
 
             <div className="border-t border-(--tint) pt-3">
               <div className="flex justify-between font-bold text-[#393061]">

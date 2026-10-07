@@ -15,7 +15,7 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
 import { useRazorpayCheckout } from "../../hooks/useRazorpayCheckout";
-import { initiateOrder, verifyOrder } from "../../services/orderService";
+import { getShippingQuote, initiateOrder, verifyOrder } from "../../services/orderService";
 import { deleteAddress, getAddresses } from "../../services/addressService";
 import { AddressSection } from "../../Components/printOrder/AddressSection";
 import { AddressFormModal } from "../../Components/printOrder/AddressFormModal";
@@ -150,6 +150,11 @@ export const PrintCart = () => {
     const [paying, setPaying] = useState(false);
     const [payError, setPayError] = useState("");
 
+    // delivery charge + estimated days + GST for the selected address
+    const [quote, setQuote] = useState(null);
+    const [quoteLoading, setQuoteLoading] = useState(false);
+    const [quoteError, setQuoteError] = useState("");
+
     // always show the latest cart when this page opens
     useEffect(() => {
         refresh();
@@ -200,6 +205,33 @@ export const PrintCart = () => {
         [addresses, selectedId],
     );
 
+    // Re-price whenever the address or the number of copies changes
+    useEffect(() => {
+        if (!selectedId || items.length === 0) {
+            setQuote(null);
+            setQuoteError("");
+            return undefined;
+        }
+        let cancelled = false;
+        setQuoteLoading(true);
+        setQuoteError("");
+        getShippingQuote({ addressId: selectedId })
+            .then(({ data }) => {
+                if (!cancelled) setQuote(data.quote);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                setQuote(null);
+                setQuoteError(err.response?.data?.message || "Couldn't calculate delivery charges. Please try again.");
+            })
+            .finally(() => {
+                if (!cancelled) setQuoteLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedId, items.length, totals.itemCount]);
+
     const runCartAction = async (action) => {
         if (cartBusy || paying) return;
         setCartBusy(true);
@@ -229,6 +261,10 @@ export const PrintCart = () => {
         if (paying || cartBusy) return;
         if (!selectedAddress) {
             setPayError("Please choose a delivery address first.");
+            return;
+        }
+        if (!quote) {
+            setPayError(quoteError || "Delivery charges are still loading. Please wait a moment.");
             return;
         }
 
@@ -394,13 +430,33 @@ export const PrintCart = () => {
                                 <Truck size={14} />
                                 Delivery
                             </dt>
-                            <dd className="font-bold text-emerald-600">
-                                {totals.shippingFee > 0 ? money(totals.shippingFee) : "Free"}
+                            <dd className="font-bold text-(--text-heading)">
+                                {!selectedAddress
+                                    ? "Choose address"
+                                    : quoteLoading
+                                        ? "Calculating..."
+                                        : quote
+                                            ? money(quote.deliveryCharge)
+                                            : "—"}
                             </dd>
                         </div>
+                        {quote && !quoteLoading && quote.estimatedDeliveryDays && (
+                            <div className="-mt-1 text-xs text-(--text-muted)">
+                                Estimated delivery in about {quote.estimatedDeliveryDays}{" "}
+                                {quote.estimatedDeliveryDays === 1 ? "day" : "days"} after dispatch
+                            </div>
+                        )}
+                        {quote && !quoteLoading && quote.gstAmount > 0 && (
+                            <div className="flex justify-between gap-3">
+                                <dt className="text-(--text-muted)">GST ({quote.gstPercent}%)</dt>
+                                <dd className="font-bold text-(--text-heading)">{money(quote.gstAmount)}</dd>
+                            </div>
+                        )}
                         <div className="flex items-center justify-between gap-3 border-t border-(--border) pt-4">
                             <dt className="text-base font-extrabold text-(--text-heading)">Total</dt>
-                            <dd className="text-xl font-extrabold text-(--accent)">{money(totals.total)}</dd>
+                            <dd className="text-xl font-extrabold text-(--accent)">
+                                {money(quote ? quote.total : totals.subtotal)}
+                            </dd>
                         </div>
                     </dl>
 
@@ -413,16 +469,17 @@ export const PrintCart = () => {
                         </div>
                     )}
 
+                    {quoteError && <p className="mt-4 text-xs font-semibold text-[#c0392b]">{quoteError}</p>}
                     {payError && <p className="mt-4 text-xs font-semibold text-[#c0392b]">{payError}</p>}
 
                     <button
                         type="button"
                         onClick={handlePay}
-                        disabled={paying || cartBusy || addressesLoading || !selectedAddress}
+                        disabled={paying || cartBusy || addressesLoading || !selectedAddress || quoteLoading || !quote}
                         className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-(--accent) text-sm font-bold text-white transition hover:bg-(--accent-hover) disabled:pointer-events-none disabled:opacity-50"
                     >
                         {paying ? <Loader2 size={17} className="animate-spin" /> : <ShieldCheck size={17} />}
-                        {paying ? "Processing..." : `Pay ${money(totals.total)}`}
+                        {paying ? "Processing..." : quote ? `Pay ${money(quote.total)}` : "Pay"}
                     </button>
 
                     {!selectedAddress && !addressesLoading && (

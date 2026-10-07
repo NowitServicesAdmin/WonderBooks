@@ -134,6 +134,8 @@ html.dark .bg-\[\#f5f2ff\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-o
 html.dark .text-\[\#b3aec8\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#8f88aa}
 html.dark .text-\[\#5426c7\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#9b80dd}
 html.dark .bg-\[\#e94b4b\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){background-color:#925858}
+html.dark .text-\[\#5426c7\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#9b80dd}
+html.dark .bg-\[\#e94b4b\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){background-color:#925858}
 html.dark .border-\[\#f7bfd1\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){border-color:#693848}
 html.dark .bg-\[\#fff2f6\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){background-color:#351b23}
 html.dark .border-\[\#ee7fa4\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){border-color:#774053}
@@ -234,6 +236,14 @@ html.dark .text-\[\#66568b\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert
 html.dark .text-\[\#a68ad9\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#9c81cd}
 html.dark .text-\[\#5a5792\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#a19fc1}
 html.dark .text-\[\#5636c7\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#9482d4}
+html.dark .text-slate-600:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#bac3d0}
+html.dark .border-indigo-100:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){border-color:#28304b}
+html.dark .text-slate-500:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#a1abba}
+html.dark .text-slate-400:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#7d8ea7}
+html.dark .border-indigo-500:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){border-color:#4341c8}
+html.dark .bg-indigo-50:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){background-color:#1d2337}
+html.dark .text-indigo-700:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#8f83de}
+html.dark .ring-indigo-400:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){--tw-ring-color:#414cc8}
 html.dark .border-\[\#d9cdf5\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){border-color:#413460}
 html.dark .text-\[\#4c4457\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#ccc7d2}
 html.dark .ring-white\/40:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){--tw-ring-color:rgb(47 40 62 / 0.4)}
@@ -428,6 +438,10 @@ html.dark .text-\[\#252b50\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert
 html.dark .text-\[\#5c6488\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#a5aabe}
 html.dark .text-\[\#342e79\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#9a95d0}
 html.dark .text-\[\#7365b6\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#9087bf}
+html.dark .text-\[\#2f3456\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#cfd1da}
+html.dark .text-\[\#6147bf\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#9484cc}
+html.dark .text-\[\#5f6682\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#a9adbd}
+html.dark .text-\[\#8a90a8\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#888da2}
 html.dark .border-\[\#ebe9f2\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){border-color:#332d4b}
 html.dark .text-\[\#687092\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#9ea2b6}
 html.dark .text-\[\#24294e\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#d6d7e2}
@@ -445,9 +459,6 @@ html.dark .bg-\[\#f8f6ff\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-o
 html.dark .text-\[\#634ac4\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#9182cd}
 html.dark .text-\[\#474d70\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#b7bace}
 html.dark .text-\[\#5d6482\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#a9adbe}
-html.dark .text-\[\#2f3456\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#cfd1da}
-html.dark .text-\[\#6147bf\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#9484cc}
-html.dark .text-\[\#5f6682\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#a9adbd}
 html.dark .text-\[\#626984\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#a7abbb}
 html.dark .text-\[\#41805f\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#add1be}
 html.dark .text-\[\#393061\]:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){color:#ccc9d7}
@@ -632,6 +643,8 @@ html.dark .hover\:border-\[\#c9c5e3\]:hover:not(.wb-keep-light, .wb-keep-light *
 html.dark .hover\:border-\[\#c8b5ff\]:hover:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){border-color:#6441c8}
 html.dark .hover\:border-\[\#cbb7ff\]:hover:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){border-color:#6741c8}
 html.dark .hover\:bg-\[\#f5f0ff\]:hover:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){background-color:#251c36}
+html.dark .hover\:bg-indigo-50:hover:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){background-color:#1d2337}
+html.dark .hover\:bg-indigo-50\/50:hover:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){background-color:rgb(29 35 55 / 0.5)}
 html.dark .hover\:border-\[\#c9bce9\]:hover:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){border-color:#4e3f75}
 html.dark .hover\:bg-\[\#f2edff\]:hover:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){background-color:#251d38}
 html.dark .hover\:bg-\[\#f2edff\]\/60:hover:not(.wb-keep-light, .wb-keep-light *, .wonder-alert-overlay, .wonder-alert-overlay *){background-color:rgb(37 29 56 / 0.6)}

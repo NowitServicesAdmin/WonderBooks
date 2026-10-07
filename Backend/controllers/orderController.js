@@ -5,14 +5,23 @@ import Order from "../models/order.js";
 import Book from "../models/book.js";
 import Address from "../models/address.js";
 import Cart from "../models/cart.js";
+import { User } from "../models/user.js";
 import {
   getCartTotals,
+  getCheckoutTotals,
   getOrderTotals,
   normalizeQuantity,
   PRINT_CURRENCY,
 } from "../config/printPricing.js";
 import { loadBookSummaries, loadCartLines } from "../services/cartService.js";
 import { notify } from "../services/alertService.js"; // ALERTS
+import {
+  getDeliveryQuote,
+  createShipmentForOrders,
+  refreshTracking,
+  cancelShipmentIfUnused,
+} from "../services/shipmentService.js";
+
 
 const REQUIRED_ADDRESS_FIELDS = [
   "name",
@@ -111,6 +120,10 @@ const generateOrderNumber = () => {
   return `WB-ORD-${stamp}-${random}`;
 };
 
+
+const trackUrlFor = (awb) =>
+  awb ? `https://shiprocket.co/tracking/${awb}` : null;
+
 const toClientOrder = (order) => ({
   _id: order._id,
   orderNumber: order.orderNumber,
@@ -119,17 +132,29 @@ const toClientOrder = (order) => ({
     order.status === "cancelled"
       ? -1
       : ({ confirmed: 0, printing: 1, shipped: 2, delivered: 3 }[
-          order.status
-        ] ?? -1),
+        order.status
+      ] ?? -1),
   paymentStatus: order.paymentStatus,
   amount: order.amount,
   currency: order.currency,
   quantity: order.quantity || 1,
   unitPrice: order.unitPrice ?? null,
+  subtotal: order.subtotal ?? null,
   shippingFee: order.shippingFee || 0,
+  gstPercent: order.gst || 0,
+  gstAmount: order.gstAmount || 0,
   createdAt: order.createdAt,
   updatedAt: order.updatedAt,
   shippingAddress: order.shippingAddress,
+  shipment: {
+    status: order.shipping?.status || null,
+    courierName: order.shipping?.courierName || null,
+    awbCode: order.shipping?.awbCode || null,
+    estimatedDeliveryDays: order.shipping?.estimatedDeliveryDays || null,
+    estimatedDelivery: order.shipping?.estimatedDelivery || null,
+    shiprocketStatus: order.shipping?.shiprocketStatus || null,
+    trackUrl: trackUrlFor(order.shipping?.awbCode),
+  },
   book: {
     _id: order.book,
     title: order.bookTitle,
@@ -180,6 +205,58 @@ export const getOrderQuote = async (req, res) => {
   }
 };
 
+// Lines to charge for: one book ("buy now") or the whole cart
+const loadCheckoutLines = async ({ userId, bookId, quantity }) => {
+  if (bookId) {
+    const { book, status, message } = await loadPrintableBook(bookId, userId);
+    if (!book) return { status, message };
+    return {
+      lines: [
+        {
+          bookId: String(book._id),
+          quantity,
+          pageCount: book.pages?.length || 0,
+        },
+      ],
+    };
+  }
+
+  const lines = await loadCartLines(userId);
+  if (!lines.length) return { status: 400, message: "Your cart is empty" };
+  return { lines };
+};
+
+// The ONE place that decides what the customer pays. Used by the cart-page
+// quote AND by initiateOrder, so both always agree. Nothing here comes from
+// the browser except addressId / bookId / quantity.
+const buildCheckoutQuote = async ({ userId, bookId, quantity, addressId, shippingAddress }) => {
+  const { shipping, error } = await resolveShippingAddress({
+    userId,
+    addressId,
+    shippingAddress,
+  });
+  if (error) return { status: 400, message: error };
+
+  const loaded = await loadCheckoutLines({ userId, bookId, quantity });
+  if (!loaded.lines) return loaded;
+
+  const totals = getCartTotals(loaded.lines);
+
+  const { quote, error: deliveryError } = await getDeliveryQuote({
+  pincode: shipping.postalCode,
+  copies: totals.itemCount,
+  declaredValue: totals.subtotal,
+});
+  if (deliveryError) return { status: 400, message: deliveryError };
+
+  return {
+    shipping,
+    totals,
+    delivery: quote,
+    checkout: getCheckoutTotals(totals.subtotal, quote.deliveryCharge),
+  };
+};
+
 // "bookId:qty,bookId:qty" - what a Razorpay order carries about its items
 const encodeItems = (lines) =>
   lines.map((line) => `${line.bookId}:${line.quantity}`).join(",");
@@ -206,52 +283,47 @@ const decodeItems = (notes = {}) => {
 // POST /orders/initiate
 //   { addressId }                  -> pays for everything in the user's cart
 //   { addressId, bookId, quantity } -> pays for just that one book ("buy now")
+// Delivery charge + GST are calculated HERE, never taken from the browser.
 export const initiateOrder = async (req, res) => {
   try {
-    const { bookId, addressId, shippingAddress } = req.body;
+    const { bookId, addressId, shippingAddress, quantity } = req.body;
 
-    const { error: addressError } = await resolveShippingAddress({
+    const result = await buildCheckoutQuote({
       userId: req.userId,
+      bookId,
+      quantity,
       addressId,
       shippingAddress,
     });
-    if (addressError) {
-      return res.status(400).json({ success: false, message: addressError });
+    if (!result.checkout) {
+      return res
+        .status(result.status)
+        .json({ success: false, message: result.message });
     }
 
-    let lines;
-    if (bookId) {
-      const { book, status, message } = await loadPrintableBook(
-        bookId,
-        req.userId,
-      );
-      if (!book) return res.status(status).json({ success: false, message });
-      lines = [
-        {
-          bookId: String(book._id),
-          quantity: req.body.quantity,
-          pageCount: book.pages?.length || 0,
-        },
-      ];
-    } else {
-      lines = await loadCartLines(req.userId);
-      if (!lines.length) {
-        return res
-          .status(400)
-          .json({ success: false, message: "Your cart is empty" });
-      }
-    }
-
-    const totals = getCartTotals(lines);
+    const { totals, delivery, checkout } = result;
 
     const razorpayOrder = await razorpay.orders.create({
-      amount: totals.total * 100, // paise
+      amount: checkout.total * 100, // paise
       currency: PRINT_CURRENCY,
       receipt: `print_${req.userId}_${Date.now()}`,
       notes: {
         userId: req.userId.toString(),
         items: encodeItems(totals.lines),
-        shippingFee: String(totals.shippingFee),
+
+        shippingFee: String(delivery.deliveryCharge), // what the customer pays
+        baseRate: String(delivery.baseRate), // what Shiprocket charges us
+        gstPercent: String(checkout.gstPercent),
+        gstAmount: String(checkout.gstAmount),
+
+        courierId: delivery.courierId,
+        courierName: delivery.courierName,
+        estimatedDeliveryDays: String(delivery.estimatedDeliveryDays || ""),
+
+        weight: String(delivery.weight),
+        length: String(delivery.length),
+        breadth: String(delivery.breadth),
+        height: String(delivery.height),
       },
     });
 
@@ -259,12 +331,12 @@ export const initiateOrder = async (req, res) => {
       success: true,
       order: razorpayOrder,
       keyId: process.env.RAZORPAY_KEY,
-      amount: totals.total,
+      amount: checkout.total,
       currency: PRINT_CURRENCY,
       quantity: totals.itemCount,
     });
   } catch (error) {
-    console.error("initiateOrder error:", error);
+    console.error("initiateOrder error:", error.response?.data || error);
     return res
       .status(500)
       .json({ success: false, message: "Unable to start the order" });
@@ -354,7 +426,22 @@ export const verifyOrder = async (req, res) => {
     }
 
     const paid = razorpayOrder.amount / 100;
-    const shippingFee = Number(razorpayOrder.notes?.shippingFee) || 0;
+    const notes = razorpayOrder.notes || {};
+
+    const deliveryCharge = Number(notes.shippingFee) || 0;
+    const baseRate = Number(notes.baseRate) || 0;
+    const gstPercent = Number(notes.gstPercent) || 0;
+    const gstAmount = Number(notes.gstAmount) || 0;
+
+    const courierId = notes.courierId || null;
+    const courierName = notes.courierName || null;
+    const estimatedDeliveryDays = notes.estimatedDeliveryDays || null;
+
+    const weight = Number(notes.weight) || 0.5;
+    const length = Number(notes.length) || 10;
+    const breadth = Number(notes.breadth) || 10;
+    const height = Number(notes.height) || 10;
+
     const priced = getCartTotals(
       items.map((i) => ({
         bookId: i.bookId,
@@ -363,15 +450,16 @@ export const verifyOrder = async (req, res) => {
       })),
     ).lines;
 
-    // Delivery is charged once, so it sits on the first order. The first
-    // order also absorbs any rounding so the orders always add up to what
-    // was actually charged.
+    // Delivery + GST are charged once, so they sit on the first order. The
+    // first order also absorbs any rounding so the orders always add up to
+    // what was actually charged.
     const othersTotal = priced
       .slice(1)
       .reduce((sum, l) => sum + l.lineTotal, 0);
 
     const docs = priced.map((line, index) => {
       const book = byId.get(line.bookId);
+      const first = index === 0;
       return {
         user: req.userId,
         book: book._id,
@@ -379,20 +467,46 @@ export const verifyOrder = async (req, res) => {
         bookCoverImageUrl: book.coverImageUrl || null,
         orderNumber: generateOrderNumber(),
         shippingAddress: shipping,
+
         quantity: line.quantity,
         unitPrice: line.unitPrice,
-        shippingFee: index === 0 ? shippingFee : 0,
-        amount: index === 0 ? paid - othersTotal : line.lineTotal,
+        subtotal: line.lineTotal,
+        shippingFee: first ? deliveryCharge : 0,
+        gst: gstPercent, // existing schema field holds the GST %
+        gstAmount: first ? gstAmount : 0,
+        amount: first ? paid - othersTotal : line.lineTotal,
         currency: razorpayOrder.currency || PRINT_CURRENCY,
+
         status: "confirmed",
         paymentStatus: "paid",
         razorpayOrderId: razorpay_order_id,
         razorpayPaymentId: razorpay_payment_id,
         razorpaySignature: razorpay_signature,
+
+        shipping: {
+          courierId,
+          courierName,
+          selectedCourier: courierName,
+          selectedCourierId: courierId,
+          shippingCharge: first ? deliveryCharge : 0, // paid by customer
+          selectedRate: first ? baseRate : 0, // paid to Shiprocket
+          estimatedDeliveryDays,
+          weight,
+          length,
+          breadth,
+          height,
+          paymentMode: "Prepaid",
+          status: "rate_selected",
+        },
       };
     });
 
     const orders = await Order.create(docs);
+
+    // ONE Shiprocket shipment for the whole payment: create order, assign
+    // the fixed courier, generate AWB. Never throws (customer already paid).
+    const buyer = await User.findById(req.userId).select("email").lean();
+    await createShipmentForOrders(orders, { email: buyer?.email });
 
     // These books are paid for, so take them out of the cart
     await Cart.updateOne(
@@ -489,6 +603,8 @@ export const cancelOrder = async (req, res) => {
     order.cancelReason = reason;
     await order.save();
 
+    await cancelShipmentIfUnused(order); // cancels at Shiprocket when the whole shipment is cancelled
+
     await notify.orderCancelled(req.userId, order); // ALERTS
 
     return res.json({ success: true, order: toClientOrder(order) });
@@ -497,5 +613,100 @@ export const cancelOrder = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Unable to cancel this order" });
+  }
+};
+
+
+/*
+|--------------------------------------------------------------------------
+| GET /orders/shipping-rates?addressId=...            (cart)
+| GET /orders/shipping-rates?addressId=...&bookId=...&quantity=2   (buy now)
+|--------------------------------------------------------------------------
+| Returns delivery charge (Shiprocket rate + extra), estimated days, GST
+| and the final total for the chosen address.
+*/
+export const getShippingRatesForOrder = async (req, res) => {
+  try {
+    const { addressId, bookId, quantity } = req.query;
+
+    const result = await buildCheckoutQuote({
+      userId: req.userId,
+      bookId,
+      quantity,
+      addressId,
+    });
+    if (!result.checkout) {
+      return res
+        .status(result.status)
+        .json({ success: false, message: result.message });
+    }
+
+    const { delivery, checkout } = result;
+
+    return res.json({
+      success: true,
+      quote: {
+        subtotal: checkout.subtotal,
+        deliveryCharge: checkout.deliveryCharge,
+        estimatedDeliveryDays: delivery.estimatedDeliveryDays,
+        etd: delivery.etd,
+        gstPercent: checkout.gstPercent,
+        gstAmount: checkout.gstAmount,
+        total: checkout.total,
+        currency: checkout.currency,
+      },
+    });
+  } catch (error) {
+    console.error("getShippingRatesForOrder error:", error.response?.data || error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Unable to calculate delivery charges" });
+  }
+};
+
+/*
+|--------------------------------------------------------------------------
+| GET /orders/:orderId/tracking
+|--------------------------------------------------------------------------
+| Refreshes from Shiprocket (live mode) and returns status + scan history.
+| If Shiprocket is unreachable we still return what we have saved.
+*/
+export const getOrderTracking = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    if (!mongoose.isValidObjectId(orderId)) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+
+    let order = await Order.findOne({ _id: orderId, user: req.userId });
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+
+    let activities = [];
+    if (order.shipping?.awbCode) {
+      try {
+        ({ activities } = await refreshTracking(order.shipping.awbCode));
+        order = await Order.findById(order._id);
+      } catch (trackError) {
+        console.error("refreshTracking error:", trackError.response?.data || trackError.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      order: toClientOrder(order),
+      shipment: toClientOrder(order).shipment,
+      activities,
+    });
+  } catch (error) {
+    console.error("getOrderTracking error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Unable to load tracking" });
   }
 };
