@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
+
 import { BookViewer } from "../../Components/BookViewer";
 import { BookInfoPage } from "../../Components/BookInfoPage";
 import { BookActions } from "../../Components/BookActions";
@@ -33,9 +34,22 @@ export const BookReader = () => {
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [currentPageIndex, setCurrentPageIndex] =
+    useState(0);
 
-  // Load the book, and keep polling while the backend is still generating it.
+  /*
+   * BookViewer owns the actual HTMLFlipBook instance.
+   *
+   * We store its goNextPage function here so BookActions
+   * can request an automatic page flip after TTS finishes.
+   */
+  const [nextPageHandler, setNextPageHandler] =
+    useState(null);
+
+  // =======================================================
+  // Load book
+  // =======================================================
+
   useEffect(() => {
     let cancelled = false;
     let timer;
@@ -43,100 +57,226 @@ export const BookReader = () => {
     const load = async () => {
       try {
         const data = await getBookById(id);
-        if (cancelled) return;
+
+        if (cancelled) {
+          return;
+        }
+
         setBook(data);
         setError("");
         setLoading(false);
+
         if (data.status === "generating") {
-          timer = setTimeout(load, POLL_MS);
+          timer = setTimeout(
+            load,
+            POLL_MS
+          );
         }
       } catch (err) {
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
+
         setError(
           err.response?.status === 404
             ? "We couldn't find this book."
             : "We couldn't load this book. Please try again."
         );
+
         setLoading(false);
       }
     };
 
     load();
+
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
   }, [id]);
 
-  const goBack = () => navigate("/books");
+  // =======================================================
+  // Back
+  // =======================================================
 
-  // Same page shape the template preview uses: cover, story pages, end.
+  const goBack = () => {
+    navigate("/books");
+  };
+
+  // =======================================================
+  // Book pages
+  // =======================================================
+
   const pages = useMemo(() => {
-    if (!book) return [];
-    const theme = book.storyData?.theme || "Story";
+    if (!book) {
+      return [];
+    }
+
+    const theme =
+      book.storyData?.theme ||
+      "Story";
+
     return [
-      { kind: "cover", imageKey: "cover", image: book.coverImageUrl, heading: book.title, sub: theme },
+      {
+        kind: "cover",
+        imageKey: "cover",
+        image: book.coverImageUrl,
+        heading: book.title,
+        sub: theme,
+      },
+
       ...book.pages.map((p, i) => ({
         kind: "story",
         imageKey: String(i),
         image: p.imageUrl,
         text: p.content,
       })),
-      { kind: "end", image: book.coverImageUrl, heading: "The End", sub: "Thanks for reading!" },
+
+      {
+        kind: "end",
+        image: book.coverImageUrl,
+        heading: "The End",
+        sub: "Thanks for reading!",
+      },
     ];
   }, [book]);
+
+  // =======================================================
+  // Loading
+  // =======================================================
 
   if (loading) {
     return (
       <Shell>
-        <Loader2 className="animate-spin text-[#5d2bc5]" size={30} />
-        <p className="mt-3 text-sm font-medium text-[#9995aa]">Opening your book...</p>
+        <Loader2
+          className="animate-spin text-[#5d2bc5]"
+          size={30}
+        />
+
+        <p className="mt-3 text-sm font-medium text-[#9995aa]">
+          Opening your book...
+        </p>
       </Shell>
     );
   }
+
+  // =======================================================
+  // Error
+  // =======================================================
 
   if (error || !book) {
     return (
       <Shell>
-        <p className="text-lg font-bold text-[#332f54]">{error || "Book not found."}</p>
+        <p className="text-lg font-bold text-[#332f54]">
+          {error || "Book not found."}
+        </p>
+
         <BackButton onClick={goBack} />
       </Shell>
     );
   }
+
+  // =======================================================
+  // Generating
+  // =======================================================
 
   if (book.status === "generating") {
-    const done = book.pages.filter((p) => p.status === "completed").length;
+    const done =
+      book.pages.filter(
+        (p) =>
+          p.status === "completed"
+      ).length;
+
     return (
       <Shell>
-        <Loader2 className="animate-spin text-[#5d2bc5]" size={32} />
-        <h2 className="mt-4 font-serif text-2xl font-bold text-[#29254d]">{book.title}</h2>
+        <Loader2
+          className="animate-spin text-[#5d2bc5]"
+          size={32}
+        />
+
+        <h2 className="mt-4 font-serif text-2xl font-bold text-[#29254d]">
+          {book.title}
+        </h2>
+
         <p className="mt-1.5 text-sm text-[#9995aa]">
-          Creating illustrations... {done} of {book.pages.length} pages ready
+          Creating illustrations...{" "}
+          {done} of {book.pages.length} pages
+          ready
         </p>
+
         <BackButton onClick={goBack} />
       </Shell>
     );
   }
 
-  // Front-page details from what was saved with the book
-  const sd = book.storyData || {};
-  const ageRaw = (sd.age || "").trim();
-  const ageLabel = ageRaw ? (/^ages?\b/i.test(ageRaw) ? ageRaw : `Ages ${ageRaw}`) : "";
-  const ageOnly = ageRaw.replace(/^ages?\s*/i, "");
-  const words = book.pages.reduce(
-    (sum, p) => sum + (p.content || "").split(/\s+/).filter(Boolean).length,
-    0
-  );
-  const readingTime = `${Math.max(1, Math.round(words / 120))} min`;
-  const characterNames = (sd.characters || []).map((c) => c.name).filter(Boolean);
+  // =======================================================
+  // Book information
+  // =======================================================
+
+  const sd =
+    book.storyData || {};
+
+  const ageRaw =
+    (sd.age || "").trim();
+
+  const ageLabel = ageRaw
+    ? /^ages?\b/i.test(ageRaw)
+      ? ageRaw
+      : `Ages ${ageRaw}`
+    : "";
+
+  const ageOnly =
+    ageRaw.replace(
+      /^ages?\s*/i,
+      ""
+    );
+
+  const words =
+    book.pages.reduce(
+      (sum, p) =>
+        sum +
+        (p.content || "")
+          .split(/\s+/)
+          .filter(Boolean).length,
+      0
+    );
+
+  const readingTime = `${Math.max(
+    1,
+    Math.round(words / 120)
+  )} min`;
+
+  const characterNames =
+    (sd.characters || [])
+      .map((c) => c.name)
+      .filter(Boolean);
+
   const description =
     sd.subject ||
     sd.centralMessage ||
-    (characterNames.length ? `A story starring ${characterNames.join(", ")}.` : "");
-  const inputText = sd.storyIdea || (sd.subject ? sd.centralMessage : "") || "";
+    (characterNames.length
+      ? `A story starring ${characterNames.join(
+          ", "
+        )}.`
+      : "");
+
+  const inputText =
+    sd.storyIdea ||
+    (sd.subject
+      ? sd.centralMessage
+      : "") ||
+    "";
+
+  // =======================================================
+  // Main reader
+  // =======================================================
 
   return (
     <div className="flex h-full w-full flex-col gap-3">
+      {/* ---------------------------------------------------
+          Header / Actions
+      --------------------------------------------------- */}
+
       <div className="flex shrink-0 items-center gap-2">
         <button
           type="button"
@@ -147,32 +287,84 @@ export const BookReader = () => {
         >
           <ArrowLeft size={18} />
         </button>
+
         <div className="min-w-0 flex-1">
-          <BookActions book={book} pages={pages} currentPageIndex={currentPageIndex} />
+          <BookActions
+            book={book}
+            pages={pages}
+            currentPageIndex={
+              currentPageIndex
+            }
 
-
+            /*
+             * This is the important connection.
+             *
+             * When the final TTS chunk finishes,
+             * BookActions calls this function.
+             */
+            onNextPage={() => {
+              nextPageHandler?.();
+            }}
+          />
         </div>
       </div>
+
+      {/* ---------------------------------------------------
+          Book
+      --------------------------------------------------- */}
+
       <div className="min-h-0 flex-1">
         <BookViewer
-  pages={pages}
-  badge={sd.theme || "Story"}
-  font={sd.font}
-  onExit={goBack}
-  onPageChange={setCurrentPageIndex}
-  renderInfoPage={(page) => (
-    <BookInfoPage
-      title={page.heading}
-      ageLabel={ageLabel}
-      description={description}
-      readingTime={readingTime}
-      theme={sd.theme || "Story"}
-      bestFor={ageOnly ? `Kids ${ageOnly}` : "All kids"}
-      inputLabel={sd.storyIdea ? "Your Story Input" : "Central Message"}
-      inputText={inputText !== description ? inputText : ""}
-    />
-  )}
-/>
+          pages={pages}
+          badge={
+            sd.theme || "Story"
+          }
+          font={sd.font}
+          onExit={goBack}
+          onPageChange={
+            setCurrentPageIndex
+          }
+
+          /*
+           * BookViewer will provide its actual
+           * pageFlip().flipNext() function here.
+           */
+          onNextPageReady={
+            setNextPageHandler
+          }
+
+          renderInfoPage={(page) => (
+            <BookInfoPage
+              title={page.heading}
+              ageLabel={ageLabel}
+              description={
+                description
+              }
+              readingTime={
+                readingTime
+              }
+              theme={
+                sd.theme || "Story"
+              }
+              bestFor={
+                ageOnly
+                  ? `Kids ${ageOnly}`
+                  : "All kids"
+              }
+              inputLabel={
+                sd.storyIdea
+                  ? "Your Story Input"
+                  : "Central Message"
+              }
+              inputText={
+                inputText !==
+                description
+                  ? inputText
+                  : ""
+              }
+            />
+          )}
+        />
       </div>
     </div>
   );
