@@ -1,3 +1,4 @@
+import { getBookPageCount } from "../config/bookConfig.js";
 // Buckets any age-group string (however it's phrased across the different
 // creation flows, e.g. "0–3 years", "4-7 years", "9-12 years", "18+ years")
 // into the five bands the product defines, and returns the exact
@@ -59,7 +60,7 @@ export const normalizePageLines = (content) =>
         .join("\n\n");
 
 export const generateStoryPrompt = (storyData) => {
-    const pageCount = Number(storyData.pageCount) || 10;
+    const pageCount = Number(storyData.pageCount) || getBookPageCount();
     const ageLength = getAgeLengthRule(storyData.age);
 
     return `

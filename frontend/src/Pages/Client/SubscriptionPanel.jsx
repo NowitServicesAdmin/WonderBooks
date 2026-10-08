@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from "react";
 import { Star, Crown, Gem, Award, Zap, Check, Clock } from "lucide-react";
 
@@ -118,30 +117,40 @@ const SubscriptionPanel = () => {
 
     const isCurrentPlan = (plan) => isCurrentPlanId(plan.planId);
 
+    const closeAlert = () =>
+        setAlert((prev) => ({
+            ...prev,
+            isOpen: false,
+        }));
+
     const handleBuy = (plan) => {
         if (hasCancelledActivePlan) {
+            if (isCurrentPlan(plan)) {
+                handleSubscriptionAction("restore");
+                return;
+            }
+
+            // A different plan: let the user choose - restore the plan they
+            // already paid for, or go ahead and buy the new one.
+            const currentName =
+                mySubscription?.planDisplayName || mySubscription?.planName;
+
             setAlert({
                 isOpen: true,
                 type: "info",
-                title: "Your current plan is still active",
-                message: `Your ${mySubscription?.planDisplayName || mySubscription?.planName} plan is cancelled but remains active until ${formatDate(
+                title: "Restore or buy new?",
+                message: `${currentName} is cancelled but active until ${formatDate(
                     mySubscription?.endDate
-                )}. You can restore it instead of buying another plan.`,
-                primaryText: "Restore plan",
-                secondaryText: "Close",
-                onPrimary: async () => {
-                    setAlert((prev) => ({
-                        ...prev,
-                        isOpen: false,
-                    }));
-
-                    await restorePlan();
+                )}. Restore it, or buy ${plan.name} now - it starts right away and replaces ${currentName} (no refund for the remaining time).`,
+                primaryText: "Buy new plan",
+                secondaryText: "Restore plan",
+                onPrimary: () => {
+                    closeAlert();
+                    buyPlan(plan, billing);
                 },
-                onSecondary: () => {
-                    setAlert((prev) => ({
-                        ...prev,
-                        isOpen: false,
-                    }));
+                onSecondary: async () => {
+                    closeAlert();
+                    await restorePlan();
                 },
             });
 
@@ -270,6 +279,9 @@ const SubscriptionPanel = () => {
 
                         const owned = isCurrentPlan(plan);
 
+                        // Cancelled but still running: its own card offers Restore.
+                        const restorable = owned && hasCancelledActivePlan;
+
                         const isBusy =
                             busyPlanId === plan.planId;
 
@@ -288,7 +300,9 @@ const SubscriptionPanel = () => {
 
                         let buttonLabel = "Buy now";
 
-                        if (owned)
+                        if (restorable)
+                            buttonLabel = "Restore plan";
+                        else if (owned)
                             buttonLabel = "Current Plan";
                         else if (isBusy)
                             buttonLabel = "Processing…";
@@ -411,7 +425,7 @@ const SubscriptionPanel = () => {
                                         handleBuy(plan)
                                     }
                                     disabled={
-                                        owned ||
+                                        (owned && !restorable) ||
                                         isBusy ||
                                         subLoading ||
                                         locked
@@ -425,7 +439,7 @@ const SubscriptionPanel = () => {
                                     }
                                     className="h-10 w-full rounded-xl text-sm font-bold text-white shadow-sm transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                                     style={{
-                                        background: owned
+                                        background: owned && !restorable
                                             ? tokens.inkSoft
                                             : buttonBg[
                                             plan.button

@@ -926,6 +926,8 @@ export const ManualMode = () => {
     const navigate = useNavigate();
     const [limitInfo, setLimitInfo] = useState(null);
     const [showCreateError, setShowCreateError] = useState(false);
+    const [showNoCharacterAlert, setShowNoCharacterAlert] = useState(false);
+    const [missingStepTitles, setMissingStepTitles] = useState(null);
     const [activeStepId, setActiveStepId] = useState(STEPS[0].id);
 
     const [selections, setSelections] = useState({
@@ -1002,7 +1004,7 @@ export const ManualMode = () => {
         });
     };
 
-    const handleCreateStory = async () => {
+    const handleCreateStory = async ({ skipCharacterCheck = false } = {}) => {
         if (submittingRef.current) return;
 
         const missingSteps = STEPS.filter(
@@ -1010,13 +1012,14 @@ export const ManualMode = () => {
         );
 
         if (missingSteps.length > 0) {
-            alert(
-                `Please complete: ${missingSteps
-                    .map((step) => step.title)
-                    .join(", ")}`
-            );
+            setMissingStepTitles(missingSteps.map((step) => step.title));
 
             setActiveStepId(missingSteps[0].id);
+            return;
+        }
+
+        if (!skipCharacterCheck && characters.length === 0) {
+            setShowNoCharacterAlert(true);
             return;
         }
 
@@ -1173,6 +1176,34 @@ export const ManualMode = () => {
             </div>
 
             <PlanLimitAlert info={limitInfo} onClose={() => setLimitInfo(null)} />
+
+            <WonderAlertModal
+                isOpen={Boolean(missingStepTitles)}
+                onClose={() => setMissingStepTitles(null)}
+                type="info"
+                title="Almost there!"
+                message={`Please complete: ${(missingStepTitles || []).join(", ")}`}
+                primaryText="Got it"
+                onPrimary={() => setMissingStepTitles(null)}
+            />
+
+            <WonderAlertModal
+                isOpen={showNoCharacterAlert}
+                onClose={() => setShowNoCharacterAlert(false)}
+                type="info"
+                title="No characters yet"
+                message="You haven't added any characters. Your story will be created without a main character. Want to add one first?"
+                primaryText="Continue"
+                secondaryText="Add Character"
+                onPrimary={() => {
+                    setShowNoCharacterAlert(false);
+                    handleCreateStory({ skipCharacterCheck: true });
+                }}
+                onSecondary={() => {
+                    setShowNoCharacterAlert(false);
+                    setActiveStepId("character");
+                }}
+            />
 
             <WonderAlertModal
                 isOpen={showCreateError}

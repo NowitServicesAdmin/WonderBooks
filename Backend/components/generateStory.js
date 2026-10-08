@@ -1,5 +1,6 @@
 import { openai } from "../config/openai.js";
 import { generateStoryPrompt } from "./generatestoryPrompt.js";
+import { getBookPageCount } from "../config/bookConfig.js";
 
 const MAX_OUTPUT_TOKENS = 12000;
 const MAX_ATTEMPTS = 2;
@@ -38,7 +39,7 @@ const normalizeStory = (story) => {
 
 export const generateStory = async (storyData) => {
   const prompt = generateStoryPrompt(storyData);
-  const expectedPages = Number(storyData.pageCount) || 10;
+  const expectedPages = Number(storyData.pageCount) || getBookPageCount();
 
   let lastError;
   let closestStory = null; // valid story with the wrong page count
@@ -76,6 +77,12 @@ export const generateStory = async (storyData) => {
     console.warn(
       `Using a ${closestStory.pages.length}-page story (wanted ${expectedPages}).`,
     );
+    if (closestStory.pages.length > expectedPages) {
+      closestStory = {
+        ...closestStory,
+        pages: closestStory.pages.slice(0, expectedPages),
+      };
+    }
     return closestStory;
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState ,useContext} from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     Sparkles,
     Mic,
@@ -18,10 +18,10 @@ import {
 import { useNavigate } from "react-router-dom";
 import { chatBook, createBook } from "../services/bookService";
 import { PlanLimitAlert, getPlanLimitError } from "./PlanLimitAlert";
+import WonderAlertModal from "./WonderAlertModal";
 import { canAddKind, CHARACTER_LIMITS } from "../Data/characterLimits";
 // NOTE: requires `export` added to `const STORY_OPTIONS = {...}` in ManualMode.jsx
 import { STORY_OPTIONS } from "./ManualMode";
-import { useAuth } from "../context/AuthContext";
 
 const AI_ROBOT_IMAGE =
     "https://res.cloudinary.com/djdct0pxu/image/upload/v1788501579/Screenshot_2026-09-04_112746-removebg-preview_etj2un.png";
@@ -310,6 +310,8 @@ const CustomizePanel = ({ storySettings, onChange }) => {
 export const AiBookCreation = ({ initialIdea = "" }) => {
     const navigate = useNavigate();
     const [limitInfo, setLimitInfo] = useState(null);
+    // Shown once when the user tries to create a book with no characters.
+    const [showNoCharacterAlert, setShowNoCharacterAlert] = useState(false);
 
     const [storyIdea, setStoryIdea] = useState("");
     const [otherMode, setOtherMode] = useState(false); // "Other" chip clicked: user is typing their own answer
@@ -554,8 +556,13 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
 
     /* ---------------- create the book ---------------- */
 
-    const handleCreate = async () => {
+    const handleCreate = async ({ skipCharacterCheck = false } = {}) => {
         if (busy || creatingRef.current) return;
+        // No characters added: ask once whether to continue without one.
+        if (!skipCharacterCheck && store.current.state.characters.length === 0) {
+            setShowNoCharacterAlert(true);
+            return;
+        }
         creatingRef.current = true;
         const { state, files } = store.current;
 
@@ -908,7 +915,7 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                                 {ready && !pickingPhoto && (
                                     <>
                                         <button
-                                            onClick={handleCreate}
+                                            onClick={() => handleCreate()}
                                             className="flex items-center gap-1.5 rounded-full bg-linear-to-r from-[#6539D5] to-[#4822B8] px-5 py-2 text-[14px] font-semibold text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)]"
                                         >
                                             <Sparkles size={15} />
@@ -1053,7 +1060,7 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                         <button
                             onClick={() => handleSubmit()}
                             disabled={!storyIdea.trim() || isLoading || busy || !!companionPrompt}
-                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] sm:h-13 sm:w-14.5 sm:rounded-[10px] bg-linear-to-r from-[#6539D5] to-(--accent-hover) text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)] active:translate-y-0 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl sm:h-13 sm:w-14.5 sm:rounded-[10px] bg-linear-to-r from-[#6539D5] to-(--accent-hover) text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)] active:translate-y-0 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50"
                             aria-label="Send"
                         >
                             <Send size={22} strokeWidth={2.3} />
@@ -1069,6 +1076,24 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
             </div>
 
             <PlanLimitAlert info={limitInfo} onClose={() => setLimitInfo(null)} />
+
+            <WonderAlertModal
+                isOpen={showNoCharacterAlert}
+                onClose={() => setShowNoCharacterAlert(false)}
+                type="info"
+                title="No characters yet"
+                message="You haven't added any characters. Your story will be created without a main character. Want to add one first?"
+                primaryText="Continue"
+                secondaryText="Add Character"
+                onPrimary={() => {
+                    setShowNoCharacterAlert(false);
+                    handleCreate({ skipCharacterCheck: true });
+                }}
+                onSecondary={() => {
+                    setShowNoCharacterAlert(false);
+                    setShowAddMenu(true);
+                }}
+            />
         </div>
     );
 };

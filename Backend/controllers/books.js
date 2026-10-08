@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import book from "../models/book.js";
 import { canAccessFeature, getBookUsage } from "../config/subscriptionLimits.js";
 import { generateStory } from "../components/generateStory.js";
+import { getBookPageCount } from "../config/bookConfig.js";
 import { normalizePageLines } from "../components/generatestoryPrompt.js";
 import { STORY_OPTION_LABELS as OPTS } from "../config/storyOptions.js";
 import { generateImagePrompt } from "../components/generateImagePrompt.js";
@@ -17,6 +18,8 @@ import {
 import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
 import { generateCharacterBible } from "../components/characterBible.js";
 import { verifyIllustration } from "../components/imageVerifier.js";
+import { isModerationBlock } from "../components/promptSafety.js";
+import { classifyGeminiError } from "../components/geminiCall.js";
 import {
     limitCharacters,
     exceedsCharacterLimits,
@@ -38,9 +41,30 @@ import {
 } from "../components/contentSafety.js";
 import { generateCharacterReferences } from "../services/characterReferenceService.js";
 
-// Pages per book. Override with BOOK_PAGE_COUNT in .env for quick test runs
-// (e.g. BOOK_PAGE_COUNT=2) without touching code.
-const BOOK_PAGE_COUNT = Number(process.env.BOOK_PAGE_COUNT) || 2;
+// Pages per book comes from BOOK_PAGE_COUNT in .env (see config/bookConfig.js).
+
+// ---------------------------------------------------------------------------
+// PATIENT RETRIES. When an image can't be made (model busy / overloaded, rate
+// limit, or the picture failed the accuracy check on every try), we do NOT give
+// up or save a worse picture: we wait and run the whole attempt again, as many
+// times as needed, until the image is made or BOOK_MAX_GENERATION_MINUTES runs
+// out. The book stays "generating" meanwhile, so the user only sees it once
+// every image is done. The accuracy check itself (imageVerifier.js) is unchanged.
+// ---------------------------------------------------------------------------
+const IMAGE_RETRY_WAIT_MS =
+    (Number(process.env.IMAGE_RETRY_WAIT_MINUTES) || 5) * 60 * 1000;
+const GEMINI_BUSY_RETRY_WAIT_MS =
+    (Number(process.env.GEMINI_BUSY_RETRY_WAIT_SECONDS) || 60) * 1000;
+const GEMINI_BUSY_MAX_ROUNDS = Number(process.env.GEMINI_BUSY_MAX_ROUNDS) || 5;
+// Total time one book may take before it is declared failed (also used for the
+// "stuck on generating" checks, so a long wait is never cut off by them).
+const BOOK_MAX_GENERATION_MS =
+    (Number(process.env.BOOK_MAX_GENERATION_MINUTES) || 180) * 60 * 1000;
+// Retrying the same blocked prompt rarely helps, so moderation blocks only get
+// a couple of extra rounds.
+const IMAGE_MODERATION_MAX_ROUNDS = 2;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const GENERIC_FAILURE =
     "Something went wrong while creating your book. Please try again - this one wasn't counted against your plan.";
@@ -305,6 +329,42 @@ const generatePageImage = async ({ bookId, storyData, imageData }) => {
     console.log(`Page ${pageNumber} completed using ${uploadedImage.provider}`);
 };
 
+// Runs `task` until it succeeds. After each failed round it waits `waitMs` and
+// tries again, until `deadlineAt` (then the last error is thrown).
+const retryPatiently = async ({
+    label,
+    deadlineAt,
+    task,
+    waitMs = IMAGE_RETRY_WAIT_MS,
+    maxRounds = Infinity,
+    shouldRetry = () => true
+}) => {
+    for (let round = 1; ; round += 1) {
+        try {
+            return await task(round);
+        } catch (error) {
+            const outOfTime = Date.now() + waitMs > deadlineAt;
+
+            if (round >= maxRounds || outOfTime || !shouldRetry(error, round)) {
+                throw error;
+            }
+
+            console.warn(
+                `${label} not ready (round ${round}): ${error?.message || error}. Waiting ${Math.round(waitMs / 1000)}s, then trying again...`
+            );
+
+            await sleep(waitMs);
+        }
+    }
+};
+
+// Image rounds: retry everything except errors that waiting can't fix.
+const shouldRetryImage = (error, round) => {
+    if ([401, 403, 404].includes(Number(error?.status))) return false;
+    if (isModerationBlock(error)) return round < IMAGE_MODERATION_MAX_ROUNDS;
+    return true;
+};
+
 // Runs the whole (slow) generation pipeline AFTER the HTTP response has already
 // been sent. The book document (status: "generating") exists before this starts,
 // so the "My Books" page can show a loading skeleton and poll until it finishes.
@@ -319,6 +379,8 @@ const generateBookInBackground = async ({
 }) => {
     // ALERTS: kept outside the try so the catch block can use the real title.
     let bookTitle = "Your story";
+    // Patient retries below stop at this moment (just before the stuck-book check).
+    const deadlineAt = Date.now() + BOOK_MAX_GENERATION_MS - 5 * 60 * 1000;
 
     try {
         // Manual and AI mode both arrive as chosen settings (AI mode's chat
@@ -332,7 +394,11 @@ const generateBookInBackground = async ({
             storyData.storyIdea = message.trim();
         }
 
+        const BOOK_PAGE_COUNT = getBookPageCount();
         storyData.pageCount = BOOK_PAGE_COUNT;
+        console.log(
+            `Creating a ${BOOK_PAGE_COUNT}-page book (BOOK_PAGE_COUNT in the server's environment = ${process.env.BOOK_PAGE_COUNT ?? "not set"}).`
+        );
 
         const generatedStory = await generateStory(storyData);
 
@@ -427,10 +493,22 @@ const generateBookInBackground = async ({
                 storyData.characters
             );
 
-            const characterBible = await generateCharacterBible({
-                story: generatedStory,
-                storyData,
-                characterPhotos: characterPhotosForBible
+            // Gemini "busy" (503) is temporary: wait and ask again instead of
+            // dropping to photo-only references. Quota / bad-request errors
+            // are not retried (that would only burn more quota).
+            const characterBible = await retryPatiently({
+                label: "Character Bible",
+                deadlineAt,
+                waitMs: GEMINI_BUSY_RETRY_WAIT_MS,
+                maxRounds: GEMINI_BUSY_MAX_ROUNDS,
+                shouldRetry: (error) =>
+                    ["busy", "network"].includes(classifyGeminiError(error)),
+                task: () =>
+                    generateCharacterBible({
+                        story: generatedStory,
+                        storyData,
+                        characterPhotos: characterPhotosForBible
+                    })
             });
 
             console.log("Character Bible generated:", characterBible);
@@ -537,74 +615,85 @@ const generateBookInBackground = async ({
         // -----------------------------------------------------------
         console.log("Generating cover image...");
 
-        for (let coverAttempt = 1; coverAttempt <= 3; coverAttempt += 1) {
-            try {
-                const coverReferenceImages = await getCharacterReferenceImages(
-                    storyData.characters,
-                    imagePrompts.cover.characters || []
-                );
+        // The cover is required: it is retried (wait, then try again) until it
+        // is made and passes the same check as before. If it truly can't be
+        // made in time the book fails - it is never shown without a cover.
+        await retryPatiently({
+            label: "Cover image",
+            deadlineAt,
+            shouldRetry: shouldRetryImage,
+            task: async () => {
+                let coverError;
 
-                console.log(
-                    `Loaded ${coverReferenceImages.length} character reference image(s) for cover.`
-                );
+                for (let coverAttempt = 1; coverAttempt <= 3; coverAttempt += 1) {
+                    try {
+                        const coverReferenceImages = await getCharacterReferenceImages(
+                            storyData.characters,
+                            imagePrompts.cover.characters || []
+                        );
 
-                const rawCoverBuffer = await generateImage({
-                    prompt: imagePrompts.cover.prompt,
-                    referenceImages: coverReferenceImages,
-                    width: 768,
-                    height: 1024
-                });
+                        console.log(
+                            `Loaded ${coverReferenceImages.length} character reference image(s) for cover.`
+                        );
 
-                // Reject a cover that has nothing to do with the story
-                // (the retry loop below then generates a new one).
-                const coverVerdict = await verifyIllustration({
-                    buffer: rawCoverBuffer,
-                    scene: imagePrompts.cover.scene || imagePrompts.cover.prompt,
-                    characterNames: resolveCharacterNames(
-                        storyData.characters,
-                        imagePrompts.cover.characters || []
-                    ),
-                    label: "cover"
-                });
+                        const rawCoverBuffer = await generateImage({
+                            prompt: imagePrompts.cover.prompt,
+                            referenceImages: coverReferenceImages,
+                            width: 768,
+                            height: 1024
+                        });
 
-                if (!coverVerdict.ok) {
-                    throw new Error(`Cover did not match the story: ${coverVerdict.reason}`);
-                }
-                // The title is NOT baked into the image. The frontend (books.jsx card
-                // and BookReader cover) renders it as real text, so baking it in too
-                // produced a duplicate / clipped title on the cover.
-                const finalCoverBuffer = rawCoverBuffer;
+                        // Reject a cover that has nothing to do with the story
+                        // (the next attempt generates a new one).
+                        const coverVerdict = await verifyIllustration({
+                            buffer: rawCoverBuffer,
+                            scene: imagePrompts.cover.scene || imagePrompts.cover.prompt,
+                            characterNames: resolveCharacterNames(
+                                storyData.characters,
+                                imagePrompts.cover.characters || []
+                            ),
+                            label: "cover"
+                        });
 
-                const coverKey = `books/${bookId}/cover.png`;
-
-                const uploadedCover = await uploadImage({
-                    key: coverKey,
-                    buffer: finalCoverBuffer,
-                    contentType: "image/png"
-                });
-
-                await book.updateOne(
-                    { _id: bookId },
-                    {
-                        $set: {
-                            coverImageUrl: uploadedCover.url,
-                            coverStorageKey: uploadedCover.key
+                        if (!coverVerdict.ok) {
+                            throw new Error(`Cover did not match the story: ${coverVerdict.reason}`);
                         }
-                    }
-                );
+                        // The title is NOT baked into the image. The frontend (books.jsx card
+                        // and BookReader cover) renders it as real text, so baking it in too
+                        // produced a duplicate / clipped title on the cover.
+                        const finalCoverBuffer = rawCoverBuffer;
 
-                console.log("Cover completed:", uploadedCover.url);
-                break;
-            } catch (coverError) {
-                console.error(`Cover generation failed (attempt ${coverAttempt}/3):`, coverError);
+                        const uploadedCover = await uploadImage({
+                            key: `books/${bookId}/cover.png`,
+                            buffer: finalCoverBuffer,
+                            contentType: "image/png"
+                        });
+
+                        await book.updateOne(
+                            { _id: bookId },
+                            {
+                                $set: {
+                                    coverImageUrl: uploadedCover.url,
+                                    coverStorageKey: uploadedCover.key
+                                }
+                            }
+                        );
+
+                        console.log("Cover completed:", uploadedCover.url);
+                        return;
+                    } catch (error) {
+                        coverError = error;
+                        console.error(`Cover generation failed (attempt ${coverAttempt}/3):`, error);
+                    }
+                }
+
+                throw coverError;
             }
-        }
+        });
 
         // -----------------------------------------------------------
         // Generate page images (same reference photo(s) reused)
         // -----------------------------------------------------------
-        const failedPages = [];
-
         for (const imageData of imagePrompts.images) {
             if (!imageData?.pageNumber || !imageData?.prompt) {
                 console.warn("Skipping invalid image prompt:", imageData);
@@ -612,28 +701,19 @@ const generateBookInBackground = async ({
             }
 
             try {
-                await generatePageImage({ bookId, storyData, imageData });
+                // Same accuracy check as before (inside generatePageImage). If a
+                // page can't be made right now (model busy, or no accepted
+                // picture), wait and run it again until it is done.
+                await retryPatiently({
+                    label: `Page ${imageData.pageNumber} image`,
+                    deadlineAt,
+                    shouldRetry: shouldRetryImage,
+                    task: () => generatePageImage({ bookId, storyData, imageData })
+                });
             } catch (pageError) {
                 console.error(
-                    `Page ${imageData.pageNumber} image generation failed:`,
+                    `Page ${imageData.pageNumber} image could not be created in time:`,
                     pageError
-                );
-                failedPages.push(imageData);
-            }
-        }
-
-        // Second chance for any page that failed (moderation block, timeout,
-        // rate limit). A 10-page book has many more chances to hit one of
-        // these, and one bad page shouldn't cost the user the whole book.
-        for (const imageData of failedPages) {
-            console.log(`Retrying image for page ${imageData.pageNumber}...`);
-
-            try {
-                await generatePageImage({ bookId, storyData, imageData });
-            } catch (retryError) {
-                console.error(
-                    `Page ${imageData.pageNumber} failed again:`,
-                    retryError
                 );
 
                 await book.updateOne(
@@ -694,7 +774,7 @@ export const createBook = async (req, res) => {
         const inProgress = await book.exists({
             user: req.userId,
             status: "generating",
-            createdAt: { $gte: new Date(Date.now() - 45 * 60 * 1000) }
+            createdAt: { $gte: new Date(Date.now() - BOOK_MAX_GENERATION_MS) }
         });
 
         if (inProgress) {
@@ -856,7 +936,7 @@ export const getMyBooks = async (req, res) => {
     try {
         // If the server restarted mid-generation the book would stay on
         // "generating" forever. Anything older than this is treated as failed.
-        const STALE_MS = 45 * 60 * 1000;
+        const STALE_MS = BOOK_MAX_GENERATION_MS;
 
         const staleBooks = await book
             .find({
