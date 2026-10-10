@@ -3,6 +3,8 @@ import { Briefcase, Home, Loader2, MapPin, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { addAddress, updateAddress } from "../../services/addressService";
 import { LocationPicker } from "../LocationPicker";
+import { PhoneInput } from "../PhoneInput";
+import { DEFAULT_COUNTRY, formatNational, digitsOf, isValidPhone, toStorablePhone } from "../../utils/phone";
 
 const FIELD =
     "h-11 w-full rounded-xl border border-(--border) bg-(--surface) px-3 text-sm text-(--text-heading) outline-none transition placeholder:text-(--text-muted) focus:border-(--accent) focus:ring-2 focus:ring-(--tint)";
@@ -35,7 +37,9 @@ export const AddressFormModal = ({ address = null, isFirstAddress = false, onClo
 
     const [form, setForm] = useState(() => ({
         fullName: address?.fullName || user?.name || "",
-        phone: address?.phone || "",
+        // national number as shown in the box + the country it belongs to (older addresses are Indian)
+        phoneCountry: address?.phoneCountry || DEFAULT_COUNTRY,
+        phone: address?.phone ? formatNational(digitsOf(address.phone), address?.phoneCountry || DEFAULT_COUNTRY) : "",
         location: locationFromAddress(address),
         city: address?.city || "",
         state: address?.state || "",
@@ -64,13 +68,17 @@ export const AddressFormModal = ({ address = null, isFirstAddress = false, onClo
         event.preventDefault();
         if (saving) return;
 
-        const phone = form.phone.replace(/\D/g, "").slice(-10);
         if (!form.fullName.trim() || !form.doorNo.trim() || !form.location) {
             setError("Please fill in your name, delivery location and flat / house number.");
             return;
         }
-        if (phone.length !== 10) {
-            setError("Please enter a valid 10-digit phone number.");
+        if (!isValidPhone(form.phone, form.phoneCountry)) {
+            setError("Please enter a valid phone number for the selected country.");
+            return;
+        }
+        const storable = toStorablePhone(form.phone, form.phoneCountry);
+        if (!storable) {
+            setError("Please enter a valid phone number for the selected country.");
             return;
         }
         if (!form.city.trim() || !form.state.trim() || !form.pincode.trim()) {
@@ -80,7 +88,9 @@ export const AddressFormModal = ({ address = null, isFirstAddress = false, onClo
 
         const payload = {
             fullName: form.fullName.trim(),
-            phone,
+            phone: storable.phone,
+            phoneCountry: storable.phoneCountry,
+            phoneCode: storable.phoneCode,
             doorNo: form.doorNo.trim(),
             landmark: form.landmark.trim(),
             addressType: form.addressType,
@@ -151,12 +161,13 @@ export const AddressFormModal = ({ address = null, isFirstAddress = false, onClo
                         </div>
                         <div className="col-span-2 sm:col-span-1">
                             <label className={LABEL}>Phone number</label>
-                            <input
-                                className={FIELD}
+                            <PhoneInput
                                 value={form.phone}
-                                onChange={set("phone")}
-                                inputMode="tel"
-                                placeholder="10-digit mobile number"
+                                country={form.phoneCountry}
+                                onChange={({ value, country }) =>
+                                    setForm((prev) => ({ ...prev, phone: value, phoneCountry: country }))
+                                }
+                                placeholder="Mobile number"
                             />
                         </div>
                     </div>
@@ -216,8 +227,8 @@ export const AddressFormModal = ({ address = null, isFirstAddress = false, onClo
                                         type="button"
                                         onClick={() => setForm((prev) => ({ ...prev, addressType: label }))}
                                         className={`inline-flex h-10 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition ${active
-                                                ? "border-(--accent) bg-(--tint) text-(--accent)"
-                                                : "border-(--border) text-(--text-muted) hover:bg-(--tint)"
+                                            ? "border-(--accent) bg-(--tint) text-(--accent)"
+                                            : "border-(--border) text-(--text-muted) hover:bg-(--tint)"
                                             }`}
                                     >
                                         <Icon size={15} />

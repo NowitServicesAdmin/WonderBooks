@@ -74,6 +74,12 @@ const streetPart = (address) => {
 const addressToShipping = (address) => ({
   name: address.fullName,
   phone: address.phone,
+  // older saved addresses have no country - they were all Indian numbers
+  phoneCountry: address.phoneCountry || "IN",
+  phoneCode: address.phoneCode || "91",
+  phoneE164:
+    address.phoneE164 ||
+    `+${address.phoneCode || "91"}${String(address.phone || "").replace(/\D/g, "")}`,
   line1: [address.doorNo, streetPart(address)].filter(Boolean).join(", "),
   line2: address.landmark ? `Near ${address.landmark}` : "",
   city: address.city,
@@ -167,7 +173,7 @@ const loadPrintableBook = async (bookId, userId) => {
   if (!bookId || !mongoose.isValidObjectId(bookId)) {
     return { status: 400, message: "A valid bookId is required" };
   }
-  const book = await Book.findOne({ _id: bookId, user: userId }).lean();
+  const book = await Book.findOne({ _id: bookId, user: userId, isDeleted: { $ne: true } }).lean();
   if (!book) return { status: 404, message: "Book not found" };
   if (book.status !== "completed") {
     return {

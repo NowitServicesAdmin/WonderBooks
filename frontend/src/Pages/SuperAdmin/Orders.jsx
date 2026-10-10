@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Filter } from "lucide-react";
 import { getOrders, updateOrderStatus, apiErrorMessage } from "../../services/adminService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { Pagination } from "../../Components/admin/Pagination";
 import { TableState } from "../../Components/admin/TableState";
+import { ConfirmAlert } from "../../Components/admin/ConfirmAlert";
 import { formatDate, formatMoney } from "../../utils/adminFormat";
 
 const PAGE_SIZE = 10;
@@ -36,6 +38,8 @@ function StatusBadge({ status }) {
 }
 
 export function SuperAdminOrders() {
+    const navigate = useNavigate();
+    const [cancelTarget, setCancelTarget] = useState(null);
     const [orders, setOrders] = useState([]);
     const [total, setTotal] = useState(0);
     const [pages, setPages] = useState(1);
@@ -73,10 +77,17 @@ export function SuperAdminOrders() {
         load();
     }, [load]);
 
-    const changeStatus = async (order, next) => {
+    const changeStatus = (order, next) => {
         if (next === order.status) return;
-        if (next === "cancelled" && !window.confirm(`Cancel order ${order.orderNumber}? This can't be undone.`)) return;
+        // Cancelling can't be undone, so ask first.
+        if (next === "cancelled") {
+            setCancelTarget(order);
+            return;
+        }
+        applyStatus(order, next);
+    };
 
+    const applyStatus = async (order, next) => {
         setUpdatingId(order._id);
         setActionError("");
         try {
@@ -87,6 +98,12 @@ export function SuperAdminOrders() {
         } finally {
             setUpdatingId(null);
         }
+    };
+
+    const confirmCancel = async () => {
+        const order = cancelTarget;
+        setCancelTarget(null);
+        if (order) await applyStatus(order, "cancelled");
     };
 
     const activeFilter = STATUS_FILTERS.find((f) => f.value === status);
@@ -120,9 +137,8 @@ export function SuperAdminOrders() {
                 <div className="relative">
                     <button
                         onClick={() => setFilterOpen((o) => !o)}
-                        className={`flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold ${
-                            status ? "border-(--accent) text-(--accent)" : "border-(--tint)"
-                        }`}
+                        className={`flex items-center gap-2 rounded-lg border bg-white px-4 py-2.5 text-sm font-semibold ${status ? "border-(--accent) text-(--accent)" : "border-(--tint)"
+                            }`}
                     >
                         <Filter size={16} /> {status ? activeFilter.label : "Filter"}
                     </button>
@@ -138,9 +154,8 @@ export function SuperAdminOrders() {
                                             setPage(1);
                                             setFilterOpen(false);
                                         }}
-                                        className={`block w-full px-3 py-2 text-left text-sm font-medium hover:bg-(--tint) ${
-                                            f.value === status ? "bg-(--tint) text-(--accent)" : ""
-                                        }`}
+                                        className={`block w-full px-3 py-2 text-left text-sm font-medium hover:bg-(--tint) ${f.value === status ? "bg-(--tint) text-(--accent)" : ""
+                                            }`}
                                     >
                                         {f.label}
                                     </button>
@@ -187,7 +202,16 @@ export function SuperAdminOrders() {
                                     order.paymentStatus !== "paid";
                                 return (
                                     <tr key={order._id} className="border-b border-(--tint) last:border-0">
-                                        <td className="px-4 py-3 font-semibold">{order.orderNumber}</td>
+                                        <td className="px-4 py-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate(`/superadmin/orders/${order._id}`)}
+                                                title="Open order"
+                                                className="font-semibold text-(--accent) hover:underline"
+                                            >
+                                                {order.orderNumber}
+                                            </button>
+                                        </td>
                                         <td className="px-4 py-3">
                                             <div>{order.user?.name || order.shippingAddress?.name || "—"}</div>
                                             <div className="text-xs text-(--text-muted)">{order.user?.email || "Deleted user"}</div>
@@ -222,6 +246,17 @@ export function SuperAdminOrders() {
             </div>
 
             <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} label="orders" onPage={setPage} />
+
+            <ConfirmAlert
+                open={Boolean(cancelTarget)}
+                type="danger"
+                title="Cancel this order?"
+                message={cancelTarget ? `Order ${cancelTarget.orderNumber} will be cancelled. This can't be undone.` : ""}
+                confirmText="Yes, Cancel Order"
+                cancelText="No, Keep It"
+                onConfirm={confirmCancel}
+                onCancel={() => setCancelTarget(null)}
+            />
         </div>
     );
 }

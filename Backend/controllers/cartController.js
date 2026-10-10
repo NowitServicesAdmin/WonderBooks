@@ -28,7 +28,7 @@ export const addToCart = async (req, res) => {
       return fail(res, 400, "A valid bookId is required");
     }
 
-    const book = await Book.findOne({ _id: bookId, user: req.userId })
+    const book = await Book.findOne({ _id: bookId, user: req.userId, isDeleted: { $ne: true } })
       .select("status")
       .lean();
     if (!book) return fail(res, 404, "Book not found");

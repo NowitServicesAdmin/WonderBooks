@@ -9,6 +9,9 @@ import {
     setUserBlocked,
     deleteUser,
     listBooks,
+    deleteBook,
+    getBookDetail,
+    getOrderDetail,
     listOrders,
     updateOrderStatus,
 } from "../controllers/adminController.js";
@@ -29,8 +32,11 @@ router.patch("/users/:id/block", setUserBlocked);
 router.delete("/users/:id", deleteUser);
 
 router.get("/books", listBooks);
+router.get("/books/:id", getBookDetail);
+router.delete("/books/:id", deleteBook);
 
 router.get("/orders", listOrders);
+router.get("/orders/:id", getOrderDetail);
 router.patch("/orders/:id/status", updateOrderStatus);
 
 export default router;

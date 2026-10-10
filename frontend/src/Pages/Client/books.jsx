@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookOpen, Clock, Heart, Search, Sparkles } from "lucide-react";
-import { getMyBookList, acknowledgeBookFailures, toggleBookFavorite } from "../../services/bookService";
+import { BookOpen, Clock, Heart, Search, Sparkles, Trash2 } from "lucide-react";
+import { getMyBookList, acknowledgeBookFailures, toggleBookFavorite, deleteBook } from "../../services/bookService";
 import WonderAlertModal from "../../Components/WonderAlertModal";
 
 const AnimatedSearch = ({ search, setSearch, placeholder }) => (
@@ -263,6 +263,39 @@ export const Books = () => {
     }
   };
 
+  // Delete: ask first, then remove from the list once the server confirms.
+  const [bookToDelete, setBookToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const askDelete = (event, book) => {
+    event.stopPropagation();
+    setDeleteError("");
+    setBookToDelete(book);
+  };
+
+  const closeDeleteAlert = () => {
+    if (deleting) return;
+    setBookToDelete(null);
+    setDeleteError("");
+  };
+
+  const confirmDelete = async () => {
+    if (!bookToDelete || deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await deleteBook(bookToDelete.id);
+      setBooks((current) => current.filter((b) => b.id !== bookToDelete.id));
+      setBookToDelete(null);
+    } catch (err) {
+      console.error("Delete book failed:", err);
+      setDeleteError("We couldn't delete this book. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const currentFailure = failureQueue[0] ?? null;
 
   // Close the alert: mark it as seen on the server, then show the next one.
@@ -325,23 +358,6 @@ export const Books = () => {
     const primary = book.themeColor ?? "#7563C9";
     const dark = book.spineDark ?? "#302454";
     const isEmpty = !book.cover;
-
-    const status =
-      book.status ??
-      (book.progress === 100
-        ? "Completed"
-        : book.progress > 0
-          ? "Draft"
-          : "Generating");
-
-    const statusColor =
-      status === "Completed"
-        ? "#2f9e5c"
-        : status === "Failed"
-          ? "#d64545"
-          : status === "Draft"
-          ? "#7563C9"
-          : "#e0862e";
 
     const subtitle =
       book.genre ??
@@ -578,26 +594,23 @@ export const Books = () => {
                 />
 
                 {/* =====================================
-                    STATUS
+                    DELETE (replaces the status badge)
                 ====================================== */}
-                <div className="absolute left-5 top-3 z-10">
-                  <div
-                    className="
-                      flex items-center gap-1.5
-                      rounded-full
-                      px-2.5 py-1
-                      text-[11px]
-                      font-bold
-                      text-white
-                      shadow-[0_3px_8px_rgba(0,0,0,0.16)]
-                    "
-                    style={{
-                      backgroundColor: statusColor,
-                    }}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/90" />
-                    {status}
-                  </div>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Delete ${book.title ?? "this book"}`}
+                  title="Delete book"
+                  onClick={(event) => askDelete(event, book)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      askDelete(event, book);
+                    }
+                  }}
+                  className="absolute left-5 top-3 z-50 flex cursor-pointer items-center gap-1.5 rounded-full bg-[#d64545] px-2.5 py-1 text-[20px] font-bold text-white shadow-[0_3px_8px_rgba(0,0,0,0.16)] transition hover:bg-[#c23636] active:scale-95"
+                >
+                  <Trash2 size={15} strokeWidth={2.4} />
                 </div>
 
                 {/* EMPTY BOOK DECORATION */}
@@ -784,6 +797,23 @@ export const Books = () => {
           dismissFailure();
           navigate("/create");
         }}
+      />
+
+      <WonderAlertModal
+        isOpen={Boolean(bookToDelete)}
+        onClose={closeDeleteAlert}
+        type="danger"
+        title="Delete this book?"
+        message={
+          !bookToDelete
+            ? ""
+            : deleteError ||
+              `"${bookToDelete.title ?? "Untitled Story"}" will be permanently deleted. This can't be undone.`
+        }
+        primaryText={deleting ? "Deleting..." : "Yes, Delete"}
+        onPrimary={confirmDelete}
+        secondaryText="No, Keep It"
+        onSecondary={closeDeleteAlert}
       />
     </section>
   );

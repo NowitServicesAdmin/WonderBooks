@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import {
+    AsYouType,
+    getCountries,
+    getCountryCallingCode,
+    isValidPhoneNumber,
+    parsePhoneNumberFromString,
+    validatePhoneNumberLength,
+} from "libphonenumber-js/min";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Mail,
     Headphones,
@@ -14,6 +22,8 @@ import {
     Loader2,
     CheckCircle2,
     AlertCircle,
+    Search,
+    Check,
 } from "lucide-react";
 import BrandText from "./BrandText";
 
@@ -57,12 +67,219 @@ const highlights = [
 ];
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const phoneRegex = /^\+?[0-9\s-]{8,16}$/;
+/* ---- Phone number (international, with country flag picker) ----
+   libphonenumber-js formats as you type and validates per country.
+   The user picks a country (flag + dial code) and types the national number,
+   or pastes a full "+<code> ..." number and the country is detected for them. */
+const DEFAULT_COUNTRY = "IN";
+const PHONE_MAX_DIGITS = 15; // E.164 maximum
+
+const regionNames =
+    typeof Intl !== "undefined" && Intl.DisplayNames ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
+
+const COUNTRIES = getCountries()
+    .map((code) => ({
+        code,
+        name: regionNames?.of(code) || code,
+        dial: getCountryCallingCode(code),
+    }))
+    .sort((x, y) => x.name.localeCompare(y.name));
+
+const flagUrl = (code, w = 40) => `https://flagcdn.com/w${w}/${code.toLowerCase()}.png`;
+
+const digitsOf = (v) => v.replace(/\D/g, "");
+
+/* re-format national digits for a given country */
+function formatNational(digits, country) {
+    const max = PHONE_MAX_DIGITS - String(getCountryCallingCode(country)).length;
+    let d = "";
+    for (const ch of digits.slice(0, max)) {
+        if (validatePhoneNumberLength(d + ch, country) === "TOO_LONG") break;
+        // already a complete, valid number and the next digit would break it -> stop here
+        if (d && isValidPhoneNumber(d, country) && !isValidPhoneNumber(d + ch, country)) break;
+        d += ch;
+    }
+    return new AsYouType(country).input(d);
+}
+
+/* +44 / +61 are shared with small territories - show the main country's flag */
+const MAIN_COUNTRY = { GG: "GB", JE: "GB", IM: "GB", CX: "AU", CC: "AU" };
+
+/* Handle whatever the user typed / pasted. Returns { country, value }. */
+function parsePhoneInput(raw, country) {
+    if (raw.trimStart().startsWith("+")) {
+        // typed/pasted with a country code -> detect the country
+        const digits = digitsOf(raw).slice(0, PHONE_MAX_DIGITS);
+        const parsed = parsePhoneNumberFromString(`+${digits}`);
+        if (parsed?.country && parsed.isPossible()) {
+            const detected = MAIN_COUNTRY[parsed.country] || parsed.country;
+            return { country: detected, value: formatNational(String(parsed.nationalNumber), detected) };
+        }
+        return { country, value: digits ? `+${digits}` : "+" };
+    }
+    return { country, value: formatNational(digitsOf(raw), country) };
+}
+
+function isValidPhone(value, country) {
+    const v = value.trim();
+    return v.startsWith("+") ? isValidPhoneNumber(v) : isValidPhoneNumber(v, country);
+}
+
+function toInternational(value, country) {
+    const v = value.trim();
+    const parsed = parsePhoneNumberFromString(v, v.startsWith("+") ? undefined : country);
+    return parsed ? parsed.formatInternational() : v;
+}
+
+function Flag({ code, className = "" }) {
+    return (
+        <img
+            src={flagUrl(code)}
+            srcSet={`${flagUrl(code)} 1x, ${flagUrl(code, 80)} 2x`}
+            alt=""
+            aria-hidden="true"
+            width="22"
+            height="16"
+            loading="lazy"
+            draggable="false"
+            onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
+            className={`h-4 w-5.5 shrink-0 rounded-[3px] object-cover shadow-[0_0_0_1px_rgba(20,15,92,0.12)] ${className}`}
+        />
+    );
+}
+
+/* Country picker: flag + dial code button that opens a searchable list */
+function CountryPicker({ value, onChange, disabled }) {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
+    const [active, setActive] = useState(0);
+    const wrapRef = useRef(null);
+    const listRef = useRef(null);
+    const searchRef = useRef(null);
+    const selected = COUNTRIES.find((c) => c.code === value);
+
+    const results = useMemo(() => {
+        const q = query.trim().toLowerCase().replace(/^\+/, "");
+        if (!q) return COUNTRIES;
+        return COUNTRIES.filter(
+            (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase() === q || String(c.dial).startsWith(q)
+        );
+    }, [query]);
+
+    useEffect(() => {
+        if (!open) return;
+        const onDown = (e) => {
+            if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        document.addEventListener("touchstart", onDown);
+        return () => {
+            document.removeEventListener("mousedown", onDown);
+            document.removeEventListener("touchstart", onDown);
+        };
+    }, [open]);
+
+    useEffect(() => {
+        if (open) searchRef.current?.focus();
+    }, [open]);
+
+    useEffect(() => {
+        if (open) listRef.current?.children[active]?.scrollIntoView({ block: "nearest" });
+    }, [open, active]);
+
+    const openList = () => {
+        setQuery("");
+        setActive(Math.max(0, COUNTRIES.findIndex((c) => c.code === value)));
+        setOpen(true);
+    };
+
+    const choose = (c) => {
+        onChange(c.code);
+        setOpen(false);
+    };
+
+    const onKeyDown = (e) => {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            if (!results.length) return;
+            const step = e.key === "ArrowDown" ? 1 : -1;
+            setActive((i) => (i + step + results.length) % results.length);
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (results[active]) choose(results[active]);
+        } else if (e.key === "Escape") {
+            setOpen(false);
+        }
+    };
+
+    return (
+        <div ref={wrapRef} className="relative shrink-0">
+            <button
+                type="button"
+                disabled={disabled}
+                aria-label={`Country code: ${selected?.name || ""} +${selected?.dial || ""}`}
+                aria-haspopup="listbox"
+                aria-expanded={open}
+                onClick={() => (open ? setOpen(false) : openList())}
+                className="flex h-8 items-center gap-1.5 rounded-lg pl-2 pr-1.5 outline-none transition hover:bg-[#f5f4fb] focus-visible:ring-2 focus-visible:ring-[#5b2fe0]/30"
+            >
+                <Flag code={value} />
+                <ChevronDown className={`h-3.5 w-3.5 text-[#6b6890] transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+            </button>
+
+            {open && (
+                <div className="absolute left-0 top-[calc(100%+10px)] z-40 w-[min(19rem,calc(100vw-4rem))] overflow-hidden rounded-2xl border border-[#e1def0] bg-white shadow-[0_18px_40px_-12px_rgba(20,15,92,0.28)]">
+                    <div className="relative border-b border-[#eeecf7] p-2">
+                        <Search className="pointer-events-none absolute left-4.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6b6890]" />
+                        <input
+                            ref={searchRef}
+                            type="text"
+                            value={query}
+                            onChange={(e) => { setQuery(e.target.value); setActive(0); }}
+                            onKeyDown={onKeyDown}
+                            placeholder="Search country or code"
+                            translate="no"
+                            className="h-9 w-full rounded-lg bg-[#f5f4fb] pl-8 pr-3 text-[13px] text-[#1a1560] outline-none placeholder:text-[#9a98b5] focus:ring-2 focus:ring-[#5b2fe0]/20"
+                        />
+                    </div>
+                    <ul ref={listRef} role="listbox" className="max-h-56 overflow-y-auto p-1.5 [scrollbar-color:#b9b7cf_transparent] scrollbar-thin">
+                        {results.length === 0 && <li className="px-3 py-3 text-center text-[13px] text-[#6b6890]">No country found</li>}
+                        {results.map((c, i) => {
+                            const isSelected = c.code === value;
+                            return (
+                                <li
+                                    key={c.code}
+                                    role="option"
+                                    aria-selected={isSelected}
+                                    onClick={() => choose(c)}
+                                    onMouseEnter={() => setActive(i)}
+                                    className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-colors ${
+                                        isSelected
+                                            ? "bg-[#eef0ff] font-semibold text-[#140f5c]"
+                                            : i === active
+                                                ? "bg-[#f5f4fb] text-[#1a1560]"
+                                                : "text-[#3f3b78]"
+                                    }`}
+                                >
+                                    <Flag code={c.code} />
+                                    <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                                    <span className="shrink-0 text-xs text-[#6b6890]">+{c.dial}</span>
+                                    {isSelected && <Check className="h-3.5 w-3.5 shrink-0 text-[#5b2fe0]" />}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
 
 const initialForm = {
     name: "",
     email: "",
     contactNo: "",
+    phoneCountry: DEFAULT_COUNTRY,
     timeZone: "Asia/Kolkata",
     hour: "",
     minute: "",
@@ -198,8 +415,22 @@ export default function ContactSection() {
     const handleChange = (e) => {
         const { name, value } = e.target;
         if (name === "message" && value.length > MAX_MESSAGE) return;
+        if (name === "contactNo") {
+            setForm((prev) => {
+                const next = parsePhoneInput(value, prev.phoneCountry);
+                return { ...prev, contactNo: next.value, phoneCountry: next.country };
+            });
+            if (errors.contactNo) setErrors((prev) => ({ ...prev, contactNo: "" }));
+            return;
+        }
         setForm((prev) => ({ ...prev, [name]: value }));
         if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    };
+
+    // Country picked from the flag dropdown: keep the digits, re-format for the new country
+    const handleCountryChange = (code) => {
+        setForm((prev) => ({ ...prev, phoneCountry: code, contactNo: formatNational(digitsOf(prev.contactNo), code) }));
+        if (errors.contactNo) setErrors((prev) => ({ ...prev, contactNo: "" }));
     };
 
     // Preferred time: hour / minute boxes + AM-PM badge
@@ -233,7 +464,7 @@ export default function ContactSection() {
         if (!form.email.trim()) next.email = "Please enter your email.";
         else if (!emailRegex.test(form.email)) next.email = "Enter a valid email address.";
         if (!form.contactNo.trim()) next.contactNo = "Please enter your contact number.";
-        else if (!phoneRegex.test(form.contactNo.trim())) next.contactNo = "Enter a valid phone number.";
+        else if (!isValidPhone(form.contactNo, form.phoneCountry)) next.contactNo = "Enter a valid phone number for the selected country.";
         if (!form.timeZone) next.timeZone = "Please select a time zone.";
         if (form.hour === "" || form.minute === "") next.preferredTime = "Please enter your preferred time.";
         else if (Number(form.hour) < 1 || Number(form.hour) > 12 || Number(form.minute) > 59)
@@ -257,7 +488,7 @@ export default function ContactSection() {
                 body: JSON.stringify({
                     name: form.name.trim(),
                     email: form.email.trim(),
-                    contactNo: form.contactNo.trim(),
+                    contactNo: toInternational(form.contactNo, form.phoneCountry),
                     timeZone: form.timeZone,
                     preferredTime: `${pad2(form.hour)}:${pad2(form.minute)} ${form.period}`,
                     message: form.message.trim(),
@@ -298,7 +529,7 @@ export default function ContactSection() {
                 Full overlay on mobile, left-to-right fade on desktop. */}
             <div
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 bg-white/30 lg:bg-[linear-gradient(90deg,rgba(255,255,255,0.92)_0%,rgba(255,255,255,0.8)_20%,rgba(255,255,255,0.35)_32%,rgba(255,255,255,0)_42%)]"
+                className="wb-contact-scrim pointer-events-none absolute inset-0 bg-white/30 lg:bg-[linear-gradient(90deg,rgba(255,255,255,0.92)_0%,rgba(255,255,255,0.8)_20%,rgba(255,255,255,0.35)_32%,rgba(255,255,255,0)_42%)]"
             />
 
             {/* min-h controls the section height on desktop (lower = shorter section) */}
@@ -392,21 +623,30 @@ export default function ContactSection() {
                             {err("email")}
                         </div>
 
-                        {/* Contact No */}
+                        {/* Contact No: country flag picker + national number */}
                         <div>
                             <label htmlFor="contactNo" className={label}>Contact No</label>
-                            <div className="relative">
-                                <Phone className={iconLeft} />
+                            <div
+                                className={`flex h-11.5 items-center rounded-xl border bg-white pl-1.5 pr-3 transition focus-within:border-[#5b2fe0] focus-within:ring-2 focus-within:ring-[#5b2fe0]/20 ${border("contactNo")}`}
+                            >
+                                <CountryPicker value={form.phoneCountry} onChange={handleCountryChange} />
+                                {!form.contactNo.startsWith("+") && (
+                                    <span translate="no" className="mr-2 text-[13px] font-medium text-[#1a1560]">
+                                        +{getCountryCallingCode(form.phoneCountry)}
+                                    </span>
+                                )}
                                 <input
                                     id="contactNo"
                                     name="contactNo"
                                     type="tel"
+                                    inputMode="tel"
+                                    maxLength={22}
                                     value={form.contactNo}
                                     onChange={handleChange}
-                                    placeholder="+91 98765 43210"
+                                    placeholder="Phone number"
                                     translate="no"
-                                    autoComplete="tel"
-                                    className={`${field} ${border("contactNo")} h-11.5 pl-10 pr-3`}
+                                    autoComplete="tel-national"
+                                    className="h-full min-w-0 flex-1 bg-transparent text-sm text-[#1a1560] outline-none placeholder:text-[#9a98b5]"
                                 />
                             </div>
                             {err("contactNo")}

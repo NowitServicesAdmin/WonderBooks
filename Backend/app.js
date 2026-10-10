@@ -1,6 +1,7 @@
 import "dotenv/config";
 import dns from "node:dns";
 import path from "path";
+import crypto from "crypto";
 
 import { generateAudio } from "./AudioService.js/ttsWorker.js";
 
@@ -119,6 +120,7 @@ app.post("/api/tts/chunk", async (req, res) => {
       voiceId,
       language || "english",
       chunkIndex,
+      crypto.createHash("md5").update(String(text)).digest("hex").slice(0, 10),
     ].join(":");
 
     // --------------------------------------------------
@@ -258,7 +260,8 @@ app.post("/api/tts", async (req, res) => {
       });
     }
 
-    const cacheKey = `${bookId}:${pageId}:${voiceId}:${language || "english"}`;
+    const textHash = crypto.createHash("md5").update(String(text)).digest("hex").slice(0, 10);
+    const cacheKey = `${bookId}:${pageId}:${voiceId}:${language || "english"}:${textHash}`;
 
     // --------------------------------------------------
     // CACHE HIT
@@ -402,7 +405,7 @@ const startServer = async () => {
         .catch((e) => console.error("Subscription expiry job failed:", e.message));
     runExpiry();
     setInterval(runExpiry, 60 * 60 * 1000).unref();
-
+    
     app.listen(PORT, () => {
       console.log(`WonderBook backend running on http://localhost:${PORT}`);
     });

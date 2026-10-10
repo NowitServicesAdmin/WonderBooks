@@ -17,9 +17,12 @@ export const deleteUser = (id) => api.delete(`${BASE}/users/${id}`);
 
 // Books
 export const getBooks = (params) => api.get(`${BASE}/books`, { params });
+export const getBookDetail = (id) => api.get(`${BASE}/books/${id}`);
+export const deleteBook = (id) => api.delete(`${BASE}/books/${id}`);
 
 // Orders
 export const getOrders = (params) => api.get(`${BASE}/orders`, { params });
+export const getOrderDetail = (id) => api.get(`${BASE}/orders/${id}`);
 export const updateOrderStatus = (id, status, reason) =>
     api.patch(`${BASE}/orders/${id}/status`, { status, reason });
 

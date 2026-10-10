@@ -14,6 +14,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { CartButton } from "../../Components/CartButton";
+import { displayPhone } from "../../utils/phone";
 import {
   getMyOrders,
   getOrderTracking,
@@ -566,7 +567,7 @@ export const OrderDetails = ({
                 .join(", ")}
             </p>
             <p>{order.shippingAddress?.country}</p>
-            <p>{order.shippingAddress?.phone}</p>
+            <p>{displayPhone(order.shippingAddress)}</p>
           </div>
         </div>
 

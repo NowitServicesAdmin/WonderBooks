@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -19,6 +20,7 @@ import { getShippingQuote, initiateOrder, verifyOrder } from "../../services/ord
 import { deleteAddress, getAddresses } from "../../services/addressService";
 import { AddressSection } from "../../Components/printOrder/AddressSection";
 import { AddressFormModal } from "../../Components/printOrder/AddressFormModal";
+import { e164Phone } from "../../utils/phone";
 
 const money = (amount) => `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 const copies = (n) => `${n} ${n === 1 ? "copy" : "copies"}`;
@@ -286,7 +288,7 @@ export const PrintCart = () => {
                 prefill: {
                     name: selectedAddress.fullName,
                     email: user?.email || "",
-                    contact: selectedAddress.phone,
+                    contact: e164Phone(selectedAddress),
                 },
                 onSuccess: async (response) => {
                     try {

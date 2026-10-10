@@ -156,208 +156,209 @@ export function SideNav({
                     </button>
                 )}
 
-            <aside className="flex h-full w-full flex-col overflow-hidden border-r border-(--tint) bg-(--surface)">
-                {/* Header */}
-                <div className="relative flex h-20 items-center border-b border-(--tint) px-3">
-                    {/* Mobile close */}
-                    <button
-                        type="button"
-                        aria-label="Close menu"
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="absolute right-3 top-4 rounded-lg p-1.5 text-(--text-muted) transition-all hover:bg-(--tint) active:scale-95 md:hidden"
-                    >
-                        <X size={20} />
-                    </button>
-
-                    {/* Logo (click to expand when collapsed) */}
-                    <div
-                        className={`flex items-center justify-center ${expanded ? "w-12" : "flex-1"}`}
-                    >
+                <aside className="flex h-full w-full flex-col overflow-hidden border-r border-(--tint) bg-(--surface)">
+                    {/* Header */}
+                    <div className="relative flex h-20 items-center border-b border-(--tint) px-3">
+                        {/* Mobile close */}
                         <button
                             type="button"
-                            aria-label={expanded ? "Wonder Books" : "Expand sidebar"}
-                            onClick={() => {
-                                if (!isOpen) setIsOpen(true);
-                            }}
-                            className="group relative flex items-center justify-center"
+                            aria-label="Close menu"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="absolute right-3 top-4 rounded-lg p-1.5 text-(--text-muted) transition-all hover:bg-(--tint) active:scale-95 md:hidden"
                         >
-                            {/* <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-(--tint) text-xl transition-transform duration-300 group-hover:scale-105">
+                            <X size={20} />
+                        </button>
+
+                        {/* Logo (click to expand when collapsed) */}
+                        <div
+                            className={`flex items-center justify-center ${expanded ? "w-12" : "flex-1"}`}
+                        >
+                            <button
+                                type="button"
+                                aria-label={expanded ? "Wonder Books" : "Expand sidebar"}
+                                onClick={() => {
+                                    if (!isOpen) setIsOpen(true);
+                                }}
+                                className="group relative flex items-center justify-center"
+                            >
+                                {/* <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-(--tint) text-xl transition-transform duration-300 group-hover:scale-105">
                                 ⭐
                             </div> */}
-                            <img src={Logo} alt="Wonder Books" className="h-15 w-15 rounded-xl transition-transform duration-300 group-hover:scale-105" />
+                                <img src={Logo} alt="Wonder Books" className="h-15 w-15 rounded-xl transition-transform duration-300 group-hover:scale-105" />
 
-                            {!expanded && (
-                                <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-(--tint) text-(--accent) opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                                    <PanelLeftOpen size={18} />
-                                </span>
-                            )}
-                        </button>
-                    </div>
-
-                    {expanded && (
-                        <div className="ml-2 flex min-w-0 flex-col text-[16px] font-extrabold leading-[1.05] text-(--ink)">
-                            <span className="truncate">Wonder Books</span>
-
-                            {superadmin && (
-                                <span className="truncate text-xs font-semibold text-(--text-muted)">
-                                    Super Admin
-                                </span>
-                            )}
+                                {!expanded && (
+                                    <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-(--tint) text-(--accent) opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                        <PanelLeftOpen size={18} />
+                                    </span>
+                                )}
+                            </button>
                         </div>
-                    )}
-                </div>
 
-                {/* Navigation */}
-                <nav className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-3 scrollbar-hide sm:p-4">
-                    {activeMenu.map((item) => {
-                        const Icon = item.icon;
+                        {expanded && (
+                            <div className="ml-2 flex min-w-0 flex-col text-[16px] font-extrabold leading-[1.05] text-(--ink)">
+                                <span className="truncate">Wonder Books</span>
 
-                        return (
-                            <NavLink
-                                key={item.path}
-                                to={item.path}
-                                end={item.path === "/superadmin"}
-                                title={!expanded ? item.name : undefined}
-                                onClick={() => {
-                                    if (window.innerWidth < 768) setMobileMenuOpen(false);
-                                }}
-                                className={({ isActive }) =>
-                                    `flex h-11 items-center rounded-[10px] text-sm font-semibold transition-all duration-200 ${
-                                        expanded ? "gap-3 px-3.5" : "justify-center px-2"
-                                    } ${
-                                        isActive
-                                            ? "bg-(--accent) text-white shadow-[0_5px_12px_rgba(84,38,199,0.20)]"
-                                            : "text-(--text-muted) hover:bg-(--tint) hover:text-(--accent)"
-                                    }`
-                                }
-                            >
-                                <Icon size={18} strokeWidth={2} className="shrink-0" />
-                                {expanded && <span className="truncate">{item.name}</span>}
-                            </NavLink>
-                        );
-                    })}
-                </nav>
-
-                {/* Premium upgrade - shown when there's no active plan (new user, or a past plan that ran out) */}
-                {showPremiumTile && (
-                    <div className="px-3 pt-1 sm:px-4">
-                        {expanded ? (
-                            <button
-                                type="button"
-                                onClick={goToUpgrade}
-                                className="w-full rounded-2xl p-3.5 text-left text-white shadow-[0_8px_20px_rgba(84,38,199,0.25)] transition-transform active:scale-[0.98]"
-                                style={{ background: "linear-gradient(135deg,#6D28D9,#8639ED)" }}
-                            >
-                                <div className="flex items-center gap-2.5">
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20">
-                                        <Crown size={16} className="text-[#FFD766]" fill="currentColor" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="truncate text-sm font-bold leading-tight">
-                                            {hadSubscription ? "Renew Premium" : "Go Premium"}
-                                        </p>
-                                        <p className="truncate text-[11px] leading-tight text-white/80">
-                                            {hadSubscription ? "Your plan has ended" : "Unlock all templates"}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="mt-2.5 flex items-center justify-center gap-1.5 rounded-lg bg-(--surface) py-2 text-xs font-bold text-(--accent)">
-                                    {hadSubscription ? "Renew Now" : "Upgrade Now"}
-                                    <ArrowRight size={13} strokeWidth={2.5} />
-                                </div>
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                title={hadSubscription ? "Renew your plan" : "Upgrade to Premium"}
-                                onClick={goToUpgrade}
-                                className="mx-auto flex h-10 w-10 items-center justify-center rounded-[10px] text-white shadow-[0_5px_12px_rgba(84,38,199,0.25)] transition-transform active:scale-95"
-                                style={{ background: "linear-gradient(135deg,#6D28D9,#8639ED)" }}
-                            >
-                                <Crown size={17} className="text-[#FFD766]" fill="currentColor" />
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {/* Plan ending - active, but a cancellation is already in - shows immediately after cancel/restore, no reload */}
-                {showEndingTile && (
-                    <div className="px-3 pt-1 sm:px-4">
-                        {expanded ? (
-                            <div
-                                className="w-full rounded-2xl border p-3.5 text-left"
-                                style={{ background: "#FFF7E8", borderColor: "#F6DFAF" }}
-                            >
-                                <div className="flex items-center gap-2.5">
-                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-(--surface)">
-                                        <Clock size={16} className="text-[#B4770A]" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="truncate text-sm font-bold leading-tight text-[#7A4E08]">
-                                            Plan ending
-                                        </p>
-                                        <p className="truncate text-[11px] leading-tight text-[#8C6A2E]">
-                                            Access until {formatDate(subscription.endDate)}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={restorePlan}
-                                    disabled={subLoading}
-                                    className="mt-2.5 flex w-full items-center justify-center rounded-lg bg-[#B4770A] py-2 text-xs font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-60"
-                                >
-                                    {subLoading ? "Restoring…" : "Restore Plan"}
-                                </button>
-                            </div>
-                        ) : (
-                            <button
-                                type="button"
-                                title={`Plan ending ${formatDate(subscription.endDate)} - click to manage`}
-                                onClick={goToUpgrade}
-                                className="mx-auto flex h-10 w-10 items-center justify-center rounded-[10px] border text-[#B4770A] transition-transform active:scale-95"
-                                style={{ background: "#FFF7E8", borderColor: "#F6DFAF" }}
-                            >
-                                <Clock size={17} />
-                            </button>
-                        )}
-                    </div>
-                )}
-
-                {/* User info */}
-                {expanded && (
-                    <div className="px-3 py-3 sm:px-4">
-                        <div className="flex items-center gap-3 rounded-2xl bg-(--tint) p-2.5">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#cfe8c1]">
-                                {avatarUrl ? (
-                                    <img
-                                        src={avatarUrl}
-                                        alt={displayName}
-                                        className="h-full w-full object-cover"
-                                    />
-                                ) : (
-                                    <span className="font-semibold text-[#33502a]">
-                                        {displayName.charAt(0).toUpperCase()}
+                                {superadmin && (
+                                    <span className="truncate text-xs font-semibold text-(--text-muted)">
+                                        Super Admin
                                     </span>
                                 )}
                             </div>
+                        )}
+                    </div>
 
-                            <div className="min-w-0 flex-1 leading-tight">
-                                <p className="truncate text-sm font-semibold text-(--text-heading)">
-                                    {displayName}
-                                </p>
-                                <p className="truncate text-xs text-(--text-muted)">
-                                    {superadmin ? "Super Admin" : "Parent"}
-                                </p>
+                    {/* Navigation */}
+                    <nav className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-3 scrollbar-hide sm:p-4">
+                        {activeMenu.map((item) => {
+                            const Icon = item.icon;
+
+                            return (
+                                <NavLink
+                                    key={item.path}
+                                    to={item.path}
+                                    end={item.path === "/superadmin"}
+                                    title={!expanded ? item.name : undefined}
+                                    onClick={() => {
+                                        if (window.innerWidth < 768) setMobileMenuOpen(false);
+                                    }}
+                                    className={({ isActive }) =>
+                                        `flex h-11 items-center rounded-[10px] text-sm font-semibold transition-all duration-200 ${expanded ? "gap-3 px-3.5" : "justify-center px-2"
+                                        } ${isActive
+                                            ? "bg-(--accent) text-white shadow-[0_5px_12px_rgba(84,38,199,0.20)]"
+                                            : "text-(--text-muted) hover:bg-(--tint) hover:text-(--accent)"
+                                        }`
+                                    }
+                                >
+                                    <Icon size={18} strokeWidth={2} className="shrink-0" />
+                                    {expanded && <span className="truncate">{item.name}</span>}
+                                </NavLink>
+                            );
+                        })}
+                    </nav>
+
+                    {/* Premium upgrade - shown when there's no active plan (new user, or a past plan that ran out) */}
+                    {showPremiumTile && (
+                        <div className="px-3 pt-1 sm:px-4">
+                            {expanded ? (
+                                <button
+                                    type="button"
+                                    onClick={goToUpgrade}
+                                    className="w-full rounded-2xl p-3.5 text-left text-white shadow-[0_8px_20px_rgba(84,38,199,0.25)] transition-transform active:scale-[0.98]"
+                                    style={{ background: "linear-gradient(135deg,#6D28D9,#8639ED)" }}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20">
+                                            <Crown size={16} className="text-[#FFD766]" fill="currentColor" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="truncate text-sm font-bold leading-tight">
+                                                {hadSubscription ? "Renew Premium" : "Go Premium"}
+                                            </p>
+                                            <p className="truncate text-[11px] leading-tight text-white/80">
+                                                {hadSubscription ? "Your plan has ended" : "Unlock all templates"}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-2.5 flex items-center justify-center gap-1.5 rounded-lg bg-(--surface) py-2 text-xs font-bold text-(--accent)">
+                                        {hadSubscription ? "Renew Now" : "Upgrade Now"}
+                                        <ArrowRight size={13} strokeWidth={2.5} />
+                                    </div>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    title={hadSubscription ? "Renew your plan" : "Upgrade to Premium"}
+                                    onClick={goToUpgrade}
+                                    className="mx-auto flex h-10 w-10 items-center justify-center rounded-[10px] text-white shadow-[0_5px_12px_rgba(84,38,199,0.25)] transition-transform active:scale-95"
+                                    style={{ background: "linear-gradient(135deg,#6D28D9,#8639ED)" }}
+                                >
+                                    <Crown size={17} className="text-[#FFD766]" fill="currentColor" />
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Plan ending - active, but a cancellation is already in - shows immediately after cancel/restore, no reload */}
+                    {showEndingTile && (
+                        <div className="px-3 pt-1 sm:px-4">
+                            {expanded ? (
+                                <div
+                                    className="w-full rounded-2xl border p-3.5 text-left"
+                                    style={{ background: "#FFF7E8", borderColor: "#F6DFAF" }}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-(--surface)">
+                                            <Clock size={16} className="text-[#B4770A]" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="truncate text-sm font-bold leading-tight text-[#7A4E08]">
+                                                Plan ending
+                                            </p>
+                                            <p className="truncate text-[11px] leading-tight text-[#8C6A2E]">
+                                                Access until {formatDate(subscription.endDate)}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={restorePlan}
+                                        disabled={subLoading}
+                                        className="mt-2.5 flex w-full items-center justify-center rounded-lg bg-[#B4770A] py-2 text-xs font-bold text-white transition-transform active:scale-[0.98] disabled:opacity-60"
+                                    >
+                                        {subLoading ? "Restoring…" : "Restore Plan"}
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    title={`Plan ending ${formatDate(subscription.endDate)} - click to manage`}
+                                    onClick={goToUpgrade}
+                                    className="mx-auto flex h-10 w-10 items-center justify-center rounded-[10px] border text-[#B4770A] transition-transform active:scale-95"
+                                    style={{ background: "#FFF7E8", borderColor: "#F6DFAF" }}
+                                >
+                                    <Clock size={17} />
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {/* User info */}
+                    {expanded && (
+                        <div className="px-3 py-3 sm:px-4">
+                            <div className="flex items-center gap-3 rounded-2xl bg-(--tint) p-2.5">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-[#cfe8c1]">
+                                    {avatarUrl ? (
+                                        <img
+                                            src={avatarUrl}
+                                            alt={displayName || "User"}
+                                            className="h-full w-full object-cover"
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = "none";
+                                            }}
+                                        />
+                                    ) : (
+                                        <span className="font-semibold text-[#33502a]">
+                                            {displayName?.[0]?.toUpperCase() || "U"}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="min-w-0 flex-1 leading-tight">
+                                    <p className="truncate text-sm font-semibold text-(--text-heading)">
+                                        {displayName}
+                                    </p>
+                                    <p className="truncate text-xs text-(--text-muted)">
+                                        {superadmin ? "Super Admin" : "Parent"}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Theme toggle */}
-                {/* <div className="px-3 sm:px-4">
+                    {/* Theme toggle */}
+                    {/* <div className="px-3 sm:px-4">
                     <button
                         type="button"
                         onClick={toggleTheme}
@@ -375,21 +376,20 @@ export function SideNav({
                     </button>
                 </div> */}
 
-                {/* Logout */}
-                <div className="p-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 sm:pt-2">
-                    <button
-                        type="button"
-                        onClick={onLogout}
-                        title={!expanded ? "Log out" : undefined}
-                        className={`flex h-11 w-full items-center rounded-[10px] text-sm font-semibold text-(--text-muted) transition-all duration-200 hover:bg-[#fdeeee] hover:text-[#e94b4b] active:scale-[0.98] ${
-                            expanded ? "gap-3 px-3.5" : "justify-center"
-                        }`}
-                    >
-                        <LogOut size={18} strokeWidth={2} className="shrink-0" />
-                        {expanded && <span>Log out</span>}
-                    </button>
-                </div>
-            </aside>
+                    {/* Logout */}
+                    <div className="p-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 sm:pt-2">
+                        <button
+                            type="button"
+                            onClick={onLogout}
+                            title={!expanded ? "Log out" : undefined}
+                            className={`flex h-11 w-full items-center rounded-[10px] text-sm font-semibold text-(--text-muted) transition-all duration-200 hover:bg-[#fdeeee] hover:text-[#e94b4b] active:scale-[0.98] ${expanded ? "gap-3 px-3.5" : "justify-center"
+                                }`}
+                        >
+                            <LogOut size={18} strokeWidth={2} className="shrink-0" />
+                            {expanded && <span>Log out</span>}
+                        </button>
+                    </div>
+                </aside>
             </div>
 
             <div

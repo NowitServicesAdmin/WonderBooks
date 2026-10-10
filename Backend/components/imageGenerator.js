@@ -40,8 +40,6 @@ const closestSupportedSize = (width, height) => {
   return ratio < 1 ? "1024x1536" : "1536x1024";
 };
 
-
-
 // ---------------------------------------------------------------------------
 // WHY THIS EXISTS: with 5 reference photos in one images.edit call, OpenAI
 // returned a picture while reporting only 8 input tokens - i.e. it never saw
@@ -50,128 +48,112 @@ const closestSupportedSize = (width, height) => {
 // So: never send more than MAX_EDIT_IMAGES files. Extra characters are merged
 // into ONE side-by-side sheet, which still counts as a single reference.
 // ---------------------------------------------------------------------------
-const MAX_EDIT_IMAGES = Math.max(1, Number(process.env.OPENAI_MAX_REFERENCE_IMAGES) || 4);
+const MAX_EDIT_IMAGES = Math.max(
+  1,
+  Number(process.env.OPENAI_MAX_REFERENCE_IMAGES) || 4,
+);
 
 // A normal edit call with references uses 500+ input tokens. Anything this
 // low means the request was effectively ignored.
 const MIN_PLAUSIBLE_INPUT_TOKENS = 100;
 
 const combineReferences = async (refs) => {
-    const TILE = 512;
+  const TILE = 512;
 
-    const tiles = await Promise.all(
-        refs.map((ref) =>
-            sharp(ref.buffer)
-                .rotate()
-                .resize(TILE, TILE, { fit: "contain", background: "#ffffff" })
-                .png()
-                .toBuffer()
-        )
-    );
-
-    const sheet = await sharp({
-        create: { width: TILE * tiles.length, height: TILE, channels: 3, background: "#ffffff" },
-    })
-        .composite(tiles.map((input, index) => ({ input, left: index * TILE, top: 0 })))
+  const tiles = await Promise.all(
+    refs.map((ref) =>
+      sharp(ref.buffer)
+        .rotate()
+        .resize(TILE, TILE, { fit: "contain", background: "#ffffff" })
         .png()
-        .toBuffer();
+        .toBuffer(),
+    ),
+  );
 
-    const names = refs.map((ref) => ref.characterName || "character");
+  const sheet = await sharp({
+    create: {
+      width: TILE * tiles.length,
+      height: TILE,
+      channels: 3,
+      background: "#ffffff",
+    },
+  })
+    .composite(
+      tiles.map((input, index) => ({ input, left: index * TILE, top: 0 })),
+    )
+    .png()
+    .toBuffer();
 
-    return {
-        buffer: sheet,
-        contentType: "image/png",
-        characterName: names.join(" and "),
-        characterType: `ONE image with ${refs.length} separate characters side by side, left to right: ${refs
-            .map((ref) => `${ref.characterName || "character"}${ref.characterType ? ` (${ref.characterType})` : ""}`)
-            .join(", ")} - match each one individually`,
-    };
+  const names = refs.map((ref) => ref.characterName || "character");
+
+  return {
+    buffer: sheet,
+    contentType: "image/png",
+    characterName: names.join(" and "),
+    characterType: `ONE image with ${refs.length} separate characters side by side, left to right: ${refs
+      .map(
+        (ref) =>
+          `${ref.characterName || "character"}${ref.characterType ? ` (${ref.characterType})` : ""}`,
+      )
+      .join(", ")} - match each one individually`,
+  };
 };
 
 // Keeps at most `max` reference files; the overflow is merged into one sheet.
 const limitReferences = async (refs, max) => {
-    if (refs.length <= max) {
-        return refs;
-    }
+  if (refs.length <= max) {
+    return refs;
+  }
 
-    return [...refs.slice(0, max - 1), await combineReferences(refs.slice(max - 1))];
+  return [
+    ...refs.slice(0, max - 1),
+    await combineReferences(refs.slice(max - 1)),
+  ];
 };
 
 const toUploadFiles = (refs) =>
-    Promise.all(
-        refs.map((image, index) =>
-            toFile(image.buffer, `reference-${index}.png`, { type: image.contentType || "image/png" })
-        )
-    );
+  Promise.all(
+    refs.map((image, index) =>
+      toFile(image.buffer, `reference-${index}.png`, {
+        type: image.contentType || "image/png",
+      }),
+    ),
+  );
 
 const buildReferenceManifest = (referenceImages) =>
-    referenceImages
-        .map((image, index) => {
-            const label = image.characterName
-                ? `${image.characterName}${image.characterType ? ` (${image.characterType})` : ""}`
-                : `Unlabeled character ${index + 1}`;
+  referenceImages
+    .map((image, index) => {
+      const label = image.characterName
+        ? `${image.characterName}${image.characterType ? ` (${image.characterType})` : ""}`
+        : `Unlabeled character ${index + 1}`;
 
-            return `Reference photo ${index + 1}: ${label}`;
-        })
-        .join("\n");
+      return `Reference photo ${index + 1}: ${label}`;
+    })
+    .join("\n");
 
-// When real uploaded photos are attached as references, force the model
-// to treat each one as the literal identity source for its OWN character
-// - first lock onto an enhanced, dynamic likeness of the exact
-// person/pet/object in each photo, THEN re-render every one of those
-// identities in the requested illustration style. The previous version of
-// this instruction only ever said "the main character" (singular), so
-// when a person, a pet, and an object were all attached at once, the
-// model treated it as one identity to match and almost always picked the
-// person, ignoring the pet/object references entirely. Naming every
-// reference photo by the character it belongs to fixes that.
 const buildPromptWithReferenceInstruction = (prompt, referenceImages = []) => {
-    if (!referenceImages.length) {
-        return prompt;
-    }
+  if (!referenceImages.length) {
+    return prompt;
+  }
 
-    const manifest = buildReferenceManifest(referenceImages);
-    const multiple = referenceImages.length > 1;
+  const manifest = buildReferenceManifest(referenceImages);
+  const multiple = referenceImages.length > 1;
 
-    return `
-IDENTITY SOURCE: ${referenceImages.length} reference photo(s) of real
-people, pets and/or objects are attached to this request, in this exact
-order:
+  return `
+Create ONE children's storybook illustration (portrait page). The SCENE below is the most important part: its setting, action and camera angle must clearly appear in the picture.
 
+${prompt}
+
+REFERENCE PHOTOS (${referenceImages.length} attached, in this order):
 ${manifest}
 
-Treat each attached photo as the definitive identity source ONLY for the
-specific character it is labeled with above.${
-        multiple
-            ? " Every character listed above has its own dedicated reference photo and MUST be matched to it individually - do not blend, merge, or apply one character's reference onto a different character, and do not favor one character's likeness over another's. Every character with a reference photo must be rendered with equal fidelity to its own reference, even when that character is a pet or an object rather than a person."
-            : " This reference photo is the definitive identity source for that character."
-    }
-
-ONLY THESE CHARACTERS: draw exactly the characters listed above and no
-other recurring character, pet or object from the book. A character that is
-not listed here is NOT in this scene, so do not add them.${
-        multiple
-            ? " Keep every listed character visually distinct from the others - never give two characters the same face, hair, glasses or clothes."
-            : ""
-    }
-
-STEP 1 - IDENTITY LOCK: For each labeled reference photo, first establish
-a dynamic, enhanced, photo-realistic likeness of the exact
-person/pet/object shown in that photo - same face/shape, same features,
-same proportions, same recognizable details (for a pet: same breed,
-fur/coat pattern and coloring; for an object: same shape, material,
-colors and distinguishing details). Do not invent a different-looking
-character for any labeled reference.
-
-STEP 2 - STYLE TRANSFER: Then render every one of those identities fully
-in the illustration style described below, together in the same scene
-when the scene calls for it. The final image must be a full illustration
-in the requested style (not a photo), but each character within it must
-clearly be recognizable as the same subject shown in its own reference
-photo.
-
-SCENE AND STYLE INSTRUCTIONS:
-${prompt}
+How to use the reference photos:
+- Each photo shows who ONE character is. Use it ONLY for that character's identity: face, hair, skin tone, body shape, clothing and colors (for a pet or object: same kind, shape, colors and markings).
+- Do NOT copy a photo's pose, framing, camera angle, background or lighting. Pose and placement come from the SCENE.
+- Draw exactly the characters listed above, each once, each clearly recognizable${multiple ? " and clearly different from the others - never blend two characters' features, never favor one over another" : ""}. Do not add any other recurring character.
+- The characters are busy doing what the SCENE says, inside the setting it describes. They are not lined up facing the viewer.
+- Keep the camera pulled back: characters are full-body and never fill the frame, so the setting around them is clearly visible and detailed.
+- The result is a fully illustrated picture in the STYLE above, not a photo.
 `.trim();
 };
 
@@ -204,10 +186,15 @@ export const generateImage = async ({
     // uploaded image files AND the reference manifest in the prompt, so the
     // "Reference photo N" labels always line up with the Nth file actually
     // sent to the model.
-    const validReferences = referenceImages.filter((image) => image?.buffer).slice(0, MAX_REFERENCE_CHARACTERS);
+    const validReferences = referenceImages
+      .filter((image) => image?.buffer)
+      .slice(0, MAX_REFERENCE_CHARACTERS);
 
     // At most MAX_EDIT_IMAGES files go to OpenAI (see note above).
-    let referencesForCall = await limitReferences(validReferences, MAX_EDIT_IMAGES);
+    let referencesForCall = await limitReferences(
+      validReferences,
+      MAX_EDIT_IMAGES,
+    );
     let imageFiles = await toUploadFiles(referencesForCall);
 
     console.log(
@@ -221,12 +208,13 @@ export const generateImage = async ({
     while (attempt <= maxRetries) {
       try {
         // Level 2 = last resort: drop the reference photos as well.
-        const useReferences = safetyLevel < MAX_SAFETY_LEVEL && imageFiles.length > 0;
+        const useReferences =
+          safetyLevel < MAX_SAFETY_LEVEL && imageFiles.length > 0;
 
         const safePrompt = sanitizeImagePrompt(prompt, safetyLevel);
         const finalPrompt = buildPromptWithReferenceInstruction(
           safePrompt,
-          useReferences ? referencesForCall : []
+          useReferences ? referencesForCall : [],
         );
 
         let response;
@@ -266,9 +254,12 @@ export const generateImage = async ({
             imageFiles = await toUploadFiles(referencesForCall);
           }
 
-          throw Object.assign(new Error("OpenAI ignored the request (too few input tokens)."), {
-            status: 503,
-          });
+          throw Object.assign(
+            new Error("OpenAI ignored the request (too few input tokens)."),
+            {
+              status: 503,
+            },
+          );
         }
 
         const b64 = response?.data?.[0]?.b64_json;

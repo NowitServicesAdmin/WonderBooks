@@ -14,7 +14,9 @@ import {
     ChevronLeft,
     ChevronRight,
     ImageOff,
+    Redo2,
     Star,
+    Undo2,
     WandSparkles,
     X,
 } from "lucide-react";
@@ -36,6 +38,9 @@ const PORTRAIT_BELOW = 600;
 const TEXT_MAX = 32;
 const TEXT_MIN = 11;
 
+// Max characters on one story page (same limit the server enforces).
+export const PAGE_TEXT_MAX = 1000;
+
 export const BookViewer = ({
     pages,
     badge = "",
@@ -44,8 +49,19 @@ export const BookViewer = ({
     font,
     onPageChange,
     onNextPageReady,
+    editing = false,
+    onDraftChange,
 }) => {
     const bookRef = useRef(null);
+
+    const flipHostRef = useRef(null);
+
+    // Page text editing locks page navigation.
+    const editingRef = useRef(editing);
+
+    useEffect(() => {
+        editingRef.current = editing;
+    }, [editing]);
 
     const [leafIndex, setLeafIndex] = useState(0);
 
@@ -206,6 +222,10 @@ export const BookViewer = ({
      */
 
     const goNextPage = useCallback(() => {
+        if (editingRef.current) {
+            return false;
+        }
+
         try {
             const pageFlip = bookRef.current?.pageFlip();
 
@@ -227,6 +247,10 @@ export const BookViewer = ({
     }, []);
 
     const goPrevPage = useCallback(() => {
+        if (editingRef.current) {
+            return false;
+        }
+
         try {
             const pageFlip = bookRef.current?.pageFlip();
 
@@ -289,6 +313,10 @@ export const BookViewer = ({
 
     const goToSpread = useCallback(
         (index) => {
+            if (editingRef.current) {
+                return;
+            }
+
             const targetLeaf = index * 2;
 
             try {
@@ -335,6 +363,17 @@ export const BookViewer = ({
 
     useEffect(() => {
         const handleKeyDown = (event) => {
+            // Typing in the page editor must not flip pages / leave the book.
+            const tag = event.target?.tagName;
+
+            if (
+                editingRef.current ||
+                tag === "TEXTAREA" ||
+                tag === "INPUT"
+            ) {
+                return;
+            }
+
             if (event.key === "ArrowRight") {
                 goNextPage();
             }
@@ -375,6 +414,60 @@ export const BookViewer = ({
      * Page state
      * ---------------------------------------------------------------
      */
+
+    /*
+     * ---------------------------------------------------------------
+     * Page text editing
+     * ---------------------------------------------------------------
+     */
+
+    // Portrait shows one leaf at a time: make sure the text leaf is visible.
+    useEffect(() => {
+        if (!editing || !portrait || leafIndex % 2 !== 0) {
+            return;
+        }
+
+        try {
+            bookRef.current?.pageFlip()?.flipNext();
+        } catch {
+            // Book is not ready yet.
+        }
+    }, [editing]);
+
+    // While editing, mouse/touch drags on the book must not flip the page.
+    // (Capture phase on the book frame, so react-pageflip never sees them.)
+    useEffect(() => {
+        const host = flipHostRef.current;
+
+        if (!host || !editing) {
+            return;
+        }
+
+        const block = (event) => {
+            if (event.target?.closest?.("textarea, button")) {
+                return;
+            }
+
+            event.stopPropagation();
+        };
+
+        const names = [
+            "mousedown",
+            "mousemove",
+            "touchstart",
+            "touchmove",
+        ];
+
+        names.forEach((name) =>
+            host.addEventListener(name, block, true)
+        );
+
+        return () => {
+            names.forEach((name) =>
+                host.removeEventListener(name, block, true)
+            );
+        };
+    }, [editing]);
 
     const isFirstPage = leafIndex === 0;
 
@@ -471,6 +564,7 @@ export const BookViewer = ({
                             <div className="pointer-events-none absolute bottom-8.5 left-[4.65%] right-[4.65%] z-10 h-0.75 rounded-b-[45%] bg-[#faf9f6]" />
 
                             <div
+                                ref={flipHostRef}
                                 className="relative z-20 overflow-hidden rounded-[22px] bg-white shadow-[0_9px_24px_rgba(35,35,70,0.14)]"
                                 style={{
                                     width: bookW,
@@ -541,14 +635,29 @@ export const BookViewer = ({
                                                         </div>
                                                     ) : leaf.page.kind ===
                                                         "story" ? (
-                                                        <div className="h-full w-full bg-white px-14 py-16">
-                                                            <FitText
-                                                                text={
+                                                        editing &&
+                                                            index ===
+                                                            pageIndex * 2 + 1 ? (
+                                                            <EditablePage
+                                                                key={leaf.page.pageId}
+                                                                initialText={
                                                                     leaf.page.text
                                                                 }
                                                                 font={font}
+                                                                onChange={
+                                                                    onDraftChange
+                                                                }
                                                             />
-                                                        </div>
+                                                        ) : (
+                                                            <div className="h-full w-full bg-white px-14 py-16">
+                                                                <FitText
+                                                                    text={
+                                                                        leaf.page.text
+                                                                    }
+                                                                    font={font}
+                                                                />
+                                                            </div>
+                                                        )
                                                     ) : leaf.page.kind ===
                                                         "cover" &&
                                                         renderInfoPage ? (
@@ -591,7 +700,7 @@ export const BookViewer = ({
                                 <button
                                     type="button"
                                     onClick={goPrevPage}
-                                    disabled={isFirstPage}
+                                    disabled={isFirstPage || editing}
                                     aria-label="Previous page"
                                     className="absolute left-2 top-1/2 z-100 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20 sm:left-5 sm:h-12 sm:w-12"
                                 >
@@ -601,7 +710,7 @@ export const BookViewer = ({
                                 <button
                                     type="button"
                                     onClick={goNextPage}
-                                    disabled={isLastPage}
+                                    disabled={isLastPage || editing}
                                     aria-label="Next page"
                                     className="absolute right-2 top-1/2 z-100 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20 sm:right-5 sm:h-12 sm:w-12"
                                 >
@@ -827,6 +936,271 @@ const ScaledPage = ({
                 }}
             >
                 {children}
+            </div>
+        </div>
+    );
+};
+
+/*
+ * ------------------------------------------------------------------
+ * EditablePage
+ * ------------------------------------------------------------------
+ */
+
+const HISTORY_MAX = 100;
+
+// Typing within this window is grouped into a single undo step.
+const HISTORY_GROUP_MS = 700;
+
+const EditablePage = ({
+    initialText = "",
+    font,
+    onChange,
+}) => {
+    const startText = String(initialText || "").replace(/\r/g, "");
+
+    const [value, setValue] = useState(startText);
+
+    const rootRef = useRef(null);
+
+    const ref = useRef(null);
+
+    const [history, setHistory] = useState({
+        stack: [startText],
+        index: 0,
+        lastAt: 0,
+    });
+
+    const canUndo = history.index > 0;
+
+    const canRedo = history.index < history.stack.length - 1;
+
+    useEffect(() => {
+        const root = rootRef.current;
+
+        const el = ref.current;
+
+        if (!root || !el) return;
+
+        // The flip book must not treat clicks/drags in the editor as page turns.
+        const stop = (event) => event.stopPropagation();
+
+        const names = [
+            "mousedown",
+            "mousemove",
+            "touchstart",
+            "touchmove",
+        ];
+
+        names.forEach((name) =>
+            root.addEventListener(name, stop)
+        );
+
+        const timer = setTimeout(() => {
+            try {
+                el.focus({ preventScroll: true });
+
+                el.setSelectionRange(
+                    el.value.length,
+                    el.value.length
+                );
+            } catch {
+                // ignore
+            }
+        }, 80);
+
+        return () => {
+            clearTimeout(timer);
+
+            names.forEach((name) =>
+                root.removeEventListener(name, stop)
+            );
+        };
+    }, []);
+
+    const commit = (next) => {
+        setValue(next);
+
+        onChange?.(next);
+    };
+
+    const handleChange = (event) => {
+        const next = event.target.value;
+
+        const now = Date.now();
+
+        setHistory((prev) => {
+            const h = {
+                ...prev,
+                stack: prev.stack.slice(0, prev.index + 1),
+            };
+
+            // Drop any redo steps, then add (or merge into) the newest step.
+            if (
+                prev.index > 0 &&
+                now - prev.lastAt < HISTORY_GROUP_MS
+            ) {
+                h.stack[h.index] = next;
+            } else {
+                h.stack.push(next);
+
+                if (h.stack.length > HISTORY_MAX) {
+                    h.stack.shift();
+                }
+
+                h.index = h.stack.length - 1;
+            }
+
+            h.lastAt = now;
+
+            return h;
+        });
+
+        commit(next);
+    };
+
+    const jumpTo = (index) => {
+        if (index < 0 || index > history.stack.length - 1) {
+            return;
+        }
+
+        const nextValue = history.stack[index];
+
+        setHistory((prev) => {
+            const h = {
+                ...prev,
+                index,
+                lastAt: 0,
+            };
+
+            return h;
+        });
+
+        commit(nextValue);
+
+        const el = ref.current;
+
+        if (el) {
+            try {
+                el.focus({ preventScroll: true });
+            } catch {
+                // ignore
+            }
+
+            requestAnimationFrame(() => {
+                try {
+                    el.setSelectionRange(
+                        el.value.length,
+                        el.value.length
+                    );
+                } catch {
+                    // ignore
+                }
+            });
+        }
+    };
+
+    const undo = () => jumpTo(history.index - 1);
+
+    const redo = () => jumpTo(history.index + 1);
+
+    const handleKeyDown = (event) => {
+        if (!(event.ctrlKey || event.metaKey)) return;
+
+        const key = event.key.toLowerCase();
+
+        if (key === "z" && !event.shiftKey) {
+            event.preventDefault();
+
+            undo();
+        } else if (
+            key === "y" ||
+            (key === "z" && event.shiftKey)
+        ) {
+            event.preventDefault();
+
+            redo();
+        }
+    };
+
+    const chars = value.length;
+
+    const words = value.trim()
+        ? value.trim().split(/\s+/).length
+        : 0;
+
+    const nearLimit = chars >= PAGE_TEXT_MAX * 0.9;
+
+    const iconBtn =
+        "flex h-9 w-9 items-center justify-center rounded-full border border-[#e1d9f5] bg-white/90 text-[#5d2bc5] shadow-sm transition hover:bg-[#f1ebff] disabled:pointer-events-none disabled:opacity-30";
+
+    return (
+        <div
+            ref={rootRef}
+            className="flex h-full w-full flex-col bg-white px-12 pb-9 pt-12"
+        >
+            <div className="relative min-h-0 flex-1">
+                <textarea
+                    ref={ref}
+                    value={value}
+                    maxLength={PAGE_TEXT_MAX}
+                    spellCheck
+                    aria-label="Page text"
+                    onChange={handleChange}
+                    onKeyDown={handleKeyDown}
+                    className="h-full w-full resize-none rounded-2xl border-2 border-[#a98aff] bg-[#faf8ff] px-5 pb-5 pt-14 text-center leading-relaxed text-[#3c3860] outline-none focus:border-[#5d2bc5]"
+                    style={{
+                        fontFamily: getStoryFontFamily(font),
+                        fontSize: 22,
+                        userSelect: "text",
+                        WebkitUserSelect: "text",
+                    }}
+                />
+
+                {/* Undo / Redo - inside the text box */}
+                <div className="absolute right-3 top-3 flex items-center gap-2">
+                    <button
+                        type="button"
+                        onMouseDown={(event) =>
+                            event.preventDefault()
+                        }
+                        onClick={undo}
+                        disabled={!canUndo}
+                        aria-label="Undo"
+                        title="Undo (Ctrl+Z)"
+                        className={iconBtn}
+                    >
+                        <Undo2 size={18} />
+                    </button>
+
+                    <button
+                        type="button"
+                        onMouseDown={(event) =>
+                            event.preventDefault()
+                        }
+                        onClick={redo}
+                        disabled={!canRedo}
+                        aria-label="Redo"
+                        title="Redo (Ctrl+Y)"
+                        className={iconBtn}
+                    >
+                        <Redo2 size={18} />
+                    </button>
+                </div>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between px-1 text-[14px] font-semibold text-[#9893a8]">
+                <span>
+                    {words} {words === 1 ? "word" : "words"}
+                </span>
+
+                <span
+                    className={
+                        nearLimit ? "text-[#c0392b]" : ""
+                    }
+                >
+                    {chars} / {PAGE_TEXT_MAX} characters
+                </span>
             </div>
         </div>
     );

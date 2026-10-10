@@ -1,5 +1,6 @@
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { BookOpen, CheckCircle2, MapPin, Package } from "lucide-react";
+import { displayPhone } from "../../utils/phone";
 
 const money = (amount) => `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 
@@ -88,7 +89,7 @@ export const PrintOrderSuccess = () => {
                             <p>
                                 {[address.city, address.state, address.postalCode].filter(Boolean).join(", ")}
                             </p>
-                            <p>{address.phone}</p>
+                            <p>{displayPhone(address)}</p>
                         </div>
                     </div>
                 </div>

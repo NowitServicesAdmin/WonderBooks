@@ -127,3 +127,16 @@ export const getBookImageBlob = async (bookId, index) => {
   });
   return response.data;
 };
+
+// Edit the text of one story page (images are not touched). Resolves to the saved text.
+export const updateBookPageText = async (bookId, pageId, content) => {
+  const response = await api.patch(`/book/${bookId}/pages/${pageId}`, {
+    content,
+  });
+  return response.data.content;
+};
+
+// Permanently delete a book (and its images).
+export const deleteBook = async (bookId) => {
+  await api.delete(`/book/${bookId}`);
+};

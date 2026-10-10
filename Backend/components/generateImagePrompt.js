@@ -1,5 +1,5 @@
 import { generateContentResilient } from "./geminiCall.js";
-import { isAnimalOrObjectCharacter } from "./promptSafety.js";
+import { inferCharacterKind, isBlankField } from "./promptSafety.js";
 
 const cleanJson = (text) => {
     return text
@@ -17,37 +17,70 @@ const PROMPT_MODELS = [
     process.env.GEMINI_TEXT_MODEL || "gemini-3.5-flash"
 ];
 
-// One line per field the Character Bible filled in, so every page prompt
-// repeats the SAME look instead of "her distinctive hairstyle and clothing".
-const lockedLook = (character = {}) => {
+// Look notes the Character Bible filled in, as ONE compact line. The code (not
+// the model) repeats this exact line in every image a character appears in, so
+// the look cannot drift from page to page.
+const lookSummary = (character = {}) => {
+    const { kind } = inferCharacterKind(character);
+    const animal = kind === "animal";
     const parts = [];
     const add = (label, value) => {
-        const text = String(value || "").trim();
-        if (text) parts.push(`${label}: ${text}`);
+        // "None" / "N/A" from the Character Bible is not a look detail.
+        if (isBlankField(value)) return;
+        parts.push(`${label}: ${String(value).trim()}`);
     };
     const look = character.appearance || {};
     const clothes = character.clothing || {};
     const colors = character.colors || {};
 
-    add("hair", look.hair);
+    add(animal ? "head fur" : "hair", look.hair);
     add("eyes", look.eyes);
-    add("skin tone", look.skinTone);
+    add(animal ? "skin / snout" : "skin tone", look.skinTone);
     add("body", look.body);
     add("fur", look.fur);
     add("markings", look.markings);
     add("top", clothes.top);
     add("bottom", clothes.bottom);
     add("shoes", clothes.shoes);
-    add("accessories", clothes.accessories);
     add("main colors", [colors.primary, colors.secondary, colors.accent].filter(Boolean).join(", "));
     if (Array.isArray(character.signatureDetails) && character.signatureDetails.length) {
         add("signature details", character.signatureDetails.join("; "));
     }
 
-    return parts.length
-        ? `LOCKED LOOK (copy these exact details into every prompt this character appears in):\n${parts.join("\n")}\n`
-        : "";
+    return parts.join("; ");
 };
+
+const findCharacter = (characters = [], lookup) => {
+    const value = String(lookup?.name || lookup?.id || lookup || "").trim().toLowerCase();
+    if (!value) return null;
+
+    return (
+        characters.find(
+            (item) =>
+                String(item?.id || "").trim().toLowerCase() === value ||
+                String(item?.name || "").trim().toLowerCase() === value
+        ) || null
+    );
+};
+
+// The cover shows only the main characters (the rest appear on the pages).
+// Too many people on one cover is the main reason the picture drops one.
+const COVER_MAX_CHARACTERS = Math.max(1, Number(process.env.COVER_MAX_CHARACTERS) || 3);
+
+// A different camera suggestion per page, so the pages stop looking like the
+// same group photo again and again.
+const SHOT_ROTATION = [
+    "wide establishing shot: the whole setting fills most of the frame, characters small to medium in size and in the middle of an action",
+    "wide shot from a slightly low angle, characters full-body in mid-action, the tall background (trees, towers, sky) clearly visible",
+    "wide three-quarter side view, characters walking or moving, the path and surroundings clearly visible around them",
+    "wide over-the-shoulder view looking at what the characters are looking at, the main landmark large in the background",
+    "wide eye-level shot, characters full-body and not filling the frame, the setting dominant",
+    "high angle looking down on the characters, who look small, with the place around them clearly visible",
+    "wide diagonal composition with an interesting object in the foreground and a layered background behind the characters",
+    "wide shot of the characters seen from the side or behind, looking into a detailed distance",
+];
+
+const shotFor = (index) => SHOT_ROTATION[index % SHOT_ROTATION.length];
 
 // One image prompt per story page, in page order. Prompts are matched to pages
 // by pageNumber; if the model left numbers out, fall back to position - but
@@ -241,326 +274,129 @@ Child-friendly visual design.
     );
 };
 
-const visualIdentityRule = (character) =>
-    isAnimalOrObjectCharacter(character)
-        ? `VISUAL IDENTITY RULE:
-This character is a recurring ${/object/i.test(character.type || "") ? "object" : "ANIMAL"} in the book.
-It must be drawn as a real ${/object/i.test(character.type || "") ? "object" : "animal"} in a friendly storybook style:
-${/object/i.test(character.type || "") ? "" : "fur or feathers, animal body proportions, animal face. NO human features, NO human hair, NO human skin, NO clothing unless the story explicitly mentions it.\nDescribe it as e.g. \"a friendly cartoon bear cub\", never as a \"young male\" or \"young female\" character.\n"}Preserve the same:
-- species / kind
-- body shape and proportions
-- fur, feather or surface color and pattern
-- eye color
-- markings
-- primary and secondary colors
-- accessories (only if the story mentions them)
-- recognizable details`
-        : `VISUAL IDENTITY RULE:
-This character is a recurring character in the book.
+// One exact, repeated description line per character in the image.
+const characterLine = (character = {}) => {
+    const name = character.name || "Unnamed";
+    const look = lookSummary(character);
+    const { kind, species } = inferCharacterKind(character);
+    const who = [character.gender, character.age].filter((v) => v && !/not specified/i.test(String(v))).join(", ");
+    // Worn / carried items (a scarf, a daisy) drifted between pages when they
+    // were only one detail in a long list, so they are stated on their own.
+    const accessories = isBlankField(character.clothing?.accessories)
+        ? ""
+        : ` Always shown with (exactly these colors every time): ${String(character.clothing.accessories).trim()}.`;
 
-Preserve the same:
-- face
-- facial structure
-- age
-- body proportions
-- hairstyle
-- hair color
-- eye color
-- skin appearance
-- clothing
-- clothing colors
-- accessories
-- markings
-- primary colors
-- secondary colors
-- recognizable physical details`;
+    if (kind === "object") {
+        return `- ${name} (object): drawn as an object, never as a person.${look ? ` ${look}.` : ""}${accessories} Match its reference photo.`;
+    }
 
-const buildCharacterBible = (characters = []) => {
+    if (kind === "animal") {
+        const label = species ? `a ${species}` : "an animal";
+        return `- ${name} (${label}): a real friendly cartoon ${species || "animal"} - an ANIMAL, never a human child or person. Animal body and animal face, NO human features, NO clothes (only the accessories listed below).${look ? ` ${look}.` : ""}${accessories} Match its reference photo.`;
+    }
+
+    return `- ${name}${who ? ` (${who})` : ""}:${look ? ` ${look}.` : ""}${accessories} Match the face and look of the reference photo.`;
+};
+
+const compactStyle = (imageStyle) =>
+    `${getStyleBible(imageStyle)
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join(" ")} Exactly the same art style and medium as every other image in this book.`;
+
+// Builds the final prompt sent to the image model. The SCENE (written by
+// Gemini) comes first because that is what the image model follows most; the
+// character looks, style and text rules are added by code so they are the same
+// in every image.
+export const composeImagePrompt = ({
+    scene,
+    mood,
+    shot,
+    sceneCharacters = [],
+    imageStyle,
+    isCover = false,
+    hasRoster = true,
+}) => {
+    const roster = sceneCharacters.map(characterLine).join("\n");
+
+    return [
+        `SCENE: ${String(scene || "").trim()}`,
+        shot ? `CAMERA: ${shot}.` : "",
+        "FRAMING: pull the camera well back. Show every character full-body, taking up no more than about half of the picture height, with generous space around them. The background fills the rest and is richly detailed in the foreground, middle ground and far distance. No close-ups and no characters cropped by the edge of the picture.",
+        mood ? `MOOD: ${mood}.` : "",
+        sceneCharacters.length
+            ? `CHARACTERS IN THIS IMAGE (draw exactly these ${sceneCharacters.length}, each once, each clearly visible, with exactly this look every time):\n${roster}`
+            : hasRoster
+                ? "No recurring character is in this image. Do not add any."
+                : "",
+        `STYLE: ${compactStyle(imageStyle)}`,
+        isCover
+            ? "COVER COMPOSITION: front cover of a children's book. Keep the upper third calm and uncluttered (sky, soft background) because the title is added later."
+            : "",
+        "RULES: one single scene, no collage, no panels. The setting described in SCENE must be clearly visible. Every character keeps exactly the same clothes, accessories and colors listed above, even if the SCENE wording suggests otherwise. Absolutely no text, letters, numbers, captions, speech bubbles, logos, watermarks or readable signs in the picture.",
+    ]
+        .filter(Boolean)
+        .join("\n\n");
+};
+
+const buildRoster = (characters = []) => {
     if (!characters.length) {
-        return `
-CHARACTER BIBLE:
-
-No characters were explicitly provided by the user.
-
-Determine the minimum number of recurring characters
-required for the story.
-
-You may create up to:
-- One person
-- One pet
-- One object
-
-Do NOT force all three types into the story.
-
-Only create a character when the story genuinely
-benefits from that character.
-
-Once a character is established, its identity,
-appearance, colors, personality and signature details
-must remain fixed throughout the entire story.
-`;
+        return "No characters were provided. If the story needs recurring characters, use at most one person, one pet and one object, and describe each one in EXACTLY the same words every time they appear.";
     }
 
     return characters
-        .map(
-            (character, index) => `
-CHARACTER ${index + 1}
-
-Character ID:
-${character.id || `character-${index + 1}`}
-
-Name:
-${character.name || "Unnamed"}
-
-Type:
-${character.type || "Unknown"}
-
-Identity:
-Gender: ${character.gender || "Not specified"}
-Age: ${character.age || "Not specified"}
-
-Hobbies:
-${character.hobbies || "Not specified"}
-
-Favourite Food:
-${character.favouriteFood || "Not specified"}
-
-USER PHOTO AVAILABLE:
-${character.hasPhoto ? "Yes" : "No"}
-
-${lockedLook(character)}
-${visualIdentityRule(character)}
-
-Do not redesign this character between pages.
-
-Do not rename this character.
-
-Do not change this character into another person,
-animal or object.
-
-Do not randomly change clothing colors.
-
-Do not randomly change hairstyle, fur pattern,
-body proportions or recognizable features.
-
-PERSONALITY:
-Use the supplied hobbies and characteristics to
-maintain a consistent personality and behavior.
-
-REFERENCE IMAGE:
-If a visual reference image is provided to the image
-generation model, treat that image as the primary
-visual identity reference for this character.
-`
-        )
+        .map((character, index) => {
+            // Show what the character really is (a bison saved as "Child" is an
+            // animal), so the scene text uses animal actions, not human ones.
+            const { kind, species } = inferCharacterKind(character);
+            const typeLabel =
+                kind === "animal"
+                    ? `ANIMAL${species ? ` (${species})` : ""}`
+                    : kind === "object"
+                        ? "OBJECT"
+                        : character.type || "Person";
+            const person = kind === "person";
+            const bits = [
+                character.id || `character-${index + 1}`,
+                character.name || "Unnamed",
+                typeLabel,
+                person && character.age && !/not specified/i.test(character.age) ? `age ${character.age}` : "",
+                person && character.gender && !/not specified/i.test(character.gender) ? character.gender : "",
+            ].filter(Boolean);
+            return `- ${bits.join(" | ")}`;
+        })
         .join("\n");
 };
 
 export const generateImagePrompt = async (story, storyData) => {
     try {
         const characters = storyData?.characters || [];
-
-        const styleBible = getStyleBible(
-            storyData?.imageStyle
-        );
-
-        const characterBible = buildCharacterBible(
-            characters
-        );
+        const hasRoster = characters.length > 0;
+        const pages = story?.pages || [];
 
         const prompt = `
-You are a professional children's storybook
-illustration director and image-prompt designer.
+You are a children's picture-book art director. Write the SCENE DESCRIPTION
+for the COVER and for EACH PAGE of the story below.
 
-Your task is to create:
+A separate program adds the character looks, the art style and the text rules
+to every scene. So you must NOT describe what characters look like (no hair,
+clothes, colors or faces) and must NOT mention the art style. ${hasRoster ? "" : "(No characters were provided, so in this case DO describe any recurring character's look, in exactly the same words every time.)"}
+Your job is the scene: WHERE it happens and WHAT is happening.
 
-1. ONE detailed COVER image-generation prompt for
-   the whole book.
-2. ONE detailed image-generation prompt for EACH
-   page of the story.
+STORY TITLE: ${story?.title || "Untitled Story"}
 
-The generated prompts will be sent to an
-image-generation model.
-
-The image prompts must prioritize:
-
-1. Character identity consistency.
-2. Character visual consistency.
-3. Illustration style consistency.
-4. Clear page-specific storytelling.
-5. Attractive children's storybook composition.
-
-STORY TITLE:
-${story?.title || "Untitled Story"}
-
-SELECTED IMAGE STYLE:
-${storyData?.imageStyle || "Classic Storybook"}
+CHARACTERS (id | name | type | age | gender):
+${buildRoster(characters)}
 
 ==================================================
-STYLE BIBLE
+STORY PAGES (with a suggested camera for each page)
 ==================================================
-
-${styleBible}
-
-IMPORTANT STYLE RULE:
-
-The selected illustration style is:
-
-${storyData?.imageStyle || "Classic Storybook"}
-
-The selected style MUST remain consistent across
-the cover AND every page.
-
-Do not substitute another artistic medium.
-
-Do not mix watercolor with 3D rendering.
-
-Do not mix cartoon rendering with photorealism.
-
-Do not change the artistic medium between the cover
-and the pages, or from page to page.
-
-Every image must visually belong to the same
-storybook.
-
-==================================================
-CHARACTER BIBLE
-==================================================
-
-${characterBible}
-
-==================================================
-CHARACTER CONSISTENCY RULES
-==================================================
-
-The Character Bible is the canonical source of truth
-for recurring characters.
-
-For every image (cover and pages):
-
-1. Preserve the exact character identity.
-2. Preserve age.
-3. Preserve facial structure.
-4. Preserve hairstyle or fur pattern.
-5. Preserve body proportions.
-6. Preserve skin/fur appearance.
-7. Preserve clothing.
-8. Preserve clothing colors.
-9. Preserve important accessories.
-10. Preserve distinctive markings.
-11. Preserve primary and secondary colors.
-12. Preserve recognizable physical characteristics.
-13. Preserve personality.
-14. Never rename a character.
-15. Never replace a character with a different character.
-16. Never create a visually unrelated version of a character.
-17. Never randomly change clothing colors.
-18. Never randomly change hair or fur colors.
-19. Never age the character between images.
-20. Never change a pet into another breed or animal.
-21. Never change an object into another object.
-
-If a character has a reference image supplied to
-the image model, the reference image is the strongest
-visual identity source for that character.
-
-The generated character should look like the same
-character in every illustration, including the cover.
-
-==================================================
-COVER RULES
-==================================================
-
-The cover must:
-
-- Feature the main recurring character(s) prominently.
-- Visually represent the overall theme and mood of
-  the story, not one specific page's moment.
-- Be an inviting, attractive front-cover illustration
-  suitable for a children's storybook.
-- Leave clear, relatively uncluttered space in the
-  upper third of the composition, since the book
-  title will be overlaid on top of the image
-  separately after generation.
-- Follow the same illustration style as the rest of
-  the book.
-- NOT include any text, letters, or numbers rendered
-  into the artwork itself (the title is added later
-  as a separate overlay, not by the image model).
-
-==================================================
-PAGE SCENE RULES
-==================================================
-
-Each page must represent ONLY the specific moment
-described by that page.
-
-Do not combine multiple unrelated moments.
-
-Do not create a collage.
-
-Do not create multiple panels.
-
-Do not create comic panels.
-
-Do not show different versions of the same character
-at different moments in the same image.
-
-Create one unified cinematic storybook scene.
-
-==================================================
-VISUAL STORYTELLING
-==================================================
-
-For every page:
-
-- Clearly identify which recurring characters appear.
-- Describe what each character is doing.
-- Describe each character's expression.
-- Describe the environment.
-- Describe important objects.
-- Describe foreground, middle ground and background
-  when useful.
-- Describe the composition.
-- Describe camera perspective when useful.
-- Maintain clear visual hierarchy.
-- Make the image attractive for a children's book.
-- Keep the main characters clearly visible.
-- Avoid overcrowding the scene.
-
-Characters that are NOT needed for a page should NOT
-be forced into that page.
-
-A character may appear on some pages and be absent
-from other pages.
-
-==================================================
-TEXT RESTRICTIONS
-==================================================
-
-Never include, in the cover OR any page:
-
-- written text
-- captions
-- speech bubbles
-- letters
-- numbers
-- signs with readable text
-- logos
-- watermarks
-- UI elements
-- interface elements
-- book titles inside the illustration
-
-==================================================
-STORY PAGES
-==================================================
-
-${(story?.pages || [])
+${pages
     .map(
-        (page) => `
+        (page, index) => `
 PAGE ${page.pageNumber}
-
+SUGGESTED CAMERA: ${shotFor(index)}
 STORY CONTENT:
 ${page.content}
 `
@@ -568,11 +404,42 @@ ${page.content}
     .join("\n")}
 
 ==================================================
+HOW TO WRITE EACH "prompt" (50 to 90 words)
+==================================================
+1. START WITH THE SETTING of that page: the exact place and its most
+   distinctive visible features from the story, for example "a bright
+   futuristic city with shimmering glass towers and a tiny moon-shaped park".
+   Never fall back to a generic park, forest or room unless the story says so.
+2. THEN say what each character in the image is DOING, using an action verb and
+   a body pose tied to what happens on that page, plus their expression.
+   Characters interact with the setting and with each other (reaching, running,
+   pointing, climbing, looking up, carrying something). They must NOT stand in a
+   row facing the viewer like a group photo.
+3. Use the suggested camera for the page. Every shot is WIDE: never write a
+   close-up or a medium close-up, and never make the characters fill the
+   picture. Describe the background in layers (foreground, middle, far distance)
+   so the setting is clearly seen.
+4. Include ONLY the characters that the page needs. A character who is not in
+   that moment of the story is left out.
+5. Mention the one or two important objects from the story text (for example a
+   glowing sword in a stone, a rope bridge, a lantern).
+6. One single scene. No collage, no panels.
+7. Use no text, signs, letters or numbers in the picture.
+8. NEVER state a color, pattern or design for a character's own clothes or
+   accessories (write "his scarf", not "a colorful scarf"; "her daisy", not "a
+   pink daisy"). Their exact colors are added separately and must not be
+   overridden by the scene text.
+
+COVER: one scene in the story's most important setting that shows the theme
+and mood of the whole story. Use only the 2 or 3 MAIN characters (never more
+than ${COVER_MAX_CHARACTERS}), in a lively, friendly pose that is not a stiff line-up.
+
+==================================================
 IMAGE SAFETY RULES (very important)
 ==================================================
 
 The image model runs a strict safety check on the FINISHED
-picture. Write every prompt so the result passes it while
+picture. Write every scene so the result passes it while
 still telling the story:
 
 - Animals are animals: describe them with fur/feathers and
@@ -596,38 +463,10 @@ still telling the story:
   readers, tension and dramatic scenes are fine.
 
 ==================================================
-OUTPUT REQUIREMENTS
+OUTPUT
 ==================================================
 
-Create:
-
-- exactly ONE cover image prompt
-- exactly one image prompt for every story page
-
-The cover prompt must contain:
-
-- the selected visual style
-- the main recurring character(s)
-- character consistency instructions
-- an overall scene representing the story's theme/mood
-- composition notes reserving space for a title overlay
-- text restrictions
-
-The prompt for each page must contain:
-
-- the selected visual style
-- relevant recurring characters
-- character consistency instructions
-- character actions
-- character expressions
-- environment
-- scene composition
-- important visual details
-- text restrictions
-
-Return ONLY valid JSON.
-
-Use exactly this structure:
+Return ONLY valid JSON, no markdown, no code block, no text before or after:
 
 {
     "cover": {
@@ -648,22 +487,14 @@ Use exactly this structure:
 }
 
 Rules:
-
-- "cover" must always be present as a single object
-  (not an array).
-- "pageNumber" must match the story page number.
-- "scene" must briefly describe the visual scene.
-- "mood" must describe the emotional atmosphere.
-- "characters" must contain ONLY the recurring
-  characters actually appearing in that image.
-- "prompt" must be a complete, detailed
-  image-generation prompt.
-- Generate exactly ${story?.pages?.length || 0} image objects
-  in "images", one per story page.
-- Do not include markdown.
-- Do not wrap JSON in code blocks.
-- Do not include explanations.
-- Do not include text before or after the JSON.
+- "cover" is a single object (not an array).
+- "pageNumber" matches the story page number.
+- "scene" is ONE short sentence summarising the picture (setting + action).
+- "mood" is two or three words.
+- "characters" lists ONLY the characters that appear in that image, using the
+  exact ids from the CHARACTERS list above.
+- "prompt" is the scene description written as described above.
+- Generate exactly ${pages.length} objects in "images", one per story page.
 `;
 
         // Gemini occasionally returns bad JSON, a wrong number of prompts, or
@@ -709,7 +540,60 @@ Rules:
                     );
                 }
 
-                return { ...parsedResult, images };
+                // Turn the model's scene text into the final prompt: scene
+                // first, then the exact character looks, style and rules.
+                const resolveSceneCharacters = (entries = [], max = Infinity) => {
+                    const found = [];
+                    for (const entry of Array.isArray(entries) ? entries : []) {
+                        const match = findCharacter(characters, entry);
+                        if (match && !found.includes(match)) found.push(match);
+                    }
+                    return found.slice(0, max);
+                };
+
+                const coverRaw = parsedResult.cover;
+                let coverCharacters = resolveSceneCharacters(coverRaw.characters, COVER_MAX_CHARACTERS);
+                if (!coverCharacters.length && characters.length) {
+                    coverCharacters = characters.slice(0, COVER_MAX_CHARACTERS);
+                }
+
+                const cover = {
+                    ...coverRaw,
+                    scene: String(coverRaw.scene || coverRaw.prompt).slice(0, 400),
+                    characters: coverCharacters.map((c) => c.id || c.name),
+                    prompt: composeImagePrompt({
+                        scene: coverRaw.prompt,
+                        mood: coverRaw.mood,
+                        sceneCharacters: coverCharacters,
+                        imageStyle: storyData?.imageStyle,
+                        isCover: true,
+                        hasRoster
+                    })
+                };
+
+                const finalImages = images.map((image, index) => {
+                    const sceneCharacters = resolveSceneCharacters(image.characters);
+
+                    return {
+                        ...image,
+                        scene: String(image.scene || image.prompt).slice(0, 400),
+                        // Keep the model's own list if none matched, so
+                        // downstream lookups behave exactly as before.
+                        characters: sceneCharacters.length
+                            ? sceneCharacters.map((c) => c.id || c.name)
+                            : image.characters || [],
+                        prompt: composeImagePrompt({
+                            scene: image.prompt,
+                            mood: image.mood,
+                            shot: sceneCharacters.length ? shotFor(index) : "",
+                            sceneCharacters,
+                            imageStyle: storyData?.imageStyle,
+                            hasRoster
+                        })
+                    };
+                });
+
+                return { ...parsedResult, cover, images: finalImages };
             } catch (attemptError) {
                 lastError = attemptError;
                 console.error(

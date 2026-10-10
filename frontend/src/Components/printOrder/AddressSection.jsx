@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { displayPhone } from "../../utils/phone";
 import { Briefcase, CheckCircle2, Home, MapPin, Pencil, Phone, Plus, Trash2 } from "lucide-react";
 
 const TYPE_ICONS = { Home, Work: Briefcase, Other: MapPin };
@@ -105,7 +106,7 @@ export const AddressSection = ({
                                         </p>
                                         <p className="flex items-center gap-1.5 text-xs text-(--text-muted)">
                                             <Phone size={11} />
-                                            +91 {address.phone}
+                                            {displayPhone(address)}
                                         </p>
                                     </div>
 

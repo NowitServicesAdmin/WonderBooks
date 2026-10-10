@@ -4,6 +4,8 @@ import Address from "../models/address.js";
 const EDITABLE_FIELDS = [
   "fullName",
   "phone",
+  "phoneCountry",
+  "phoneCode",
   "doorNo",
   "landmark",
   "placeId",
@@ -25,7 +27,45 @@ const pick = (body) =>
     return acc;
   }, {});
 
-const cleanPhone = (value) => String(value || "").replace(/\D/g, "").slice(-10);
+const digitsOnly = (value) => String(value ?? "").replace(/\D/g, "");
+
+// Works out the phone fields to save (national number + country + dial code + E.164).
+// Returns { error } or { fields }. On update, anything not sent falls back to the saved value.
+const resolvePhone = (data, existing = {}) => {
+  const touched = ["phone", "phoneCountry", "phoneCode"].some(
+    (key) => data[key] !== undefined,
+  );
+  if (!touched) return { fields: {} };
+
+  const country = String(data.phoneCountry ?? existing.phoneCountry ?? "IN")
+    .trim()
+    .toUpperCase();
+  const code = digitsOnly(data.phoneCode ?? existing.phoneCode ?? "91");
+  let phone = digitsOnly(data.phone ?? existing.phone);
+
+  if (!/^[A-Z]{2}$/.test(country) || !/^\d{1,4}$/.test(code)) {
+    return { error: "Please choose a valid country for the phone number" };
+  }
+
+  if (code === "91") {
+    // India: 10-digit mobile number
+    phone = phone.slice(-10);
+    if (phone.length !== 10) {
+      return { error: "Please enter a valid 10-digit phone number" };
+    }
+  } else if (phone.length < 4 || phone.length + code.length > 15) {
+    return { error: "Please enter a valid phone number" };
+  }
+
+  return {
+    fields: {
+      phone,
+      phoneCountry: country,
+      phoneCode: code,
+      phoneE164: `+${code}${phone}`,
+    },
+  };
+};
 
 // Returns an error message, or null when the address is good to save
 const validate = (data, { partial = false } = {}) => {
@@ -45,9 +85,6 @@ const validate = (data, { partial = false } = {}) => {
         ? "Please pick a delivery location"
         : `Please fill in "${field}"`;
     }
-  }
-  if (data.phone !== undefined && cleanPhone(data.phone).length !== 10) {
-    return "Please enter a valid 10-digit phone number";
   }
   return null;
 };
@@ -74,7 +111,11 @@ export const addAddress = async (req, res) => {
     const data = pick(req.body);
     const error = validate(data);
     if (error) return res.status(400).json({ success: false, message: error });
-    data.phone = cleanPhone(data.phone);
+    const phoneResult = resolvePhone(data);
+    if (phoneResult.error) {
+      return res.status(400).json({ success: false, message: phoneResult.error });
+    }
+    Object.assign(data, phoneResult.fields);
 
     const hasAny = await Address.exists({ user: req.userId });
     // The first address is always the default
@@ -110,7 +151,11 @@ export const updateAddress = async (req, res) => {
     const data = pick(req.body);
     const error = validate(data, { partial: true });
     if (error) return res.status(400).json({ success: false, message: error });
-    if (data.phone !== undefined) data.phone = cleanPhone(data.phone);
+    const phoneResult = resolvePhone(data, address);
+    if (phoneResult.error) {
+      return res.status(400).json({ success: false, message: phoneResult.error });
+    }
+    Object.assign(data, phoneResult.fields);
 
     if (req.body.isDefault) {
       await Address.updateMany({ user: req.userId }, { isDefault: false });

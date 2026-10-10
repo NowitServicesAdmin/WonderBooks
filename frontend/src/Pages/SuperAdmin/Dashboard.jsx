@@ -24,6 +24,14 @@ const CARD_META = [
 
 const ACTIVITY_ICONS = { user: UserPlus, order: ShoppingCart, subscription: Star };
 
+// Where each activity row leads when clicked.
+const activityRoute = (item) => {
+    if (item.type === "order") return item.refId ? `/superadmin/orders/${item.refId}` : "/superadmin/orders";
+    if (item.type === "user" || item.type === "subscription")
+        return item.refId ? `/superadmin/users/${item.refId}` : "/superadmin/users";
+    return null;
+};
+
 // Last 5 calendar months (oldest first), as { value: "YYYY-MM", label: "September" }.
 const buildMonthOptions = () => {
     const now = new Date();
@@ -39,6 +47,7 @@ const buildMonthOptions = () => {
 const quickActions = [
     { icon: Users, label: "Manage Users", route: "/superadmin/users" },
     { icon: ShoppingBag, label: "View Orders", route: "/superadmin/orders" },
+    { icon: BookOpen, label: "Manage Books", route: "/superadmin/books" },
     { icon: Crown, label: "Add Subscription", route: "/superadmin/subscriptions" },
 ];
 
@@ -213,43 +222,51 @@ export const SuperAdminDashboard = () => {
             </div>
 
             {/* Activity + Quick Actions */}
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                <div className="rounded-2xl border border-(--tint) bg-white p-5">
-                    <h3 className="mb-4 text-lg font-bold">Recent Activity</h3>
-                    <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 gap-5 lg:h-112 lg:grid-cols-2">
+                <div className="flex max-h-112 min-h-0 flex-col rounded-2xl border border-(--tint) bg-white p-5 lg:max-h-none">
+                    <h3 className="mb-4 shrink-0 text-lg font-bold">Recent Activity</h3>
+                    {/* only the list scrolls; the title stays put */}
+                    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto scrollbar-thin scrollbar-track:bg-transparent scrollbar-thumb:bg-gray-300 pr-1">
                         {!loading && activity.length === 0 && (
                             <div className="text-sm text-(--text-muted)">No recent activity yet.</div>
                         )}
                         {activity.map((item, i) => {
                             const Icon = ACTIVITY_ICONS[item.type] || Star;
+                            const route = activityRoute(item);
                             return (
-                                <div key={i} className="flex items-start justify-between">
+                                <button
+                                    key={i}
+                                    type="button"
+                                    disabled={!route}
+                                    onClick={() => route && navigate(route)}
+                                    className="flex shrink-0 items-start justify-between rounded-xl px-2 py-2 text-left transition-colors enabled:hover:bg-(--tint) disabled:cursor-default"
+                                >
                                     <div className="flex items-start gap-3">
-                                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-(--tint) text-(--accent)">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-(--tint) text-(--accent)">
                                             <Icon size={18} />
                                         </div>
-                                        <div>
+                                        <div className="min-w-0">
                                             <div className="text-base font-semibold">{item.title}</div>
-                                            <div className="text-sm text-(--text-muted)">{item.detail}</div>
+                                            <div className="truncate text-sm text-(--text-muted)">{item.detail}</div>
                                         </div>
                                     </div>
-                                    <span className="text-sm text-(--text-muted)">{timeAgo(item.at)}</span>
-                                </div>
+                                    <span className="ml-3 shrink-0 text-sm text-(--text-muted)">{timeAgo(item.at)}</span>
+                                </button>
                             );
                         })}
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-(--tint) bg-white p-5">
-                    <h3 className="mb-4 text-lg font-bold">Quick Actions</h3>
-                    <div className="flex flex-col gap-2">
+                <div className="flex min-h-0 flex-col rounded-2xl border border-(--tint) bg-white p-5">
+                    <h3 className="mb-4 shrink-0 text-lg font-bold">Quick Actions</h3>
+                    <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
                         {quickActions.map((action) => {
                             const Icon = action.icon;
                             return (
                                 <button
                                     key={action.label}
                                     onClick={() => handleQuickAction(action.route)}
-                                    className="flex items-center justify-between rounded-xl border border-(--tint) px-4 py-3 text-base font-semibold hover:bg-(--tint)"
+                                    className="flex shrink-0 items-center justify-between rounded-xl border border-(--tint) px-4 py-3 text-base font-semibold hover:bg-(--tint)"
                                 >
                                     <span className="flex items-center gap-3">
                                         <Icon size={18} className="text-(--accent)" />

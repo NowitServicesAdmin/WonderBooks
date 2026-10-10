@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import { User } from "../models/user.js";
 import Book from "../models/book.js";
 import Order from "../models/order.js";
+import Cart from "../models/cart.js";
+import { deleteFromR2 } from "../services/r2Service.js";
 import { schedulePickupForOrder, cancelShipmentIfUnused } from "../services/shipmentService.js";
 import Subscription from "../models/subscription.js";
 import { deleteFromS3, normalizeS3Url } from "../services/s3Service.js";
@@ -96,12 +98,12 @@ export const getDashboardStats = async (req, res) => {
             Subscription.countDocuments(activeSub),
             countInRange(Subscription, "createdAt", thisMonth, activeSub),
             countInRange(Subscription, "createdAt", lastMonth, activeSub),
-            User.find(userFilter).sort({ createdAt: -1 }).limit(5).select("name email createdAt").lean(),
-            Order.find({ paymentStatus: "paid" }).sort({ createdAt: -1 }).limit(5).select("bookTitle createdAt").lean(),
+            User.find(userFilter).sort({ createdAt: -1 }).limit(10).select("name email createdAt").lean(),
+            Order.find({ paymentStatus: "paid" }).sort({ createdAt: -1 }).limit(10).select("bookTitle createdAt").lean(),
             Subscription.find({ status: "active" })
                 .sort({ updatedAt: -1 })
-                .limit(5)
-                .select("planDisplayName planName updatedAt")
+                .limit(10)
+                .select("planDisplayName planName updatedAt userId")
                 .lean(),
         ]);
 
@@ -110,23 +112,26 @@ export const getDashboardStats = async (req, res) => {
                 type: "user",
                 title: "New user registered",
                 detail: u.email,
+                refId: u._id,
                 at: u.createdAt,
             })),
             ...recentOrders.map((o) => ({
                 type: "order",
                 title: "Book ordered",
                 detail: o.bookTitle,
+                refId: o._id,
                 at: o.createdAt,
             })),
             ...recentSubs.map((s) => ({
                 type: "subscription",
                 title: "Subscription activated",
                 detail: s.planDisplayName || s.planName,
+                refId: s.userId,
                 at: s.updatedAt,
             })),
         ]
             .sort((a, b) => new Date(b.at) - new Date(a.at))
-            .slice(0, 8);
+            .slice(0, 20);
 
         res.json({
             success: true,
@@ -421,8 +426,15 @@ export const deleteUser = async (req, res) => {
 
         const { avatarStorageKey, avatarStorageProvider } = user;
 
+        // Books that were ordered stay (hidden) so the order can still be printed.
+        const orderedBookIds = await Order.distinct("book", { user: user._id });
+
         await Promise.all([
-            Book.deleteMany({ user: user._id }),
+            Book.deleteMany({ user: user._id, _id: { $nin: orderedBookIds } }),
+            Book.updateMany(
+                { user: user._id, _id: { $in: orderedBookIds } },
+                { $set: { isDeleted: true, deletedAt: new Date() } }
+            ),
             Subscription.deleteMany({ userId: user._id }),
             User.findByIdAndDelete(user._id),
         ]);
@@ -438,6 +450,125 @@ export const deleteUser = async (req, res) => {
     }
 };
 
+const ACTIVE_ORDER_STATUSES = ["confirmed", "printing", "shipped"];
+
+export const deleteBook = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(404).json({ success: false, message: "Book not found" });
+        }
+
+        const target = await Book.findById(id)
+            .select("status coverStorageKey pages.storageKey")
+            .lean();
+        if (!target) return res.status(404).json({ success: false, message: "Book not found" });
+
+        if (target.status === "generating") {
+            return res.status(409).json({
+                success: false,
+                message: "This book is still being generated. Try again once it finishes.",
+            });
+        }
+
+        const activeOrders = await Order.countDocuments({ book: id, status: { $in: ACTIVE_ORDER_STATUSES } });
+        if (activeOrders > 0) {
+            return res.status(409).json({
+                success: false,
+                message: `This book is part of ${activeOrders} order${activeOrders === 1 ? "" : "s"} that still need printing or delivery. Finish or cancel them first.`,
+            });
+        }
+
+        const hasOrders = await Order.exists({ book: id });
+
+        await Book.deleteOne({ _id: id });
+        await Cart.updateMany({}, { $pull: { items: { book: id } } });
+
+        if (!hasOrders) {
+            const keys = [target.coverStorageKey, ...(target.pages || []).map((p) => p.storageKey)].filter(Boolean);
+            Promise.allSettled(keys.map((key) => deleteFromR2(key))).then((results) => {
+                const failed = results.filter((r) => r.status === "rejected").length;
+                if (failed) console.error(`Admin delete book: ${failed} file(s) not removed for ${id}`);
+            });
+        }
+
+        res.json({ success: true, message: "Book deleted" });
+    } catch (err) {
+        console.error("deleteBook error:", err);
+        res.status(500).json({ success: false, message: "Failed to delete book" });
+    }
+};
+
+export const getBookDetail = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(404).json({ success: false, message: "Book not found" });
+        }
+
+        const found = await Book.findById(id).populate("user", "name email").lean();
+        if (!found) return res.status(404).json({ success: false, message: "Book not found" });
+
+        const orders = await Order.find({ book: id })
+            .sort({ createdAt: -1 })
+            .select("orderNumber status paymentStatus amount currency createdAt quantity")
+            .lean();
+
+        const sd = found.storyData || {};
+
+        res.json({
+            success: true,
+            book: {
+                _id: found._id,
+                code: bookCode(found._id),
+                title: found.title,
+                mode: found.mode,
+                status: found.status,
+                isDeleted: Boolean(found.isDeleted),
+                deletedAt: found.deletedAt || null,
+                coverImageUrl: normalizeS3Url(found.coverImageUrl) || null,
+                storyData: {
+                    theme: sd.theme || null,
+                    age: sd.age || null,
+                    subject: sd.subject || null,
+                    centralMessage: sd.centralMessage || null,
+                    storyIdea: sd.storyIdea || null,
+                    language: sd.language || "English",
+                    font: sd.font || null,
+                    characters: (sd.characters || []).map((c) => ({ id: c.id, name: c.name, type: c.type })),
+                },
+                pages: [...(found.pages || [])]
+                    .sort((a, b) => a.position - b.position)
+                    .map((p) => ({
+                        _id: p._id,
+                        pageNumber: p.pageNumber,
+                        content: p.content || "",
+                        imageUrl: normalizeS3Url(p.imageUrl) || null,
+                        status: p.status,
+                    })),
+                createdBy: found.user
+                    ? { _id: found.user._id, name: found.user.name || "", email: found.user.email }
+                    : null,
+                createdAt: found.createdAt,
+                completedAt: found.completedAt || null,
+            },
+            orders: orders.map((o) => ({
+                _id: o._id,
+                orderNumber: o.orderNumber,
+                status: o.status,
+                paymentStatus: o.paymentStatus,
+                amount: o.amount,
+                currency: o.currency,
+                quantity: o.quantity,
+                createdAt: o.createdAt,
+            })),
+        });
+    } catch (err) {
+        console.error("getBookDetail error:", err);
+        res.status(500).json({ success: false, message: "Failed to load book" });
+    }
+};
+
 export const listBooks = async (req, res) => {
     try {
         const { page, limit, skip } = parsePaging(req.query);
@@ -447,6 +578,8 @@ export const listBooks = async (req, res) => {
             filter.status = req.query.status;
         }
         if (["ai", "manual"].includes(req.query.mode)) filter.mode = req.query.mode;
+        if (req.query.deleted === "true") filter.isDeleted = true;
+        else if (req.query.deleted === "false") filter.isDeleted = { $ne: true };
 
         const search = String(req.query.search || "").trim();
         if (search) {
@@ -480,11 +613,17 @@ export const listBooks = async (req, res) => {
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
-                .select("title mode status coverImageUrl user createdAt completedAt pages.status")
+                .select("title mode status coverImageUrl user createdAt completedAt isDeleted deletedAt pages.status")
                 .populate("user", "name email")
                 .lean(),
             Book.countDocuments(filter),
         ]);
+
+        const orderCounts = await Order.aggregate([
+            { $match: { book: { $in: books.map((b) => b._id) } } },
+            { $group: { _id: "$book", count: { $sum: 1 } } },
+        ]);
+        const orderCountByBook = new Map(orderCounts.map((o) => [String(o._id), o.count]));
 
         res.json({
             success: true,
@@ -499,6 +638,9 @@ export const listBooks = async (req, res) => {
                 createdBy: b.user ? { _id: b.user._id, name: b.user.name || "", email: b.user.email } : null,
                 createdAt: b.createdAt,
                 completedAt: b.completedAt,
+                isDeleted: Boolean(b.isDeleted),
+                deletedAt: b.deletedAt || null,
+                orderCount: orderCountByBook.get(String(b._id)) || 0,
             })),
             total,
             page,
@@ -575,6 +717,52 @@ export const listOrders = async (req, res) => {
     } catch (err) {
         console.error("listOrders error:", err);
         res.status(500).json({ success: false, message: "Failed to load orders" });
+    }
+};
+
+export const getOrderDetail = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(404).json({ success: false, message: "Order not found" });
+        }
+
+        const o = await Order.findById(id).populate("user", "name email").lean();
+        if (!o) return res.status(404).json({ success: false, message: "Order not found" });
+
+        const bookDoc = await Book.findById(o.book).select("title status isDeleted deletedAt coverImageUrl").lean();
+
+        res.json({
+            success: true,
+            order: {
+                ...toAdminOrder(o),
+                quantity: o.quantity || 1,
+                unitPrice: o.unitPrice,
+                shippingFee: o.shippingFee || 0,
+                subtotal: o.subtotal,
+                gstAmount: o.gstAmount,
+                totalAmount: o.totalAmount,
+                cancelledAt: o.cancelledAt || null,
+                shipping: {
+                    awbCode: o.shipping?.awbCode || null,
+                    trackingUrl: o.shipping?.trackingUrl || null,
+                    status: o.shipping?.status || null,
+                    courier: o.shipping?.selectedCourier || null,
+                },
+                // The book can be gone (permanently deleted) or hidden (user deleted it).
+                bookInfo: bookDoc
+                    ? {
+                          exists: true,
+                          status: bookDoc.status,
+                          isDeleted: Boolean(bookDoc.isDeleted),
+                          deletedAt: bookDoc.deletedAt || null,
+                      }
+                    : { exists: false },
+            },
+        });
+    } catch (err) {
+        console.error("getOrderDetail error:", err);
+        res.status(500).json({ success: false, message: "Failed to load order" });
     }
 };
 

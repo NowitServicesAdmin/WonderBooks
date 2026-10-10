@@ -4,6 +4,9 @@ const ShippingAddressSchema = new mongoose.Schema(
     {
         name: { type: String, required: true, trim: true },
         phone: { type: String, required: true, trim: true },
+        phoneCountry: { type: String, default: "IN", trim: true },
+        phoneCode: { type: String, default: "91", trim: true },
+        phoneE164: { type: String, default: "", trim: true },
         email: { type: String, default: "", trim: true },
 
         line1: { type: String, required: true, trim: true },

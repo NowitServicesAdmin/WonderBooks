@@ -56,6 +56,7 @@ export const PolicyLayout = ({ title, children }) => {
           background: #f9fafb;
           z-index: 9999;
           overflow: hidden;
+          color-scheme: light;
         }
         .wonpulse-policy-root .policy-content ol {
           list-style: decimal !important;
@@ -67,7 +68,7 @@ export const PolicyLayout = ({ title, children }) => {
         }
       `}</style>
 
-      <div translate="no" className="notranslate wonpulse-policy-root">
+      <div translate="no" className="notranslate wb-keep-light wonpulse-policy-root">
 
         {/* ===== Header ===== */}
         <header style={{
@@ -283,4 +284,3 @@ SvgIcon.propTypes = {
   d: PropTypes.string.isRequired,
   size: PropTypes.number,
 };
-

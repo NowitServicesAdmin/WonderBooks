@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from "react";
+import WonderAlertModal from "../../Components/WonderAlertModal";
 import { Star, Crown, Gem, Award, Zap, MoreVertical, Plus, X, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import {
     getAllPlans,
@@ -247,6 +248,8 @@ const PlansTab = () => {
     const [saving, setSaving] = useState(false);
     const [openMenuId, setOpenMenuId] = useState(null);
     const [error, setError] = useState("");
+    const [planToDelete, setPlanToDelete] = useState(null);
+    const [deletingPlan, setDeletingPlan] = useState(false);
 
     const load = async () => {
         setLoading(true);
@@ -292,13 +295,20 @@ const PlansTab = () => {
         }
     };
 
-    const handleDelete = async (plan) => {
-        if (!window.confirm(`Delete "${plan.name}"? This can't be undone.`)) return;
+    const handleDelete = (plan) => setPlanToDelete(plan);
+
+    const confirmDeletePlan = async () => {
+        if (!planToDelete || deletingPlan) return;
+        setDeletingPlan(true);
         try {
-            await deletePlan(plan._id);
+            await deletePlan(planToDelete._id);
+            setPlanToDelete(null);
             await load();
         } catch (err) {
+            setPlanToDelete(null);
             setError(err?.response?.data?.message || "Failed to delete plan");
+        } finally {
+            setDeletingPlan(false);
         }
     };
 
@@ -456,6 +466,17 @@ const PlansTab = () => {
             {isAddOpen && (
                 <PlanFormDrawer mode="add" saving={saving} onClose={() => setIsAddOpen(false)} onSave={handleCreate} />
             )}
+            <WonderAlertModal
+                isOpen={Boolean(planToDelete)}
+                onClose={() => !deletingPlan && setPlanToDelete(null)}
+                type="danger"
+                title="Delete this plan?"
+                message={planToDelete ? `"${planToDelete.name}" will be permanently deleted. This can't be undone.` : ""}
+                primaryText={deletingPlan ? "Deleting..." : "Yes, Delete"}
+                onPrimary={confirmDeletePlan}
+                secondaryText="No, Keep It"
+                onSecondary={() => !deletingPlan && setPlanToDelete(null)}
+            />
         </div>
     );
 };

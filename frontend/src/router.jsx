@@ -16,7 +16,10 @@ import { BookCreation } from './Components/BookCreation'
 // Super Admin pages
 import { SuperAdminDashboard } from './Pages/SuperAdmin/Dashboard'
 import { SuperAdminUsers } from './Pages/SuperAdmin/Users'
+import { SuperAdminUserView } from './Pages/SuperAdmin/UserView'
 import { SuperAdminBooks } from './Pages/SuperAdmin/Books'
+import { SuperAdminBookView } from './Pages/SuperAdmin/BookView'
+import { SuperAdminOrderView } from './Pages/SuperAdmin/OrderView'
 import { SuperAdminOrders } from './Pages/SuperAdmin/Orders'
 import {SuperAdminSubscriptions} from './Pages/SuperAdmin/Subscription'
 import { ProtectedRoute, RoleHomeRedirect, RoleRoute } from './protectedRoute/ProtectedRoute'
@@ -132,12 +135,24 @@ export const Router=createBrowserRouter([
                                 element:<SuperAdminUsers />
                             },
                             {
+                                path:'/superadmin/users/:id',
+                                element:<SuperAdminUserView />
+                            },
+                            {
                                 path:'/superadmin/books',
                                 element:<SuperAdminBooks />
                             },
                             {
+                                path:'/superadmin/books/:id',
+                                element:<SuperAdminBookView />
+                            },
+                            {
                                 path:'/superadmin/orders',
                                 element:<SuperAdminOrders />
+                            },
+                            {
+                                path:'/superadmin/orders/:id',
+                                element:<SuperAdminOrderView />
                             },
                             {
                                 path:'/superadmin/subscriptions',

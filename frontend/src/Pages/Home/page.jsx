@@ -39,6 +39,7 @@ import { useNavigate, Link, } from "react-router-dom";
 import ContactForm from "../../Components/ContactForm";
 import PricingSection from "../../Components/PricingSection";
 import LanguageSelector from "../../Components/LanguageSelector";
+import ThemeToggle from "../../Components/ThemeToggle";
 import BrandText from "../../Components/BrandText";
 import { changeLandingLanguage, getSavedLanguage, startLandingTranslate } from "../../utils/landingTranslate";
 import { createPortal } from 'react-dom';
@@ -344,6 +345,9 @@ export default function HomePage() {
 
                         <LanguageSelector value={langCode} onChange={handleLanguageChange} />
 
+                        {/* Light / dark theme toggle */}
+                        <ThemeToggle />
+
                         {/* Desktop CTA */}
                         <button
                             onClick={() => navigate("/auth")}
@@ -428,7 +432,7 @@ export default function HomePage() {
                                 <a
                                     type="button"
                                     href="#contact"
-                                    className="group flex items-center gap-2 rounded-full bg-[#ffd447] px-6 py-2.5 text-xs font-extrabold text-[#2b1a6b] shadow-[0_10px_28px_rgba(255,212,71,0.3)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#ffdc62] hover:shadow-[0_14px_32px_rgba(255,212,71,0.5)] active:translate-y-0 active:scale-95"
+                                    className="wb-hero-cta group flex items-center gap-2 rounded-full bg-[#ffd447] px-6 py-2.5 text-xs font-extrabold text-[#2b1a6b] shadow-[0_10px_28px_rgba(255,212,71,0.3)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#ffdc62] hover:shadow-[0_14px_32px_rgba(255,212,71,0.5)] active:translate-y-0 active:scale-95"
                                 >
                                     Create Your Storybook
                                     <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-1" />
@@ -436,7 +440,7 @@ export default function HomePage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowVideoModal(true)}
-                                    className="group flex items-center gap-2 rounded-full border border-white/60 bg-white/5 px-6 py-2.5 text-xs font-bold text-white backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-white hover:bg-white/20 active:scale-95"
+                                    className="wb-hero-ghost group flex items-center gap-2 rounded-full border border-white/60 bg-white/5 px-6 py-2.5 text-xs font-bold text-white backdrop-blur-sm transition duration-300 hover:-translate-y-0.5 hover:border-white hover:bg-white/20 active:scale-95"
                                 >
                                     <Play className="h-3 w-3 transition-transform duration-300 group-hover:scale-125" />
                                     Watch Video
@@ -466,7 +470,7 @@ export default function HomePage() {
                                 return (
                                     <div
                                         key={item.title}
-                                        className={`group flex cursor-pointer flex-col items-center rounded-2xl border px-4 py-6 text-center shadow-[0_2px_12px_rgba(120,100,200,0.06)] transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_14px_30px_rgba(120,100,200,0.18)] ${item.card}`}
+                                        className={`wb-feature-card group flex cursor-pointer flex-col items-center rounded-2xl border px-4 py-6 text-center shadow-[0_2px_12px_rgba(120,100,200,0.06)] transition duration-300 hover:-translate-y-1.5 hover:shadow-[0_14px_30px_rgba(120,100,200,0.18)] ${item.card}`}
                                     >
                                         <div className={`flex h-15 w-15 items-center justify-center rounded-full transition duration-300 group-hover:rotate-6 group-hover:scale-110 ${item.bg}`}>
                                             <Icon className={`h-6 w-6 ${item.color}`} strokeWidth={2} />
@@ -496,12 +500,12 @@ export default function HomePage() {
                                     {templates.map((book) => {
                                         const Icon = book.icon;
                                         return (
-                                            <article key={book.category} className={`group ${book.card} flex cursor-pointer flex-col items-center rounded-2xl px-4 pb-4 pt-3 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg`}
+                                            <article key={book.category} className={`wb-template-card group ${book.card} flex cursor-pointer flex-col items-center rounded-2xl px-4 pb-4 pt-3 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg`}
                                             >
                                                 <img
                                                     src={book.image}
                                                     alt={book.lines.join(" ")}
-                                                    className="h-47.5 w-auto max-w-full object-contain mix-blend-multiply drop-shadow-[0_14px_14px_rgba(54,25,105,0.25)] transition duration-500 group-hover:-translate-y-1 group-hover:scale-[1.03]"
+                                                    className="wb-cover-img h-47.5 w-auto max-w-full object-contain mix-blend-multiply drop-shadow-[0_14px_14px_rgba(54,25,105,0.25)] transition duration-500 group-hover:-translate-y-1 group-hover:scale-[1.03]"
                                                 />
                                                 <h3 className={`mt-4 text-[12px] font-bold leading-4 ${book.text}`}>
                                                     {book.lines[0]}{" "}
@@ -543,11 +547,11 @@ export default function HomePage() {
                                             <span className="absolute -left-2 -top-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-[#6335d8] text-xs font-black text-white shadow-md transition duration-300 group-hover:rotate-12 group-hover:scale-110">
                                                 {step.number}
                                             </span>
-                                            <div className="flex h-44 items-center justify-center">
+                                            <div className="wb-step-art flex h-44 items-center justify-center overflow-hidden rounded-lg">
                                                 <img src={step.image} alt={step.title} className="h-full w-auto max-w-full object-contain transition duration-500 group-hover:scale-105" />
                                             </div>
                                             <div className="pt-3 text-center">
-                                                <h3 className="text-[14px] bg-violet-50 rounded-2xl p-2 font-extrabold text-[#1a1560]">{step.title}</h3>
+                                                <h3 className="wb-step-title text-[14px] bg-violet-50 rounded-2xl p-2 font-extrabold text-[#1a1560]">{step.title}</h3>
                                                 <p className="mx-auto mt-1 max-w-55 text-[13px] leading-4 text-[#6b6796]">{step.description}</p>
                                             </div>
                                         </article>

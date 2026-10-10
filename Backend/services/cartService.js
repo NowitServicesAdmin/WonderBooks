@@ -10,6 +10,7 @@ export const loadBookSummaries = async (userId, bookIds, { completedOnly = true 
     const match = {
         _id: { $in: toObjectIds(bookIds) },
         user: new mongoose.Types.ObjectId(String(userId)),
+        isDeleted: { $ne: true },
     };
     if (completedOnly) match.status = "completed";
 

@@ -2,7 +2,11 @@ import crypto from "crypto";
 import OpenAI from "openai";
 import mongoose from "mongoose";
 import book from "../models/book.js";
-import { canAccessFeature, getBookUsage } from "../config/subscriptionLimits.js";
+import Cart from "../models/cart.js";
+import {
+  canAccessFeature,
+  getBookUsage,
+} from "../config/subscriptionLimits.js";
 import { generateStory } from "../components/generateStory.js";
 import { getBookPageCount } from "../config/bookConfig.js";
 import { normalizePageLines } from "../components/generatestoryPrompt.js";
@@ -11,33 +15,33 @@ import { generateImagePrompt } from "../components/generateImagePrompt.js";
 import { generateImage } from "../components/imageGenerator.js";
 import { uploadToS3 } from "../services/s3Service.js";
 import { notify } from "../services/alertService.js";
-import {
-    uploadImage,
-    getStorageImage
-} from "../services/storageService.js";
+import { uploadImage, getStorageImage } from "../services/storageService.js";
 import { getCharacterPhotoReferenceImages } from "../components/characterPhotoReferences.js";
 import { generateCharacterBible } from "../components/characterBible.js";
 import { verifyIllustration } from "../components/imageVerifier.js";
-import { isModerationBlock } from "../components/promptSafety.js";
+import {
+  isModerationBlock,
+  describeCharacterForCheck,
+} from "../components/promptSafety.js";
 import { classifyGeminiError } from "../components/geminiCall.js";
 import {
-    limitCharacters,
-    exceedsCharacterLimits,
-    MAX_REFERENCE_CHARACTERS,
-    CHARACTER_LIMIT_MESSAGE
+  limitCharacters,
+  exceedsCharacterLimits,
+  MAX_REFERENCE_CHARACTERS,
+  CHARACTER_LIMIT_MESSAGE,
 } from "../config/characterLimits.js";
 import {
-    checkStoryText,
-    findHardBlock,
-    findSoftLabels,
-    collectUserText,
-    softenStrings,
-    softenSelections,
-    softenText,
-    buildBlockMessage,
-    changeNote,
-    ageBand,
-    policyFor
+  checkStoryText,
+  findHardBlock,
+  findSoftLabels,
+  collectUserText,
+  softenStrings,
+  softenSelections,
+  softenText,
+  buildBlockMessage,
+  changeNote,
+  ageBand,
+  policyFor,
 } from "../components/contentSafety.js";
 import { generateCharacterReferences } from "../services/characterReferenceService.js";
 
@@ -52,14 +56,20 @@ import { generateCharacterReferences } from "../services/characterReferenceServi
 // every image is done. The accuracy check itself (imageVerifier.js) is unchanged.
 // ---------------------------------------------------------------------------
 const IMAGE_RETRY_WAIT_MS =
-    (Number(process.env.IMAGE_RETRY_WAIT_MINUTES) || 5) * 60 * 1000;
+  (Number(process.env.IMAGE_RETRY_WAIT_MINUTES) || 5) * 60 * 1000;
 const GEMINI_BUSY_RETRY_WAIT_MS =
-    (Number(process.env.GEMINI_BUSY_RETRY_WAIT_SECONDS) || 60) * 1000;
+  (Number(process.env.GEMINI_BUSY_RETRY_WAIT_SECONDS) || 60) * 1000;
 const GEMINI_BUSY_MAX_ROUNDS = Number(process.env.GEMINI_BUSY_MAX_ROUNDS) || 5;
 // Total time one book may take before it is declared failed (also used for the
 // "stuck on generating" checks, so a long wait is never cut off by them).
 const BOOK_MAX_GENERATION_MS =
-    (Number(process.env.BOOK_MAX_GENERATION_MINUTES) || 180) * 60 * 1000;
+  (Number(process.env.BOOK_MAX_GENERATION_MINUTES) || 180) * 60 * 1000;
+// Users whose create-book request is being validated right now. The DB check
+// below only sees a book once its placeholder exists, so without this two
+// requests fired together (double click, two tabs/devices) could both pass.
+const createBookLocks = new Set();
+const BOOK_IN_PROGRESS_MESSAGE =
+  "One book is already in progress. Please wait until it finishes before creating another story.";
 // Retrying the same blocked prompt rarely helps, so moderation blocks only get
 // a couple of extra rounds.
 const IMAGE_MODERATION_MAX_ROUNDS = 2;
@@ -67,51 +77,57 @@ const IMAGE_MODERATION_MAX_ROUNDS = 2;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const GENERIC_FAILURE =
-    "Something went wrong while creating your book. Please try again - this one wasn't counted against your plan.";
+  "Something went wrong while creating your book. Please try again - this one wasn't counted against your plan.";
 
 const STALE_FAILURE =
-    "Creating this book took too long and was stopped. Please try again - this one wasn't counted against your plan.";
+  "Creating this book took too long and was stopped. Please try again - this one wasn't counted against your plan.";
 
 const buildStoryDataFromSelections = (selections = {}, characters = []) => {
-    const pick = (key) => selections?.[key]?.label ?? null;
+  const pick = (key) => selections?.[key]?.label ?? null;
 
-    return {
-        age: pick("age"),
-        theme: pick("theme"),
-        subject: pick("subject"),
-        centralMessage: pick("centralmsg"),
-        imageStyle: pick("imageStyle"),
-        language: pick("language") || "English",
-        font: pick("font") || "Rounded & Playful",
-        // AI mode: the (enriched) story premise the user chatted about.
-        storyIdea: pick("idea") || "",
-        characters: (characters || []).map((character) => ({
-            id: character.id,
-            type: character.type,
-            name: character.name,
-            gender: character.gender || "",
-            age: character.age || "",
-            hobbies: character.hobbies || "",
-            favouriteFood: character.favouriteFood || "",
-            hasPhoto: Boolean(character.hasPhoto),
-            photoUrl: null,
-            photoStorageProvider: null,
-            photoStorageKey: null
-        }))
-    };
+  return {
+    age: pick("age"),
+    theme: pick("theme"),
+    subject: pick("subject"),
+    centralMessage: pick("centralmsg"),
+    imageStyle: pick("imageStyle"),
+    language: pick("language") || "English",
+    font: pick("font") || "Rounded & Playful",
+    // AI mode: the (enriched) story premise the user chatted about.
+    storyIdea: pick("idea") || "",
+    characters: (characters || []).map((character) => ({
+      id: character.id,
+      type: character.type,
+      name: character.name,
+      gender: character.gender || "",
+      age: character.age || "",
+      hobbies: character.hobbies || "",
+      favouriteFood: character.favouriteFood || "",
+      hasPhoto: Boolean(character.hasPhoto),
+      photoUrl: null,
+      photoStorageProvider: null,
+      photoStorageKey: null,
+    })),
+  };
 };
 
 const findSceneCharacter = (characters = [], lookup) => {
-    const value = String(lookup || "").trim().toLowerCase();
-    if (!value) return null;
+  const value = String(lookup || "")
+    .trim()
+    .toLowerCase();
+  if (!value) return null;
 
-    return (
-        characters.find((item) => {
-            const id = String(item?.id || "").trim().toLowerCase();
-            const name = String(item?.name || "").trim().toLowerCase();
-            return id === value || name === value;
-        }) || null
-    );
+  return (
+    characters.find((item) => {
+      const id = String(item?.id || "")
+        .trim()
+        .toLowerCase();
+      const name = String(item?.name || "")
+        .trim()
+        .toLowerCase();
+      return id === value || name === value;
+    }) || null
+  );
 };
 
 // The reference images for ONE image (cover or page), for exactly the
@@ -123,1055 +139,1223 @@ const findSceneCharacter = (characters = [], lookup) => {
 // "Reference photo N = <who>". Characters NOT in the scene are not sent, so
 // they can't leak into it. An image with no recurring characters gets none.
 const getCharacterReferenceImages = async (
-    characters = [],
-    characterReferences = []
+  characters = [],
+  characterReferences = [],
 ) => {
-    const sceneList = (characterReferences || [])
-        .map((item) => String(item || "").trim())
-        .filter(Boolean);
+  const sceneList = (characterReferences || [])
+    .map((item) => String(item || "").trim())
+    .filter(Boolean);
 
-    if (!sceneList.length) {
-        return [];
+  if (!sceneList.length) {
+    return [];
+  }
+
+  const references = [];
+  const seen = new Set();
+  let matchedAny = false;
+
+  for (const lookup of sceneList) {
+    const character = findSceneCharacter(characters, lookup);
+
+    if (!character) {
+      console.warn(`Character reference not found for: ${lookup}`);
+      continue;
     }
 
-    const references = [];
-    const seen = new Set();
-    let matchedAny = false;
+    matchedAny = true;
 
-    for (const lookup of sceneList) {
-        const character = findSceneCharacter(characters, lookup);
+    if (seen.has(String(character.id))) {
+      continue;
+    }
+    seen.add(String(character.id));
 
-        if (!character) {
-            console.warn(`Character reference not found for: ${lookup}`);
-            continue;
+    let reference = null;
+
+    if (character.referenceStorageKey) {
+      try {
+        const response = await getStorageImage(character.referenceStorageKey);
+        const bytes = response?.Body
+          ? await response.Body.transformToByteArray()
+          : null;
+
+        if (bytes?.length) {
+          reference = {
+            buffer: Buffer.from(bytes),
+            contentType: "image/png",
+            characterId: character.id,
+            characterName: character.name || "Unnamed character",
+            characterType: character.type || "Character",
+          };
         }
-
-        matchedAny = true;
-
-        if (seen.has(String(character.id))) {
-            continue;
-        }
-        seen.add(String(character.id));
-
-        let reference = null;
-
-        if (character.referenceStorageKey) {
-            try {
-                const response = await getStorageImage(character.referenceStorageKey);
-                const bytes = response?.Body
-                    ? await response.Body.transformToByteArray()
-                    : null;
-
-                if (bytes?.length) {
-                    reference = {
-                        buffer: Buffer.from(bytes),
-                        contentType: "image/png",
-                        characterId: character.id,
-                        characterName: character.name || "Unnamed character",
-                        characterType: character.type || "Character"
-                    };
-                }
-            } catch (error) {
-                console.error(
-                    `Failed to load reference for character ${character.name}:`,
-                    error
-                );
-            }
-        }
-
-        if (!reference) {
-            const [photo] = await getCharacterPhotoReferenceImages(characters, {
-                only: [character.id]
-            });
-            reference = photo || null;
-        }
-
-        if (reference) {
-            references.push(reference);
-        }
+      } catch (error) {
+        console.error(
+          `Failed to load reference for character ${character.name}:`,
+          error,
+        );
+      }
     }
 
-    // The scene named people we don't recognise at all (a naming mismatch):
-    // better to use every character's photo than to draw them with none.
-    if (!matchedAny) {
-        return getCharacterPhotoReferenceImages(characters);
+    if (!reference) {
+      const [photo] = await getCharacterPhotoReferenceImages(characters, {
+        only: [character.id],
+      });
+      reference = photo || null;
     }
 
-    return references.slice(0, MAX_REFERENCE_CHARACTERS);
+    if (reference) {
+      references.push(reference);
+    }
+  }
+
+  // The scene named people we don't recognise at all (a naming mismatch):
+  // better to use every character's photo than to draw them with none.
+  if (!matchedAny) {
+    return getCharacterPhotoReferenceImages(characters);
+  }
+
+  return references.slice(0, MAX_REFERENCE_CHARACTERS);
 };
 
 // How many times one picture may be regenerated when it doesn't match its page.
-const IMAGE_VERIFY_TRIES = 3;
+const IMAGE_VERIFY_TRIES = Math.max(
+  1,
+  Number(process.env.IMAGE_VERIFY_TRIES) || 3,
+);
+
+// One failed round = IMAGE_VERIFY_TRIES generations. A picture that doesn't match
+// is not fixed by waiting (that only helps when the model is busy), so mismatches
+// get at most this many rounds in total. Worst case = rounds x tries generations.
+const IMAGE_MISMATCH_MAX_ROUNDS = Math.max(
+  1,
+  Number(process.env.IMAGE_MISMATCH_MAX_ROUNDS) || 2,
+);
+
+// The cover used to be strict (a missing character failed it and restarted the
+// whole cover). Like the pages, a proper cover that only misses a character is
+// now used after the tries run out. Set COVER_ACCEPT_MISSING=off for the old rule.
+const COVER_ACCEPT_MISSING =
+  String(process.env.COVER_ACCEPT_MISSING || "on").toLowerCase() !== "off";
 
 // Scene "characters" can be ids or names - turn them into display names.
 const resolveCharacterNames = (allCharacters = [], sceneCharacters = []) =>
-    sceneCharacters
-        .map((entry) => {
-            const key = typeof entry === "object" ? entry?.name || entry?.id : entry;
-            const match = allCharacters.find(
-                (character) =>
-                    String(character.id) === String(key) ||
-                    String(character.name || "").toLowerCase() === String(key || "").toLowerCase()
-            );
-            return match?.name || (key ? String(key) : "");
-        })
-        .filter(Boolean);
+  sceneCharacters
+    .map((entry) => {
+      const key = typeof entry === "object" ? entry?.name || entry?.id : entry;
+      const match = allCharacters.find(
+        (character) =>
+          String(character.id) === String(key) ||
+          String(character.name || "").toLowerCase() ===
+            String(key || "").toLowerCase(),
+      );
+      return match?.name || (key ? String(key) : "");
+    })
+    .filter(Boolean);
+
+// Text added to the next attempt so it fixes what the checker rejected instead
+// of repeating the same prompt and hoping for a different result.
+const buildCorrection = (verdict, characterNames = []) => {
+  const names = characterNames.filter(Boolean).join(", ");
+
+  if (verdict.severity === "missing") {
+    return `FIX FROM THE LAST ATTEMPT (it was rejected: ${verdict.reason || "a character was missing"}): make sure ${names || "every listed character"} are ALL clearly visible, each one fully shown in the foreground or middle ground, and keep the setting from the SCENE.`;
+  }
+
+  return `FIX FROM THE LAST ATTEMPT (it was rejected: ${verdict.reason || "it did not show the scene"}): draw the exact setting and action described in the SCENE as a storybook illustration - not a photo, sign, object on its own or plain generic background - with the listed characters in it.`;
+};
+
+// Generates ONE picture, checks it, and on a mismatch tries again with a
+// correction. Used by the cover and every page, so both behave the same.
+// Throws an error with imageMismatch = true when nothing usable came out.
+const generateVerifiedImage = async ({
+  label,
+  prompt,
+  referenceImages = [],
+  scene,
+  characterNames = [],
+  acceptMissing = true,
+}) => {
+  let fallbackBuffer = null; // right picture, but a character is missing
+  let lastReason = "";
+  let currentPrompt = prompt;
+
+  for (let tryNumber = 1; tryNumber <= IMAGE_VERIFY_TRIES; tryNumber += 1) {
+    const candidate = await generateImage({
+      prompt: currentPrompt,
+      referenceImages,
+      width: 768,
+      height: 1024,
+    });
+
+    if (!candidate || !candidate.length) {
+      throw new Error(`No image generated for ${label}`);
+    }
+
+    const verdict = await verifyIllustration({
+      buffer: candidate,
+      scene,
+      characterNames,
+      label,
+    });
+
+    if (verdict.ok) {
+      return candidate;
+    }
+
+    lastReason = verdict.reason;
+
+    if (verdict.severity === "missing") {
+      fallbackBuffer = candidate;
+    }
+
+    console.warn(
+      `${label} not accepted (${verdict.severity}, try ${tryNumber}/${IMAGE_VERIFY_TRIES}): ${verdict.reason}`,
+    );
+
+    currentPrompt = `${buildCorrection(verdict, characterNames)}\n\n${prompt}`;
+  }
+
+  // Never use a random/unrelated picture. A proper illustration that is only
+  // missing a character beats failing the whole image and paying for more.
+  if (fallbackBuffer && acceptMissing) {
+    console.warn(
+      `${label}: using best available image (a character may be missing): ${lastReason}`,
+    );
+    return fallbackBuffer;
+  }
+
+  const error = new Error(
+    `${label} did not match the scene after ${IMAGE_VERIFY_TRIES} tries: ${lastReason}`,
+  );
+  error.imageMismatch = true;
+  throw error;
+};
+
+// Like resolveCharacterNames, but each entry also says what the character IS
+// (a person, a bison, an object...). This is what the picture checker receives,
+// so an animal character is not rejected as "the child is missing".
+const resolveCharacterBriefs = (allCharacters = [], sceneCharacters = []) =>
+  sceneCharacters
+    .map((entry) => {
+      const key = typeof entry === "object" ? entry?.name || entry?.id : entry;
+      const match = findSceneCharacter(allCharacters, key);
+      return match ? describeCharacterForCheck(match) : key ? String(key) : "";
+    })
+    .filter(Boolean);
 
 // Generates, uploads and saves the illustration for ONE page. Throws on
 // failure so the caller can retry.
 const generatePageImage = async ({ bookId, storyData, imageData }) => {
-    const { pageNumber, prompt } = imageData;
+  const { pageNumber, prompt } = imageData;
 
-    await book.updateOne(
-        { _id: bookId, "pages.pageNumber": pageNumber },
-        {
-            $set: {
-                "pages.$.status": "generating",
-                "pages.$.imagePrompt": prompt
-            }
-        }
-    );
+  await book.updateOne(
+    { _id: bookId, "pages.pageNumber": pageNumber },
+    {
+      $set: {
+        "pages.$.status": "generating",
+        "pages.$.imagePrompt": prompt,
+      },
+    },
+  );
 
-    console.log(`Generating image for page ${pageNumber}...`);
+  console.log(`Generating image for page ${pageNumber}...`);
 
-    const pageReferenceImages = await getCharacterReferenceImages(
-        storyData.characters,
-        imageData.characters || []
-    );
+  const pageReferenceImages = await getCharacterReferenceImages(
+    storyData.characters,
+    imageData.characters || [],
+  );
 
-    console.log(
-        `Loaded ${pageReferenceImages.length} character reference image(s) for page ${pageNumber}.`
-    );
+  console.log(
+    `Loaded ${pageReferenceImages.length} character reference image(s) for page ${pageNumber}.`,
+  );
 
-    const sceneCharacterNames = resolveCharacterNames(
-        storyData.characters,
-        imageData.characters || []
-    );
+  const sceneCharacterNames = resolveCharacterBriefs(
+    storyData.characters,
+    imageData.characters || [],
+  );
 
-    // Generate, then check the picture really matches the page. A random
-    // stock-looking result (sign, food photo, horses...) is thrown away and
-    // regenerated instead of being saved into the book.
-    let imageBuffer;
-    let fallbackBuffer = null; // right picture, but a character is missing
-    let lastReason = "";
+  // Generate, then check the picture really matches the page (with a
+  // correction on each retry). A random stock-looking result is thrown away
+  // instead of being saved into the book.
+  const imageBuffer = await generateVerifiedImage({
+    label: `Page ${pageNumber} image`,
+    prompt,
+    referenceImages: pageReferenceImages,
+    scene: imageData.scene || prompt,
+    characterNames: sceneCharacterNames,
+    acceptMissing: true,
+  });
 
-    for (let tryNumber = 1; tryNumber <= IMAGE_VERIFY_TRIES; tryNumber += 1) {
-        const candidate = await generateImage({
-            prompt,
-            referenceImages: pageReferenceImages,
-            width: 768,
-            height: 1024
-        });
+  const uploadedImage = await uploadImage({
+    key: `books/${bookId}/page-${pageNumber}.png`,
+    buffer: imageBuffer,
+    contentType: "image/png",
+  });
 
-        if (!candidate || !candidate.length) {
-            throw new Error(`No image generated for page ${pageNumber}`);
-        }
+  const result = await book.updateOne(
+    { _id: bookId, "pages.pageNumber": pageNumber },
+    {
+      $set: {
+        "pages.$.imageUrl": uploadedImage.url,
+        "pages.$.storageProvider": uploadedImage.provider,
+        "pages.$.storageKey": uploadedImage.key,
+        "pages.$.status": "completed",
+      },
+    },
+  );
 
-        const verdict = await verifyIllustration({
-            buffer: candidate,
-            scene: imageData.scene || prompt,
-            characterNames: sceneCharacterNames,
-            label: `page ${pageNumber}`
-        });
+  if (!result.matchedCount) {
+    throw new Error(`Page ${pageNumber} was not found on the book`);
+  }
 
-        if (verdict.ok) {
-            imageBuffer = candidate;
-            break;
-        }
-
-        lastReason = verdict.reason;
-
-        if (verdict.severity === "missing") {
-            fallbackBuffer = candidate;
-        }
-
-        console.warn(
-            `Page ${pageNumber} image not accepted (${verdict.severity}, try ${tryNumber}/${IMAGE_VERIFY_TRIES}): ${verdict.reason}`
-        );
-    }
-
-    // Never save a random/unrelated picture. But a proper illustration that is
-    // only missing a character is better than failing the whole page - use the
-    // last such attempt instead of burning more image credits.
-    if (!imageBuffer && fallbackBuffer) {
-        console.warn(`Page ${pageNumber}: using best available image (a character may be missing): ${lastReason}`);
-        imageBuffer = fallbackBuffer;
-    }
-
-    if (!imageBuffer) {
-        throw new Error(
-            `Page ${pageNumber} image did not match the scene after ${IMAGE_VERIFY_TRIES} tries: ${lastReason}`
-        );
-    }
-
-    const uploadedImage = await uploadImage({
-        key: `books/${bookId}/page-${pageNumber}.png`,
-        buffer: imageBuffer,
-        contentType: "image/png"
-    });
-
-    const result = await book.updateOne(
-        { _id: bookId, "pages.pageNumber": pageNumber },
-        {
-            $set: {
-                "pages.$.imageUrl": uploadedImage.url,
-                "pages.$.storageProvider": uploadedImage.provider,
-                "pages.$.storageKey": uploadedImage.key,
-                "pages.$.status": "completed"
-            }
-        }
-    );
-
-    if (!result.matchedCount) {
-        throw new Error(`Page ${pageNumber} was not found on the book`);
-    }
-
-    console.log(`Page ${pageNumber} completed using ${uploadedImage.provider}`);
+  console.log(`Page ${pageNumber} completed using ${uploadedImage.provider}`);
 };
 
 // Runs `task` until it succeeds. After each failed round it waits `waitMs` and
 // tries again, until `deadlineAt` (then the last error is thrown).
 const retryPatiently = async ({
-    label,
-    deadlineAt,
-    task,
-    waitMs = IMAGE_RETRY_WAIT_MS,
-    maxRounds = Infinity,
-    shouldRetry = () => true
+  label,
+  deadlineAt,
+  task,
+  waitMs = IMAGE_RETRY_WAIT_MS,
+  maxRounds = Infinity,
+  shouldRetry = () => true,
 }) => {
-    for (let round = 1; ; round += 1) {
-        try {
-            return await task(round);
-        } catch (error) {
-            const outOfTime = Date.now() + waitMs > deadlineAt;
+  for (let round = 1; ; round += 1) {
+    try {
+      return await task(round);
+    } catch (error) {
+      const outOfTime = Date.now() + waitMs > deadlineAt;
 
-            if (round >= maxRounds || outOfTime || !shouldRetry(error, round)) {
-                throw error;
-            }
+      if (round >= maxRounds || outOfTime || !shouldRetry(error, round)) {
+        throw error;
+      }
 
-            console.warn(
-                `${label} not ready (round ${round}): ${error?.message || error}. Waiting ${Math.round(waitMs / 1000)}s, then trying again...`
-            );
+      console.warn(
+        `${label} not ready (round ${round}): ${error?.message || error}. Waiting ${Math.round(waitMs / 1000)}s, then trying again...`,
+      );
 
-            await sleep(waitMs);
-        }
+      await sleep(waitMs);
     }
+  }
 };
 
 // Image rounds: retry everything except errors that waiting can't fix.
 const shouldRetryImage = (error, round) => {
-    if ([401, 403, 404].includes(Number(error?.status))) return false;
-    if (isModerationBlock(error)) return round < IMAGE_MODERATION_MAX_ROUNDS;
-    return true;
+  if ([401, 403, 404].includes(Number(error?.status))) return false;
+  if (isModerationBlock(error)) return round < IMAGE_MODERATION_MAX_ROUNDS;
+  if (error?.imageMismatch) return round < IMAGE_MISMATCH_MAX_ROUNDS;
+  return true;
 };
 
 // Runs the whole (slow) generation pipeline AFTER the HTTP response has already
 // been sent. The book document (status: "generating") exists before this starts,
 // so the "My Books" page can show a loading skeleton and poll until it finishes.
 const generateBookInBackground = async ({
-    bookId,
-    userId, // ALERTS: who to notify
-    mode,
-    message,
-    storySettings,
-    characters,
-    files
+  bookId,
+  userId, // ALERTS: who to notify
+  mode,
+  message,
+  storySettings,
+  characters,
+  files,
 }) => {
-    // ALERTS: kept outside the try so the catch block can use the real title.
-    let bookTitle = "Your story";
-    // Patient retries below stop at this moment (just before the stuck-book check).
-    const deadlineAt = Date.now() + BOOK_MAX_GENERATION_MS - 5 * 60 * 1000;
+  // ALERTS: kept outside the try so the catch block can use the real title.
+  let bookTitle = "Your story";
+  // Patient retries below stop at this moment (just before the stuck-book check).
+  const deadlineAt = Date.now() + BOOK_MAX_GENERATION_MS - 5 * 60 * 1000;
+
+  try {
+    // Manual and AI mode both arrive as chosen settings (AI mode's chat
+    // has already worked out age/theme/style/etc. and the story idea), so
+    // they share one builder. `mode` only decides how the book is labelled.
+    const storyData = buildStoryDataFromSelections(storySettings, characters);
+
+    // AI mode: make sure the idea is on the story even if the settings
+    // didn't carry it (the request `message` mirrors it).
+    if (!storyData.storyIdea && typeof message === "string") {
+      storyData.storyIdea = message.trim();
+    }
+
+    const BOOK_PAGE_COUNT = getBookPageCount();
+    storyData.pageCount = BOOK_PAGE_COUNT;
+    console.log(
+      `Creating a ${BOOK_PAGE_COUNT}-page book (BOOK_PAGE_COUNT in the server's environment = ${process.env.BOOK_PAGE_COUNT ?? "not set"}).`,
+    );
+
+    const generatedStory = await generateStory(storyData);
+
+    console.log("Story generation completed:", generatedStory);
+
+    if (
+      !generatedStory?.title ||
+      generatedStory.title === "undefined" ||
+      !Array.isArray(generatedStory?.pages) ||
+      generatedStory.pages.length === 0
+    ) {
+      throw new Error("Generated story is invalid or contains no pages");
+    }
+
+    bookTitle = generatedStory.title; // ALERTS
+
+    await book.updateOne(
+      { _id: bookId },
+      {
+        $set: {
+          title: generatedStory.title,
+          storyData,
+          pages: generatedStory.pages.map((page, index) => ({
+            position: index + 1,
+            pageNumber: index + 1, // generateStory already renumbers 1..N
+            content: normalizePageLines(page.content),
+            imageUrl: null,
+            storageProvider: null,
+            storageKey: null,
+            imagePrompt: "",
+            status: "pending",
+          })),
+        },
+      },
+    );
+
+    console.log("Book story saved:", bookId);
+
+    // Upload character photos to private AWS S3
+    const uploadedCharacters = [...storyData.characters];
+
+    for (const file of files || []) {
+      const match = file.fieldname.match(/^characterPhoto-(.+)$/);
+
+      if (!match) {
+        continue;
+      }
+
+      const characterId = match[1];
+
+      const characterIndex = uploadedCharacters.findIndex(
+        (character) => String(character.id) === String(characterId),
+      );
+
+      if (characterIndex === -1) {
+        continue;
+      }
+
+      const extension =
+        file.originalname?.split(".").pop()?.toLowerCase() || "jpg";
+
+      const key = `characters/${bookId}/${characterId}-${crypto.randomUUID()}.${extension}`;
+
+      const uploadedPhoto = await uploadToS3({
+        key,
+        buffer: file.buffer,
+        contentType: file.mimetype,
+      });
+
+      uploadedCharacters[characterIndex].photoUrl = uploadedPhoto.url;
+      uploadedCharacters[characterIndex].photoStorageProvider =
+        uploadedPhoto.provider;
+      uploadedCharacters[characterIndex].photoStorageKey = uploadedPhoto.key;
+    }
+
+    await book.updateOne(
+      { _id: bookId },
+      { $set: { "storyData.characters": uploadedCharacters } },
+    );
+
+    storyData.characters = uploadedCharacters;
+    let charactersWithReferences = storyData.characters;
 
     try {
-        // Manual and AI mode both arrive as chosen settings (AI mode's chat
-        // has already worked out age/theme/style/etc. and the story idea), so
-        // they share one builder. `mode` only decides how the book is labelled.
-        const storyData = buildStoryDataFromSelections(storySettings, characters);
+      // Load the REAL uploaded photos so the bible step can look at
+      // them instead of guessing appearance blind (this is also
+      // where an animal's actual species, e.g. bison vs wolf, gets
+      // picked up - there's no separate species field anywhere in
+      // the form, so the photo is the only source of truth for it).
+      const characterPhotosForBible = await getCharacterPhotoReferenceImages(
+        storyData.characters,
+      );
 
-        // AI mode: make sure the idea is on the story even if the settings
-        // didn't carry it (the request `message` mirrors it).
-        if (!storyData.storyIdea && typeof message === "string") {
-            storyData.storyIdea = message.trim();
-        }
+      // Gemini "busy" (503) is temporary: wait and ask again instead of
+      // dropping to photo-only references. Quota / bad-request errors
+      // are not retried (that would only burn more quota).
+      const characterBible = await retryPatiently({
+        label: "Character Bible",
+        deadlineAt,
+        waitMs: GEMINI_BUSY_RETRY_WAIT_MS,
+        maxRounds: GEMINI_BUSY_MAX_ROUNDS,
+        shouldRetry: (error) =>
+          ["busy", "network"].includes(classifyGeminiError(error)),
+        task: () =>
+          generateCharacterBible({
+            story: generatedStory,
+            storyData,
+            characterPhotos: characterPhotosForBible,
+          }),
+      });
 
-        const BOOK_PAGE_COUNT = getBookPageCount();
-        storyData.pageCount = BOOK_PAGE_COUNT;
-        console.log(
-            `Creating a ${BOOK_PAGE_COUNT}-page book (BOOK_PAGE_COUNT in the server's environment = ${process.env.BOOK_PAGE_COUNT ?? "not set"}).`
-        );
+      console.log("Character Bible generated:", characterBible);
 
-        const generatedStory = await generateStory(storyData);
-
-        console.log("Story generation completed:", generatedStory);
-
-        if (
-            !generatedStory?.title ||
-            generatedStory.title === "undefined" ||
-            !Array.isArray(generatedStory?.pages) ||
-            generatedStory.pages.length === 0
-        ) {
-            throw new Error("Generated story is invalid or contains no pages");
-        }
-
-        bookTitle = generatedStory.title; // ALERTS
-
-        await book.updateOne(
-            { _id: bookId },
-            {
-                $set: {
-                    title: generatedStory.title,
-                    storyData,
-                    pages: generatedStory.pages.map((page, index) => ({
-                        position: index + 1,
-                        pageNumber: index + 1, // generateStory already renumbers 1..N
-                        content: normalizePageLines(page.content),
-                        imageUrl: null,
-                        storageProvider: null,
-                        storageKey: null,
-                        imagePrompt: "",
-                        status: "pending"
-                    }))
-                }
-            }
-        );
-
-        console.log("Book story saved:", bookId);
-
-        // Upload character photos to private AWS S3
-        const uploadedCharacters = [...storyData.characters];
-
-        for (const file of files || []) {
-            const match = file.fieldname.match(/^characterPhoto-(.+)$/);
-
-            if (!match) {
-                continue;
-            }
-
-            const characterId = match[1];
-
-            const characterIndex = uploadedCharacters.findIndex(
-                (character) => String(character.id) === String(characterId)
+      // Don't trust the LLM to faithfully echo back hasPhoto/photoStorageKey -
+      // re-attach the REAL uploaded-photo info by id/name match so a character
+      // with a real photo definitely gets used as its identity source, even if
+      // the model dropped or nulled those fields in its JSON output.
+      const bibleCharactersWithPhotoInfo = characterBible.characters.map(
+        (bibleCharacter) => {
+          const original = storyData.characters.find((character) => {
+            return (
+              String(character.id) === String(bibleCharacter.id) ||
+              String(character.name || "").toLowerCase() ===
+                String(bibleCharacter.name || "").toLowerCase()
             );
+          });
 
-            if (characterIndex === -1) {
-                continue;
-            }
+          if (!original) {
+            return bibleCharacter;
+          }
 
-            const extension =
-                file.originalname?.split(".").pop()?.toLowerCase() || "jpg";
+          return {
+            ...bibleCharacter,
+            hasPhoto: Boolean(original.hasPhoto),
+            photoStorageProvider: original.photoStorageProvider || null,
+            photoStorageKey: original.photoStorageKey || null,
+          };
+        },
+      );
 
-            const key = `characters/${bookId}/${characterId}-${crypto.randomUUID()}.${extension}`;
+      const bibleCharactersWithReferences = await generateCharacterReferences({
+        bookId,
+        characters: bibleCharactersWithPhotoInfo,
+        imageStyle: storyData.imageStyle,
+      });
 
-            const uploadedPhoto = await uploadToS3({
-                key,
-                buffer: file.buffer,
-                contentType: file.mimetype
-            });
-
-            uploadedCharacters[characterIndex].photoUrl = uploadedPhoto.url;
-            uploadedCharacters[characterIndex].photoStorageProvider =
-                uploadedPhoto.provider;
-            uploadedCharacters[characterIndex].photoStorageKey =
-                uploadedPhoto.key;
-        }
-
-        await book.updateOne(
-            { _id: bookId },
-            { $set: { "storyData.characters": uploadedCharacters } }
-        );
-
-        storyData.characters = uploadedCharacters;
-        let charactersWithReferences = storyData.characters;
-
-        try {
-            // Load the REAL uploaded photos so the bible step can look at
-            // them instead of guessing appearance blind (this is also
-            // where an animal's actual species, e.g. bison vs wolf, gets
-            // picked up - there's no separate species field anywhere in
-            // the form, so the photo is the only source of truth for it).
-            const characterPhotosForBible = await getCharacterPhotoReferenceImages(
-                storyData.characters
-            );
-
-            // Gemini "busy" (503) is temporary: wait and ask again instead of
-            // dropping to photo-only references. Quota / bad-request errors
-            // are not retried (that would only burn more quota).
-            const characterBible = await retryPatiently({
-                label: "Character Bible",
-                deadlineAt,
-                waitMs: GEMINI_BUSY_RETRY_WAIT_MS,
-                maxRounds: GEMINI_BUSY_MAX_ROUNDS,
-                shouldRetry: (error) =>
-                    ["busy", "network"].includes(classifyGeminiError(error)),
-                task: () =>
-                    generateCharacterBible({
-                        story: generatedStory,
-                        storyData,
-                        characterPhotos: characterPhotosForBible
-                    })
-            });
-
-            console.log("Character Bible generated:", characterBible);
-
-            // Don't trust the LLM to faithfully echo back hasPhoto/photoStorageKey -
-            // re-attach the REAL uploaded-photo info by id/name match so a character
-            // with a real photo definitely gets used as its identity source, even if
-            // the model dropped or nulled those fields in its JSON output.
-            const bibleCharactersWithPhotoInfo = characterBible.characters.map(
-                (bibleCharacter) => {
-                    const original = storyData.characters.find((character) => {
-                        return (
-                            String(character.id) === String(bibleCharacter.id) ||
-                            String(character.name || "").toLowerCase() ===
-                                String(bibleCharacter.name || "").toLowerCase()
-                        );
-                    });
-
-                    if (!original) {
-                        return bibleCharacter;
-                    }
-
-                    return {
-                        ...bibleCharacter,
-                        hasPhoto: Boolean(original.hasPhoto),
-                        photoStorageProvider: original.photoStorageProvider || null,
-                        photoStorageKey: original.photoStorageKey || null
-                    };
-                }
-            );
-
-            const bibleCharactersWithReferences = await generateCharacterReferences({
-                bookId,
-                characters: bibleCharactersWithPhotoInfo,
-                imageStyle: storyData.imageStyle
-            });
-
-            console.log("Canonical character references generated");
-            charactersWithReferences = storyData.characters.map((character) => {
-                const match = bibleCharactersWithReferences.find((bibleCharacter) => {
-                    return (
-                        String(bibleCharacter.id) === String(character.id) ||
-                        String(bibleCharacter.name || "").toLowerCase() ===
-                            String(character.name || "").toLowerCase()
-                    );
-                });
-
-                if (!match) {
-                    return character;
-                }
-
-                return {
-                    ...character,
-                    // look notes from the Character Bible. In memory only (the
-                    // book schema doesn't store them): they are handed to the
-                    // image-prompt writer so every page describes the same look.
-                    appearance: match.appearance,
-                    clothing: match.clothing,
-                    colors: match.colors,
-                    signatureDetails: match.signatureDetails,
-                    referenceImageUrl: match.referenceImageUrl,
-                    referenceStorageProvider: match.referenceStorageProvider,
-                    referenceStorageKey: match.referenceStorageKey
-                };
-            });
-
-            await book.updateOne(
-                { _id: bookId },
-                { $set: { "storyData.characters": charactersWithReferences } }
-            );
-
-            storyData.characters = charactersWithReferences;
-
-            console.log("Character Bible and canonical references saved to MongoDB");
-        } catch (bibleError) {
-            // If the bible/reference step fails for any reason, fall back to
-            // whatever raw uploaded photos exist rather than failing the whole
-            // book - pages just won't have as strong an identity anchor.
-            console.error(
-                "Character Bible / canonical reference generation failed, falling back to uploaded photos only:",
-                bibleError
-            );
-        }
-
-        const imagePrompts = await generateImagePrompt(generatedStory, storyData);
-
-        console.log("Image prompts generated");
-
-        if (!imagePrompts?.cover?.prompt) {
-            throw new Error("Cover prompt was not generated correctly");
-        }
-
-        if (!imagePrompts?.images || !Array.isArray(imagePrompts.images)) {
-            throw new Error("Image prompts were not generated correctly");
-        }
-
-        await book.updateOne(
-            { _id: bookId },
-            { $set: { imagePrompts: imagePrompts.images } }
-        );
-
-        // -----------------------------------------------------------
-        // Generate the cover (with reference photo). Two attempts.
-        // -----------------------------------------------------------
-        console.log("Generating cover image...");
-
-        // The cover is required: it is retried (wait, then try again) until it
-        // is made and passes the same check as before. If it truly can't be
-        // made in time the book fails - it is never shown without a cover.
-        await retryPatiently({
-            label: "Cover image",
-            deadlineAt,
-            shouldRetry: shouldRetryImage,
-            task: async () => {
-                let coverError;
-
-                for (let coverAttempt = 1; coverAttempt <= 3; coverAttempt += 1) {
-                    try {
-                        const coverReferenceImages = await getCharacterReferenceImages(
-                            storyData.characters,
-                            imagePrompts.cover.characters || []
-                        );
-
-                        console.log(
-                            `Loaded ${coverReferenceImages.length} character reference image(s) for cover.`
-                        );
-
-                        const rawCoverBuffer = await generateImage({
-                            prompt: imagePrompts.cover.prompt,
-                            referenceImages: coverReferenceImages,
-                            width: 768,
-                            height: 1024
-                        });
-
-                        // Reject a cover that has nothing to do with the story
-                        // (the next attempt generates a new one).
-                        const coverVerdict = await verifyIllustration({
-                            buffer: rawCoverBuffer,
-                            scene: imagePrompts.cover.scene || imagePrompts.cover.prompt,
-                            characterNames: resolveCharacterNames(
-                                storyData.characters,
-                                imagePrompts.cover.characters || []
-                            ),
-                            label: "cover"
-                        });
-
-                        if (!coverVerdict.ok) {
-                            throw new Error(`Cover did not match the story: ${coverVerdict.reason}`);
-                        }
-                        // The title is NOT baked into the image. The frontend (books.jsx card
-                        // and BookReader cover) renders it as real text, so baking it in too
-                        // produced a duplicate / clipped title on the cover.
-                        const finalCoverBuffer = rawCoverBuffer;
-
-                        const uploadedCover = await uploadImage({
-                            key: `books/${bookId}/cover.png`,
-                            buffer: finalCoverBuffer,
-                            contentType: "image/png"
-                        });
-
-                        await book.updateOne(
-                            { _id: bookId },
-                            {
-                                $set: {
-                                    coverImageUrl: uploadedCover.url,
-                                    coverStorageKey: uploadedCover.key
-                                }
-                            }
-                        );
-
-                        console.log("Cover completed:", uploadedCover.url);
-                        return;
-                    } catch (error) {
-                        coverError = error;
-                        console.error(`Cover generation failed (attempt ${coverAttempt}/3):`, error);
-                    }
-                }
-
-                throw coverError;
-            }
+      console.log("Canonical character references generated");
+      charactersWithReferences = storyData.characters.map((character) => {
+        const match = bibleCharactersWithReferences.find((bibleCharacter) => {
+          return (
+            String(bibleCharacter.id) === String(character.id) ||
+            String(bibleCharacter.name || "").toLowerCase() ===
+              String(character.name || "").toLowerCase()
+          );
         });
 
-        // -----------------------------------------------------------
-        // Generate page images (same reference photo(s) reused)
-        // -----------------------------------------------------------
-        for (const imageData of imagePrompts.images) {
-            if (!imageData?.pageNumber || !imageData?.prompt) {
-                console.warn("Skipping invalid image prompt:", imageData);
-                continue;
-            }
-
-            try {
-                // Same accuracy check as before (inside generatePageImage). If a
-                // page can't be made right now (model busy, or no accepted
-                // picture), wait and run it again until it is done.
-                await retryPatiently({
-                    label: `Page ${imageData.pageNumber} image`,
-                    deadlineAt,
-                    shouldRetry: shouldRetryImage,
-                    task: () => generatePageImage({ bookId, storyData, imageData })
-                });
-            } catch (pageError) {
-                console.error(
-                    `Page ${imageData.pageNumber} image could not be created in time:`,
-                    pageError
-                );
-
-                await book.updateOne(
-                    { _id: bookId, "pages.pageNumber": imageData.pageNumber },
-                    { $set: { "pages.$.status": "failed" } }
-                );
-            }
+        if (!match) {
+          return character;
         }
 
-        const completedBook = await book.findById(bookId).lean();
+        return {
+          ...character,
+          // look notes from the Character Bible. In memory only (the
+          // book schema doesn't store them): they are handed to the
+          // image-prompt writer so every page describes the same look.
+          appearance: match.appearance,
+          clothing: match.clothing,
+          colors: match.colors,
+          signatureDetails: match.signatureDetails,
+          referenceImageUrl: match.referenceImageUrl,
+          referenceStorageProvider: match.referenceStorageProvider,
+          referenceStorageKey: match.referenceStorageKey,
+        };
+      });
 
-        const totalPages = completedBook?.pages?.length || 0;
-        const unfinishedPages = (completedBook?.pages || []).filter(
-            (page) => page.status !== "completed"
-        ).length;
-        const allPagesCompleted = totalPages > 0 && unfinishedPages === 0;
+      await book.updateOne(
+        { _id: bookId },
+        { $set: { "storyData.characters": charactersWithReferences } },
+      );
 
-        const failureReason = `${unfinishedPages} of ${totalPages} page illustrations couldn't be created. Please try again - this one wasn't counted against your plan.`;
+      storyData.characters = charactersWithReferences;
 
-        await book.updateOne(
-            { _id: bookId },
-            {
-                $set: allPagesCompleted
-                    ? { status: "completed", completedAt: new Date(), failureReason: null }
-                    : { status: "failed", failureReason }
-            }
+      console.log("Character Bible and canonical references saved to MongoDB");
+    } catch (bibleError) {
+      // If the bible/reference step fails for any reason, fall back to
+      // whatever raw uploaded photos exist rather than failing the whole
+      // book - pages just won't have as strong an identity anchor.
+      console.error(
+        "Character Bible / canonical reference generation failed, falling back to uploaded photos only:",
+        bibleError,
+      );
+    }
+
+    const imagePrompts = await generateImagePrompt(generatedStory, storyData);
+
+    console.log("Image prompts generated");
+
+    if (!imagePrompts?.cover?.prompt) {
+      throw new Error("Cover prompt was not generated correctly");
+    }
+
+    if (!imagePrompts?.images || !Array.isArray(imagePrompts.images)) {
+      throw new Error("Image prompts were not generated correctly");
+    }
+
+    await book.updateOne(
+      { _id: bookId },
+      { $set: { imagePrompts: imagePrompts.images } },
+    );
+
+    // -----------------------------------------------------------
+    // Generate the cover (with reference photo). Two attempts.
+    // -----------------------------------------------------------
+    console.log("Generating cover image...");
+
+    // The cover is required: it is retried (wait, then try again) until it
+    // is made and passes the same check as before. If it truly can't be
+    // made in time the book fails - it is never shown without a cover.
+    await retryPatiently({
+      label: "Cover image",
+      deadlineAt,
+      shouldRetry: shouldRetryImage,
+      task: async () => {
+        const coverReferenceImages = await getCharacterReferenceImages(
+          storyData.characters,
+          imagePrompts.cover.characters || [],
         );
 
-        console.log(`Book ${bookId} status: ${allPagesCompleted ? "completed" : "failed"}`);
+        console.log(
+          `Loaded ${coverReferenceImages.length} character reference image(s) for cover.`,
+        );
 
-        // ALERTS: tell the user how it ended.
-        if (allPagesCompleted) {
-            await notify.bookCompleted(userId, bookId, completedBook?.title || bookTitle);
-        } else {
-            await notify.bookFailed(userId, bookId, completedBook?.title || bookTitle, failureReason);
-        }
-    } catch (error) {
-        console.error("Create book error:", error);
+        // One verified generation (max IMAGE_VERIFY_TRIES pictures, each
+        // retry carries a correction) instead of 3 identical blind tries
+        // repeated round after round.
+        const rawCoverBuffer = await generateVerifiedImage({
+          label: "Cover image",
+          prompt: imagePrompts.cover.prompt,
+          referenceImages: coverReferenceImages,
+          scene: imagePrompts.cover.scene || imagePrompts.cover.prompt,
+          characterNames: resolveCharacterBriefs(
+            storyData.characters,
+            imagePrompts.cover.characters || [],
+          ),
+          acceptMissing: COVER_ACCEPT_MISSING,
+        });
 
-        // Never leave the book stuck on "generating" (= endless skeleton).
-        await book
-            .updateOne(
-                { _id: bookId },
-                { $set: { status: "failed", failureReason: GENERIC_FAILURE } }
-            )
-            .catch((updateError) =>
-                console.error("Could not mark book as failed:", updateError)
-            );
+        // The title is NOT baked into the image. The frontend (books.jsx card
+        // and BookReader cover) renders it as real text, so baking it in too
+        // produced a duplicate / clipped title on the cover.
+        const finalCoverBuffer = rawCoverBuffer;
 
-        // ALERTS
-        await notify.bookFailed(userId, bookId, bookTitle, GENERIC_FAILURE);
+        const uploadedCover = await uploadImage({
+          key: `books/${bookId}/cover.png`,
+          buffer: finalCoverBuffer,
+          contentType: "image/png",
+        });
+
+        await book.updateOne(
+          { _id: bookId },
+          {
+            $set: {
+              coverImageUrl: uploadedCover.url,
+              coverStorageKey: uploadedCover.key,
+            },
+          },
+        );
+
+        console.log("Cover completed:", uploadedCover.url);
+      },
+    });
+
+    // -----------------------------------------------------------
+    // Generate page images (same reference photo(s) reused)
+    // -----------------------------------------------------------
+    for (const imageData of imagePrompts.images) {
+      if (!imageData?.pageNumber || !imageData?.prompt) {
+        console.warn("Skipping invalid image prompt:", imageData);
+        continue;
+      }
+
+      try {
+        // Same accuracy check as before (inside generatePageImage). If a
+        // page can't be made right now (model busy, or no accepted
+        // picture), wait and run it again until it is done.
+        await retryPatiently({
+          label: `Page ${imageData.pageNumber} image`,
+          deadlineAt,
+          shouldRetry: shouldRetryImage,
+          task: () => generatePageImage({ bookId, storyData, imageData }),
+        });
+      } catch (pageError) {
+        console.error(
+          `Page ${imageData.pageNumber} image could not be created in time:`,
+          pageError,
+        );
+
+        await book.updateOne(
+          { _id: bookId, "pages.pageNumber": imageData.pageNumber },
+          { $set: { "pages.$.status": "failed" } },
+        );
+      }
     }
+
+    const completedBook = await book.findById(bookId).lean();
+
+    const totalPages = completedBook?.pages?.length || 0;
+    const unfinishedPages = (completedBook?.pages || []).filter(
+      (page) => page.status !== "completed",
+    ).length;
+    const allPagesCompleted = totalPages > 0 && unfinishedPages === 0;
+
+    const failureReason = `${unfinishedPages} of ${totalPages} page illustrations couldn't be created. Please try again - this one wasn't counted against your plan.`;
+
+    await book.updateOne(
+      { _id: bookId },
+      {
+        $set: allPagesCompleted
+          ? {
+              status: "completed",
+              completedAt: new Date(),
+              failureReason: null,
+            }
+          : { status: "failed", failureReason },
+      },
+    );
+
+    console.log(
+      `Book ${bookId} status: ${allPagesCompleted ? "completed" : "failed"}`,
+    );
+
+    // ALERTS: tell the user how it ended.
+    if (allPagesCompleted) {
+      await notify.bookCompleted(
+        userId,
+        bookId,
+        completedBook?.title || bookTitle,
+      );
+    } else {
+      await notify.bookFailed(
+        userId,
+        bookId,
+        completedBook?.title || bookTitle,
+        failureReason,
+      );
+    }
+  } catch (error) {
+    console.error("Create book error:", error);
+
+    // Never leave the book stuck on "generating" (= endless skeleton).
+    await book
+      .updateOne(
+        { _id: bookId },
+        { $set: { status: "failed", failureReason: GENERIC_FAILURE } },
+      )
+      .catch((updateError) =>
+        console.error("Could not mark book as failed:", updateError),
+      );
+
+    // ALERTS
+    await notify.bookFailed(userId, bookId, bookTitle, GENERIC_FAILURE);
+  }
 };
 
 export const createBook = async (req, res) => {
-    let bookId;
-    try {
-        const inProgress = await book.exists({
-            user: req.userId,
-            status: "generating",
-            createdAt: { $gte: new Date(Date.now() - BOOK_MAX_GENERATION_MS) }
-        });
-
-        if (inProgress) {
-            return res.status(409).json({
-                success: false,
-                code: "BOOK_IN_PROGRESS",
-                message:
-                    "One book is already in progress. Please wait until it finishes before creating another story."
-            });
-        }
-
-        // Plan limit (basic 1 / gold 5 / premium 10 books). Checked before
-        // anything is created so a blocked request costs nothing.
-        const access = await canAccessFeature({ userId: req.userId, component: "book" });
-        if (!access.allowed) {
-            await notify.planLimitReached(req.userId, access); // ALERTS
-            return res.status(403).json({
-                success: false,
-                code: access.reason,
-                message: access.message,
-                limit: access.limit,
-                currentUsage: access.currentUsage,
-                remaining: access.remaining
-            });
-        }
-
-        const mode = req.body.mode;
-        const message = req.body.message;
-
-        if (mode !== "manual" && mode !== "ai") {
-            return res.status(400).json({
-                success: false,
-                message: 'Mode must be "manual" or "ai"'
-            });
-        }
-
-        const storySettings =
-            typeof req.body.storySettings === "string"
-                ? JSON.parse(req.body.storySettings)
-                : req.body.storySettings;
-
-        const characters =
-            typeof req.body.characters === "string"
-                ? JSON.parse(req.body.characters)
-                : req.body.characters || [];
-
-        if (!storySettings || Object.keys(storySettings).length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: `Story settings are required for ${mode} mode`
-            });
-        }
-
-        // 3 people + 1 pet + 1 object max (checked before a placeholder
-        // book exists, so a rejected request never costs a plan book).
-        if (exceedsCharacterLimits(characters)) {
-            return res.status(400).json({
-                success: false,
-                code: "CHARACTER_LIMIT",
-                message: CHARACTER_LIMIT_MESSAGE
-            });
-        }
-
-        // AI mode: the chat has already produced the full settings; the story
-        // idea lives in storySettings.idea (a bare `message` isn't enough).
-        if (mode === "ai") {
-            const idea = storySettings.idea?.label ?? storySettings.idea;
-
-            if (typeof idea !== "string" || !idea.trim()) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Story idea is required"
-                });
-            }
-        }
-
-        // Content safety net (the AI chat already checks every message).
-        // Runs BEFORE the placeholder exists, so a blocked request never
-        // uses up one of the user's plan books.
-        const createAge = storySettings?.age?.label || storySettings?.age || null;
-        const createSafety = await checkStoryText(
-            collectUserText({ message, storySettings, characters }),
-            { age: createAge }
-        );
-
-        if (createSafety.verdict === "block") {
-            await notify.contentBlocked(req.userId, createSafety.message); // ALERTS
-            return res.status(422).json({
-                success: false,
-                code: "CONTENT_NOT_ALLOWED",
-                message: createSafety.message
-            });
-        }
-
-        // Create the book right away as a placeholder so it shows up in
-        // "My Books" (as a loading skeleton) while the story + images are made.
-        const placeholder = await book.create({
-            user: req.userId,
-            title: "Untitled Story",
-            mode,
-            status: "generating",
-            pages: []
-        });
-
-        const usageNow = await getBookUsage(req.userId, access.startDate);
-        if (usageNow > access.limit) {
-            await book.deleteOne({ _id: placeholder._id });
-            await notify.planLimitReached(req.userId, {
-                message: `You've used all ${access.limit} book${access.limit === 1 ? "" : "s"} in your plan. Upgrade to create more.`,
-                limit: access.limit,
-                currentUsage: access.limit
-            }); // ALERTS
-            return res.status(403).json({
-                success: false,
-                code: "LIMIT_REACHED",
-                message: `You've used all ${access.limit} book${access.limit === 1 ? "" : "s"} in your plan. Upgrade to create more.`,
-                limit: access.limit,
-                currentUsage: access.limit,
-                remaining: 0
-            });
-        }
-
-        bookId = placeholder._id.toString();
-
-        // Respond immediately - the client navigates to /books and polls.
-        res.status(202).json({
-            success: true,
-            bookId,
-            status: "generating"
-        });
-
-        // ALERTS: generation started (never throws, safe after response).
-        notify.bookStarted(req.userId, bookId);
-
-        // Fire and forget. Errors are handled inside the worker.
-        generateBookInBackground({
-            bookId,
-            userId: req.userId, // ALERTS
-            mode,
-            message: typeof message === "string" ? softenText(message, createAge) : message,
-            storySettings: softenSelections(storySettings, createAge),
-            characters: (characters || []).map((c) => softenStrings(c, createAge)),
-            files: req.files || []
-        });
-    } catch (error) {
-        console.error("Create book error:", error);
-
-        if (!res.headersSent) {
-            return res.status(500).json({
-                success: false,
-                message: error.message || "Something went wrong"
-            });
-        }
+  let bookId;
+  let lockKey = null;
+  try {
+    // Same user already has a create request in flight -> reject right away.
+    const userKey = String(req.userId);
+    if (createBookLocks.has(userKey)) {
+      return res.status(409).json({
+        success: false,
+        code: "BOOK_IN_PROGRESS",
+        message: BOOK_IN_PROGRESS_MESSAGE,
+      });
     }
+    createBookLocks.add(userKey);
+    lockKey = userKey;
+
+    const inProgress = await book.exists({
+      user: req.userId,
+      status: "generating",
+      createdAt: { $gte: new Date(Date.now() - BOOK_MAX_GENERATION_MS) },
+    });
+
+    if (inProgress) {
+      return res.status(409).json({
+        success: false,
+        code: "BOOK_IN_PROGRESS",
+        message: BOOK_IN_PROGRESS_MESSAGE,
+      });
+    }
+
+    // Plan limit (basic 1 / gold 5 / premium 10 books). Checked before
+    // anything is created so a blocked request costs nothing.
+    const access = await canAccessFeature({
+      userId: req.userId,
+      component: "book",
+    });
+    if (!access.allowed) {
+      await notify.planLimitReached(req.userId, access); // ALERTS
+      return res.status(403).json({
+        success: false,
+        code: access.reason,
+        message: access.message,
+        limit: access.limit,
+        currentUsage: access.currentUsage,
+        remaining: access.remaining,
+      });
+    }
+
+    const mode = req.body.mode;
+    const message = req.body.message;
+
+    if (mode !== "manual" && mode !== "ai") {
+      return res.status(400).json({
+        success: false,
+        message: 'Mode must be "manual" or "ai"',
+      });
+    }
+
+    const storySettings =
+      typeof req.body.storySettings === "string"
+        ? JSON.parse(req.body.storySettings)
+        : req.body.storySettings;
+
+    const characters =
+      typeof req.body.characters === "string"
+        ? JSON.parse(req.body.characters)
+        : req.body.characters || [];
+
+    if (!storySettings || Object.keys(storySettings).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Story settings are required for ${mode} mode`,
+      });
+    }
+
+    // 3 people + 1 pet + 1 object max (checked before a placeholder
+    // book exists, so a rejected request never costs a plan book).
+    if (exceedsCharacterLimits(characters)) {
+      return res.status(400).json({
+        success: false,
+        code: "CHARACTER_LIMIT",
+        message: CHARACTER_LIMIT_MESSAGE,
+      });
+    }
+
+    // AI mode: the chat has already produced the full settings; the story
+    // idea lives in storySettings.idea (a bare `message` isn't enough).
+    if (mode === "ai") {
+      const idea = storySettings.idea?.label ?? storySettings.idea;
+
+      if (typeof idea !== "string" || !idea.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Story idea is required",
+        });
+      }
+    }
+
+    // Content safety net (the AI chat already checks every message).
+    // Runs BEFORE the placeholder exists, so a blocked request never
+    // uses up one of the user's plan books.
+    const createAge = storySettings?.age?.label || storySettings?.age || null;
+    const createSafety = await checkStoryText(
+      collectUserText({ message, storySettings, characters }),
+      { age: createAge },
+    );
+
+    if (createSafety.verdict === "block") {
+      await notify.contentBlocked(req.userId, createSafety.message); // ALERTS
+      return res.status(422).json({
+        success: false,
+        code: "CONTENT_NOT_ALLOWED",
+        message: createSafety.message,
+      });
+    }
+
+    // Create the book right away as a placeholder so it shows up in
+    // "My Books" (as a loading skeleton) while the story + images are made.
+    const placeholder = await book.create({
+      user: req.userId,
+      title: "Untitled Story",
+      mode,
+      status: "generating",
+      pages: [],
+    });
+
+    const usageNow = await getBookUsage(req.userId, access.startDate);
+    if (usageNow > access.limit) {
+      await book.deleteOne({ _id: placeholder._id });
+      await notify.planLimitReached(req.userId, {
+        message: `You've used all ${access.limit} book${access.limit === 1 ? "" : "s"} in your plan. Upgrade to create more.`,
+        limit: access.limit,
+        currentUsage: access.limit,
+      }); // ALERTS
+      return res.status(403).json({
+        success: false,
+        code: "LIMIT_REACHED",
+        message: `You've used all ${access.limit} book${access.limit === 1 ? "" : "s"} in your plan. Upgrade to create more.`,
+        limit: access.limit,
+        currentUsage: access.limit,
+        remaining: 0,
+      });
+    }
+
+    bookId = placeholder._id.toString();
+
+    // Respond immediately - the client navigates to /books and polls.
+    res.status(202).json({
+      success: true,
+      bookId,
+      status: "generating",
+    });
+
+    // ALERTS: generation started (never throws, safe after response).
+    notify.bookStarted(req.userId, bookId);
+
+    // Fire and forget. Errors are handled inside the worker.
+    generateBookInBackground({
+      bookId,
+      userId: req.userId, // ALERTS
+      mode,
+      message:
+        typeof message === "string" ? softenText(message, createAge) : message,
+      storySettings: softenSelections(storySettings, createAge),
+      characters: (characters || []).map((c) => softenStrings(c, createAge)),
+      files: req.files || [],
+    });
+  } catch (error) {
+    console.error("Create book error:", error);
+
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Something went wrong",
+      });
+    }
+  } finally {
+    // By now the "generating" placeholder exists (or the request failed),
+    // so the DB check above takes over from the in-memory lock.
+    if (lockKey) createBookLocks.delete(lockKey);
+  }
 };
 
-
 export const getMyBooks = async (req, res) => {
-    try {
-        // If the server restarted mid-generation the book would stay on
-        // "generating" forever. Anything older than this is treated as failed.
-        const STALE_MS = BOOK_MAX_GENERATION_MS;
+  try {
+    // If the server restarted mid-generation the book would stay on
+    // "generating" forever. Anything older than this is treated as failed.
+    const STALE_MS = BOOK_MAX_GENERATION_MS;
 
-        const staleBooks = await book
-            .find({
-                user: req.userId,
-                status: "generating",
-                createdAt: { $lt: new Date(Date.now() - STALE_MS) }
-            })
-            .select("_id title")
-            .lean();
+    const staleBooks = await book
+      .find({
+        user: req.userId,
+        status: "generating",
+        createdAt: { $lt: new Date(Date.now() - STALE_MS) },
+      })
+      .select("_id title")
+      .lean();
 
-        if (staleBooks.length > 0) {
-            await book.updateMany(
-                { _id: { $in: staleBooks.map((b) => b._id) }, status: "generating" },
-                { $set: { status: "failed", failureReason: STALE_FAILURE } }
-            );
+    if (staleBooks.length > 0) {
+      await book.updateMany(
+        { _id: { $in: staleBooks.map((b) => b._id) }, status: "generating" },
+        { $set: { status: "failed", failureReason: STALE_FAILURE } },
+      );
 
-            // ALERTS: dedupeKey means one alert per book, even if this runs often.
-            await Promise.all(
-                staleBooks.map((b) =>
-                    notify.bookFailed(req.userId, b._id.toString(), b.title, STALE_FAILURE)
-                )
-            );
-        }
-
-        // Failed books are never listed. The user is told via an alert (and
-        // `failures` below); the client then calls acknowledgeFailures so the
-        // popup isn't shown again.
-        const failedBooks = await book
-            .find({ user: req.userId, status: "failed", failureAcknowledged: false })
-            .select("title failureReason")
-            .sort({ createdAt: 1 })
-            .lean();
-
-        const books = await book
-            .find({ user: req.userId, status: { $ne: "failed" } })
-            .select("title mode status isFavorite coverImageUrl storyData.theme storyData.characters.name pages.status createdAt updatedAt completedAt")
-            .sort({ createdAt: -1 })
-            .lean();
-
-        return res.json({
-            success: true,
-            failures: failedBooks.map((b) => ({
-                _id: b._id,
-                title: b.title,
-                reason: b.failureReason || GENERIC_FAILURE
-            })),
-            books: books.map((b) => {
-                const pages = b.pages || [];
-                return {
-                    _id: b._id,
-                    title: b.title,
-                    mode: b.mode,
-                    status: b.status,
-                    isFavorite: Boolean(b.isFavorite),
-                    coverImageUrl: b.coverImageUrl || null,
-                    theme: b.storyData?.theme || null,
-                    createdFor: b.storyData?.characters?.[0]?.name || null,
-                    pageCount: pages.length,
-                    completedPages: pages.filter((p) => p.status === "completed").length,
-                    createdAt: b.createdAt,
-                    updatedAt: b.updatedAt,
-                    completedAt: b.completedAt || null
-                };
-            })
-        });
-    } catch (error) {
-        console.error("Get my books error:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Failed to fetch books"
-        });
+      // ALERTS: dedupeKey means one alert per book, even if this runs often.
+      await Promise.all(
+        staleBooks.map((b) =>
+          notify.bookFailed(
+            req.userId,
+            b._id.toString(),
+            b.title,
+            STALE_FAILURE,
+          ),
+        ),
+      );
     }
+
+    // Failed books are never listed. The user is told via an alert (and
+    // `failures` below); the client then calls acknowledgeFailures so the
+    // popup isn't shown again.
+    const failedBooks = await book
+      .find({
+        user: req.userId,
+        isDeleted: { $ne: true },
+        status: "failed",
+        failureAcknowledged: false,
+      })
+      .select("title failureReason")
+      .sort({ createdAt: 1 })
+      .lean();
+
+    const books = await book
+      .find({
+        user: req.userId,
+        isDeleted: { $ne: true },
+        status: { $ne: "failed" },
+      })
+      .select(
+        "title mode status isFavorite coverImageUrl storyData.theme storyData.characters.name pages.status createdAt updatedAt completedAt",
+      )
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.json({
+      success: true,
+      failures: failedBooks.map((b) => ({
+        _id: b._id,
+        title: b.title,
+        reason: b.failureReason || GENERIC_FAILURE,
+      })),
+      books: books.map((b) => {
+        const pages = b.pages || [];
+        return {
+          _id: b._id,
+          title: b.title,
+          mode: b.mode,
+          status: b.status,
+          isFavorite: Boolean(b.isFavorite),
+          coverImageUrl: b.coverImageUrl || null,
+          theme: b.storyData?.theme || null,
+          createdFor: b.storyData?.characters?.[0]?.name || null,
+          pageCount: pages.length,
+          completedPages: pages.filter((p) => p.status === "completed").length,
+          createdAt: b.createdAt,
+          updatedAt: b.updatedAt,
+          completedAt: b.completedAt || null,
+        };
+      }),
+    });
+  } catch (error) {
+    console.error("Get my books error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch books",
+    });
+  }
 };
 
 // The user has seen the failure popup for these books - don't show it again.
 export const acknowledgeFailures = async (req, res) => {
-    try {
-        const ids = (Array.isArray(req.body?.ids) ? req.body.ids : [])
-            .filter((id) => mongoose.isValidObjectId(id));
+  try {
+    const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).filter(
+      (id) => mongoose.isValidObjectId(id),
+    );
 
-        if (ids.length > 0) {
-            await book.updateMany(
-                { _id: { $in: ids }, user: req.userId, status: "failed" },
-                { $set: { failureAcknowledged: true } }
-            );
-        }
-
-        return res.json({ success: true });
-    } catch (error) {
-        console.error("Acknowledge failures error:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Failed to update"
-        });
+    if (ids.length > 0) {
+      await book.updateMany(
+        { _id: { $in: ids }, user: req.userId, status: "failed" },
+        { $set: { failureAcknowledged: true } },
+      );
     }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Acknowledge failures error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update",
+    });
+  }
 };
 
 export const toggleFavorite = async (req, res) => {
-    try {
-        const { bookId } = req.params;
+  try {
+    const { bookId } = req.params;
 
-        if (!mongoose.isValidObjectId(bookId)) {
-            return res.status(400).json({ success: false, message: "Invalid book id" });
-        }
-
-        const current = await book
-            .findOne({ _id: bookId, user: req.userId })
-            .select("isFavorite")
-            .lean();
-
-        if (!current) {
-            return res.status(404).json({ success: false, message: "Book not found" });
-        }
-
-        const isFavorite =
-            typeof req.body?.isFavorite === "boolean"
-                ? req.body.isFavorite
-                : !current.isFavorite;
-
-        await book.updateOne(
-            { _id: bookId, user: req.userId },
-            { $set: { isFavorite } },
-            { timestamps: false }
-        );
-
-        return res.json({ success: true, isFavorite });
-    } catch (error) {
-        console.error("Toggle favorite error:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Failed to update favorite"
-        });
+    if (!mongoose.isValidObjectId(bookId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid book id" });
     }
+
+    const current = await book
+      .findOne({ _id: bookId, user: req.userId, isDeleted: { $ne: true } })
+      .select("isFavorite")
+      .lean();
+
+    if (!current) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Book not found" });
+    }
+
+    const isFavorite =
+      typeof req.body?.isFavorite === "boolean"
+        ? req.body.isFavorite
+        : !current.isFavorite;
+
+    await book.updateOne(
+      { _id: bookId, user: req.userId, isDeleted: { $ne: true } },
+      { $set: { isFavorite } },
+      { timestamps: false },
+    );
+
+    return res.json({ success: true, isFavorite });
+  } catch (error) {
+    console.error("Toggle favorite error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update favorite",
+    });
+  }
+};
+
+// Max characters allowed on one story page (matches the reader's editor).
+const PAGE_TEXT_MAX = 1000;
+
+// Edit the text of a single story page. Images are never touched.
+export const updatePageText = async (req, res) => {
+  try {
+    const { bookId, pageId } = req.params;
+
+    if (
+      !mongoose.isValidObjectId(bookId) ||
+      !mongoose.isValidObjectId(pageId)
+    ) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid book or page id" });
+    }
+
+    if (typeof req.body?.content !== "string") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Page text is required" });
+    }
+
+    const content = normalizePageLines(req.body.content);
+
+    if (!content) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Page text can't be empty" });
+    }
+
+    if (content.length > PAGE_TEXT_MAX) {
+      return res.status(400).json({
+        success: false,
+        message: `Page text can be at most ${PAGE_TEXT_MAX} characters`,
+      });
+    }
+
+    const result = await book.updateOne(
+      {
+        _id: bookId,
+        user: req.userId,
+        isDeleted: { $ne: true },
+        status: "completed",
+        "pages._id": pageId,
+      },
+      { $set: { "pages.$.content": content } },
+    );
+
+    if (!result.matchedCount) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Page not found" });
+    }
+
+    return res.json({ success: true, pageId, content });
+  } catch (error) {
+    console.error("Update page text error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to save page text",
+    });
+  }
 };
 
 export const getBookById = async (req, res) => {
-    try {
-        const { bookId } = req.params;
+  try {
+    const { bookId } = req.params;
 
-        if (!mongoose.isValidObjectId(bookId)) {
-            return res.status(404).json({
-                success: false,
-                message: "Book not found"
-            });
-        }
-
-        const found = await book.findOne({ _id: bookId, user: req.userId }).lean();
-
-        if (!found) {
-            return res.status(404).json({
-                success: false,
-                message: "Book not found"
-            });
-        }
-
-        // Only send what the reader UI needs (no prompts, storage keys or private photo URLs).
-        return res.json({
-            success: true,
-            book: {
-                _id: found._id,
-                title: found.title,
-                status: found.status,
-                coverImageUrl: found.coverImageUrl || null,
-                storyData: {
-                    theme: found.storyData?.theme || null,
-                    age: found.storyData?.age || null,
-                    subject: found.storyData?.subject || null,
-                    centralMessage: found.storyData?.centralMessage || null,
-                    storyIdea: found.storyData?.storyIdea || null,
-                    language: found.storyData?.language || "English",
-                    font: found.storyData?.font || null,
-                    characters: (found.storyData?.characters || []).map((c) => ({
-                        id: c.id,
-                        name: c.name,
-                        type: c.type
-                    }))
-                },
-                pages: (found.pages || [])
-                    .sort((a, b) => a.position - b.position)
-                    .map((p) => ({
-                        _id: p._id,
-                        pageNumber: p.pageNumber,
-                        content: normalizePageLines(p.content),
-                        imageUrl: p.imageUrl,
-                        status: p.status
-                    })),
-                createdAt: found.createdAt,
-                updatedAt: found.updatedAt
-            }
-        });
-    } catch (error) {
-        console.error("Get book error:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Failed to fetch book"
-        });
+    if (!mongoose.isValidObjectId(bookId)) {
+      return res.status(404).json({
+        success: false,
+        message: "Book not found",
+      });
     }
+
+    const found = await book
+      .findOne({ _id: bookId, user: req.userId, isDeleted: { $ne: true } })
+      .lean();
+
+    if (!found) {
+      return res.status(404).json({
+        success: false,
+        message: "Book not found",
+      });
+    }
+
+    // Only send what the reader UI needs (no prompts, storage keys or private photo URLs).
+    return res.json({
+      success: true,
+      book: {
+        _id: found._id,
+        title: found.title,
+        status: found.status,
+        coverImageUrl: found.coverImageUrl || null,
+        storyData: {
+          theme: found.storyData?.theme || null,
+          age: found.storyData?.age || null,
+          subject: found.storyData?.subject || null,
+          centralMessage: found.storyData?.centralMessage || null,
+          storyIdea: found.storyData?.storyIdea || null,
+          language: found.storyData?.language || "English",
+          font: found.storyData?.font || null,
+          characters: (found.storyData?.characters || []).map((c) => ({
+            id: c.id,
+            name: c.name,
+            type: c.type,
+          })),
+        },
+        pages: (found.pages || [])
+          .sort((a, b) => a.position - b.position)
+          .map((p) => ({
+            _id: p._id,
+            pageNumber: p.pageNumber,
+            content: normalizePageLines(p.content),
+            imageUrl: p.imageUrl,
+            status: p.status,
+          })),
+        createdAt: found.createdAt,
+        updatedAt: found.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Get book error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch book",
+    });
+  }
 };
 
 export const testImagePrompts = async (req, res) => {
-    try {
-        console.log("Triggering");
-        console.log("Generating image for page 1...");
-    } catch (error) {
-        console.error("Image generation error:", error);
+  try {
+    console.log("Triggering");
+    console.log("Generating image for page 1...");
+  } catch (error) {
+    console.error("Image generation error:", error);
 
-        res.status(500).json({
-            success: false,
-            message: "Failed to generate image"
-        });
-    }
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate image",
+    });
+  }
 };
-
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const MODEL = process.env.CHAT_MODEL || "gpt-4.1-mini";
 
 const callLLM = async ({ system, messages }) => {
-    const response = await openai.chat.completions.create({
-        model: MODEL,
-        messages: [
-            { role: "system", content: system },
-            ...messages.map((m) => ({
-                role: m.role === "assistant" ? "assistant" : "user",
-                content: m.content
-            }))
-        ],
-        response_format: { type: "json_object" } // enforces valid JSON output, no markdown fences
-    });
+  const response = await openai.chat.completions.create({
+    model: MODEL,
+    messages: [
+      { role: "system", content: system },
+      ...messages.map((m) => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.content,
+      })),
+    ],
+    response_format: { type: "json_object" }, // enforces valid JSON output, no markdown fences
+  });
 
-    return response.choices[0]?.message?.content ?? "";
+  return response.choices[0]?.message?.content ?? "";
 };
 
 /* ------------------------------------------------------------------ */
@@ -1179,20 +1363,28 @@ const callLLM = async ({ system, messages }) => {
 /* ------------------------------------------------------------------ */
 
 const ALLOWED = {
-    age: OPTS.age,
-    theme: OPTS.theme,
-    imageStyle: OPTS.imageStyle,
-    language: OPTS.language,
-    font: OPTS.font,
-    characterType: ["Child", "Parent", "Grandparent", "Sibling", "Friend", "Pet", "Object"]
+  age: OPTS.age,
+  theme: OPTS.theme,
+  imageStyle: OPTS.imageStyle,
+  language: OPTS.language,
+  font: OPTS.font,
+  characterType: [
+    "Child",
+    "Parent",
+    "Grandparent",
+    "Sibling",
+    "Friend",
+    "Pet",
+    "Object",
+  ],
 };
 
 const DEFAULTS = {
-    age: "4–7 years",
-    theme: "Adventure",
-    imageStyle: OPTS.imageStyle[1], // Watercolour
-    language: "English",
-    font: "Rounded & Playful"
+  age: "4–7 years",
+  theme: "Adventure",
+  imageStyle: OPTS.imageStyle[1], // Watercolour
+  language: "English",
+  font: "Rounded & Playful",
 };
 
 // subject and central message are picked from the chosen theme's own list,
@@ -1206,7 +1398,8 @@ const MAX_QUESTIONS = 2;
 /* Prompt                                                              */
 /* ------------------------------------------------------------------ */
 
-const buildSystemPrompt = ({ state, questionsAsked, safetyNotice = "" }) => `
+const buildSystemPrompt = ({ state, questionsAsked, safetyNotice = "" }) =>
+  `
 You are Bookie, a warm, playful assistant inside a children's picture-book app.
 People type rough, casual ideas like "we are going on a road trip". Turn that into a complete story brief
 silently, and talk like a friendly person, not a form.
@@ -1218,9 +1411,13 @@ WHAT TO DO
    - theme: EXACTLY one of the allowed themes below (pick the closest fit, e.g. a road trip -> "Family").
    - subject: EXACTLY one of the subjects listed under the chosen theme. centralmsg: EXACTLY one of the central
      messages listed under the chosen theme. Pick the closest fit to the user's idea.
-   - imageStyle, language, font, age must be EXACTLY one of the allowed values below, or null if unknown.
+   - language, font, age must be EXACTLY one of the allowed values below, or null if unknown.
+   - imageStyle: EXACTLY one of the 12 allowed image styles. If the user names a drawing look ("watercolour",
+     "3D", "sketch", "bedtime", "colouring book"...), use it. Otherwise choose the style that best fits the premise,
+     mood and reader age using the STYLE GUIDE below. Use the WHOLE list, do not fall back to the same style
+     every time. Once a style is in the current brief, keep it unless the user asks for a different look.
    - language: the language the user writes in if supported, else "English".
-   - If the user names a drawing look ("watercolour", "3D", "sketch"), a language or a lettering style, use it.
+   - If the user names a language or a lettering style, use it.
    - Extra people or pets they mention (mom, dog, grandma) become characters.
    - LIMITS: a story has at most 3 people (the hero counts as one), 1 pet and 1 object. A pet or an object never
      uses up a people slot. Never return more than that. If the user asks for more, keep what is already there
@@ -1255,6 +1452,19 @@ theme: ${JSON.stringify(ALLOWED.theme)}
 subject (by theme): ${JSON.stringify(OPTS.subjectByTheme)}
 centralmsg (by theme): ${JSON.stringify(OPTS.centralmsgByTheme)}
 imageStyle: ${JSON.stringify(ALLOWED.imageStyle)}
+STYLE GUIDE (pick the best fit for imageStyle):
+- "3D Storybook": modern, cinematic, expressive characters. Animal heroes, quests, big adventures.
+- "Watercolour": soft, dreamy, gentle and emotional stories, nature, family moments.
+- "Classic Illustrated": timeless storybook look. Traditional tales, fables, older readers.
+- "Picture Book (Kids)": simple, bright, friendly shapes. Toddlers and early readers (0-7).
+- "Black & White (Sketch)": pencil and ink sketch look. Mystery, history, calm or serious stories.
+- "Minimal / Modern": clean shapes and flat colours. Concepts, learning, modern everyday stories.
+- "Vintage / Retro": nostalgic, old-print feel. Road trips, grandparents, past-time settings.
+- "Fairy Tale": enchanted, magical. Castles, royalty, fairies, spells.
+- "Night / Bedtime": calm, moonlit, sleepy colours. Bedtime and dream stories.
+- "Adventure": bold, dynamic, outdoors. Expeditions, treasure hunts, explorers.
+- "Line Art (Colouring)": outlines a child can colour in. Use when they want a colouring book.
+- "Seasonal (Autumn)": warm falling leaves, harvest, cosy autumn days.
 language: ${JSON.stringify(ALLOWED.language)}
 font: ${JSON.stringify(ALLOWED.font)}
 character type: ${JSON.stringify(ALLOWED.characterType)}
@@ -1283,289 +1493,387 @@ Use "" for unknown character details. The first character is the hero.
 /* ------------------------------------------------------------------ */
 
 const str = (v, max = 400) =>
-    typeof v === "string" ? v.trim().slice(0, max) : "";
+  typeof v === "string" ? v.trim().slice(0, max) : "";
 
 const oneOf = (v, list) => {
-    const s = str(v, 80).toLowerCase();
-    return list.find((item) => item.toLowerCase() === s) || null;
+  const s = str(v, 80).toLowerCase();
+  return list.find((item) => item.toLowerCase() === s) || null;
+};
+
+// The model sometimes returns a close name ("Watercolor", "Picture Book",
+// "bedtime") instead of the exact label. Map those to one of the 12 allowed
+// image styles instead of dropping the choice.
+const IMAGE_STYLE_ALIASES = [
+  [/3\s*-?d/, "3D Storybook"],
+  [/water\s*-?colou?r/, "Watercolour"],
+  [/line\s*-?art|colou?ring/, "Line Art (Colouring)"],
+  [/classic/, "Classic Illustrated"],
+  [/picture\s*-?book|kids?\b/, "Picture Book (Kids)"],
+  [/black|white|sketch|pencil/, "Black & White (Sketch)"],
+  [/minimal|modern/, "Minimal / Modern"],
+  [/vintage|retro/, "Vintage / Retro"],
+  [/fairy/, "Fairy Tale"],
+  [/night|bed\s*-?time|sleep/, "Night / Bedtime"],
+  [/season|autumn|fall/, "Seasonal (Autumn)"],
+  [/adventure/, "Adventure"],
+];
+
+const matchImageStyle = (v) => {
+  const exact = oneOf(v, ALLOWED.imageStyle);
+  if (exact) return exact;
+
+  const s = str(v, 80).toLowerCase();
+  if (!s) return null;
+
+  for (const [pattern, label] of IMAGE_STYLE_ALIASES) {
+    if (pattern.test(s) && ALLOWED.imageStyle.includes(label)) return label;
+  }
+  return null;
 };
 
 const normalizeMessages = (messages) => {
-    const out = [];
+  const out = [];
 
-    for (const m of (Array.isArray(messages) ? messages : []).slice(-24)) {
-        const role = m?.role === "assistant" ? "assistant" : "user";
-        const content = str(m?.content, 2000);
-        if (!content) continue;
+  for (const m of (Array.isArray(messages) ? messages : []).slice(-24)) {
+    const role = m?.role === "assistant" ? "assistant" : "user";
+    const content = str(m?.content, 2000);
+    if (!content) continue;
 
-        if (out.length === 0 && role !== "user") continue;
+    if (out.length === 0 && role !== "user") continue;
 
-        const last = out[out.length - 1];
-        if (last && last.role === role) {
-            last.content += `\n${content}`;
-        } else {
-            out.push({ role, content });
-        }
+    const last = out[out.length - 1];
+    if (last && last.role === role) {
+      last.content += `\n${content}`;
+    } else {
+      out.push({ role, content });
     }
-    return out;
+  }
+  return out;
 };
 
 const parseJson = (raw) => {
-    const cleaned = String(raw || "")
-        .replace(/```json|```/g, "")
-        .trim();
+  const cleaned = String(raw || "")
+    .replace(/```json|```/g, "")
+    .trim();
 
-    const start = cleaned.indexOf("{");
-    const end = cleaned.lastIndexOf("}");
-    if (start === -1 || end === -1) throw new Error("No JSON in model reply");
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end === -1) throw new Error("No JSON in model reply");
 
-    return JSON.parse(cleaned.slice(start, end + 1));
+  return JSON.parse(cleaned.slice(start, end + 1));
 };
 
 const sanitizeCharacters = (list, previous = []) => {
-    const usedIds = new Set();
+  const usedIds = new Set();
 
-    const cleaned = (Array.isArray(list) ? list : [])
-        .filter((c) => str(c?.name))
-        .slice(0, 12) // sanity bound before the real per-kind limits below
-        .map((c, index) => {
-            const name = str(c.name, 60);
+  const cleaned = (Array.isArray(list) ? list : [])
+    .filter((c) => str(c?.name))
+    .slice(0, 12) // sanity bound before the real per-kind limits below
+    .map((c, index) => {
+      const name = str(c.name, 60);
 
-            // keep existing ids so uploaded photos stay attached
-            const prev =
-                previous.find((p) => p.id && p.id === c.id) ||
-                previous.find((p) => p.name?.toLowerCase() === name.toLowerCase());
+      // keep existing ids so uploaded photos stay attached
+      const prev =
+        previous.find((p) => p.id && p.id === c.id) ||
+        previous.find((p) => p.name?.toLowerCase() === name.toLowerCase());
 
-            let id = prev?.id || str(c.id, 40);
-            if (!id || usedIds.has(id)) {
-                id = `c${crypto.randomUUID().slice(0, 8)}`;
-            }
-            usedIds.add(id);
+      let id = prev?.id || str(c.id, 40);
+      if (!id || usedIds.has(id)) {
+        id = `c${crypto.randomUUID().slice(0, 8)}`;
+      }
+      usedIds.add(id);
 
-            return {
-                id,
-                type: oneOf(c.type, ALLOWED.characterType) || (index === 0 ? "Child" : "Friend"),
-                name,
-                gender: str(c.gender, 20),
-                age: str(c.age, 20),
-                hobbies: str(c.hobbies, 120),
-                favouriteFood: str(c.favouriteFood, 120)
-            };
-        });
+      return {
+        id,
+        type:
+          oneOf(c.type, ALLOWED.characterType) ||
+          (index === 0 ? "Child" : "Friend"),
+        name,
+        gender: str(c.gender, 20),
+        age: str(c.age, 20),
+        hobbies: str(c.hobbies, 120),
+        favouriteFood: str(c.favouriteFood, 120),
+      };
+    });
 
-    // 3 people + 1 pet + 1 object (a pet/object never takes a people slot)
-    return limitCharacters(cleaned);
+  // 3 people + 1 pet + 1 object (a pet/object never takes a people slot)
+  return limitCharacters(cleaned);
 };
 
 const sanitizeSettings = (s = {}) => {
-    const theme = oneOf(s.theme, ALLOWED.theme);
-    return {
-        idea: str(s.idea, 1200),
-        theme,
-        subject: oneOf(s.subject, subjectsFor(theme)),
-        centralmsg: oneOf(s.centralmsg, messagesFor(theme)),
-        imageStyle: oneOf(s.imageStyle, ALLOWED.imageStyle),
-        language: oneOf(s.language, ALLOWED.language),
-        font: oneOf(s.font, ALLOWED.font),
-        age: oneOf(s.age, ALLOWED.age)
-    };
+  const theme = oneOf(s.theme, ALLOWED.theme);
+  return {
+    idea: str(s.idea, 1200),
+    theme,
+    subject: oneOf(s.subject, subjectsFor(theme)),
+    centralmsg: oneOf(s.centralmsg, messagesFor(theme)),
+    imageStyle: matchImageStyle(s.imageStyle),
+    language: oneOf(s.language, ALLOWED.language),
+    font: oneOf(s.font, ALLOWED.font),
+    age: oneOf(s.age, ALLOWED.age),
+  };
 };
 
 export const chatBook = async (req, res) => {
-    try {
-        const messages = normalizeMessages(req.body?.messages);
+  try {
+    const messages = normalizeMessages(req.body?.messages);
 
-        if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
-            return res.status(400).json({
-                success: false,
-                message: "A user message is required"
-            });
-        }
-
-        const prevSettings = sanitizeSettings(req.body?.state?.storySettings);
-
-        // ---- content safety (AI mode) -------------------------------------
-        // Latest message: full check (local rules + OpenAI moderation).
-        // Earlier messages: cheap local re-check only.
-        const userTexts = messages.filter((m) => m.role === "user").map((m) => m.content);
-        const latestText = userTexts[userTexts.length - 1];
-        const knownAge = prevSettings.age;
-        const earlierHardBlock = userTexts
-            .slice(0, -1)
-            .map((t) => findHardBlock(t, knownAge))
-            .find(Boolean);
-        const safety = await checkStoryText(latestText, { age: knownAge });
-
-        if (safety.verdict === "block" || earlierHardBlock) {
-            // No alert here: the chat already shows this message inline, and
-            // alerting on every typed message would be noisy. The alert is
-            // sent from createBook instead.
-            return res.status(422).json({
-                success: false,
-                code: "CONTENT_NOT_ALLOWED",
-                message: safety.message || buildBlockMessage(earlierHardBlock)
-            });
-        }
-
-        const softLabels = [
-            ...new Set([...userTexts.flatMap((t) => findSoftLabels(t, knownAge)), ...safety.softLabels])
-        ];
-        const safetyNotice = softLabels.length
-            ? `\nSAFETY NOTICE: the user's messages mention ${softLabels.join(", ")}, which is not suitable for this reader's age. Keep only that OUT of idea, theme, subject, centralmsg, characters and your recap, and swap it for a friendlier alternative. Keep everything else the user asked for.`
-            : `\nAGE POLICY IN FORCE: ${knownAge ? policyFor(ageBand(knownAge)) : "age not chosen yet, keep the premise as written."}`;
-
-        const prevCharacters = sanitizeCharacters(req.body?.state?.characters);
-
-        const questionsAsked = messages.filter(
-            (m) => m.role === "assistant" && m.content.includes("?")
-        ).length;
-
-        const raw = await callLLM({
-            system: buildSystemPrompt({
-                state: { storySettings: prevSettings, characters: prevCharacters },
-                questionsAsked,
-                safetyNotice
-            }),
-            messages
-        });
-
-        let parsed;
-        try {
-            parsed = parseJson(raw);
-        } catch {
-            return res.json({
-                success: true,
-                reply: "Sorry, I got a bit muddled. Could you tell me your story idea once more?",
-                state: { storySettings: prevSettings, characters: prevCharacters },
-                ready: false,
-                chips: []
-            });
-        }
-
-        const storySettings = sanitizeSettings(parsed.storySettings);
-        const finalAge = storySettings.age || prevSettings.age;
-        for (const key of Object.keys(storySettings)) {
-            if (typeof storySettings[key] === "string") {
-                storySettings[key] = softenText(storySettings[key], finalAge);
-            }
-        }
-        const characters = sanitizeCharacters(parsed.characters, prevCharacters).map((c) =>
-            softenStrings(c, finalAge)
-        );
-
-        // keep earlier values when the model returns null
-        for (const key of Object.keys(storySettings)) {
-            if (!storySettings[key] && prevSettings[key]) {
-                storySettings[key] = prevSettings[key];
-            }
-        }
-
-        // fill the things we never ask the user about
-        storySettings.theme ||= DEFAULTS.theme;
-        // subject / central message must belong to the chosen theme
-        if (!subjectsFor(storySettings.theme).includes(storySettings.subject)) {
-            storySettings.subject = subjectsFor(storySettings.theme)[0] || "";
-        }
-        if (!messagesFor(storySettings.theme).includes(storySettings.centralmsg)) {
-            storySettings.centralmsg = messagesFor(storySettings.theme)[0] || "";
-        }
-        storySettings.imageStyle ||= DEFAULTS.imageStyle;
-        storySettings.language ||= DEFAULTS.language;
-        storySettings.font ||= DEFAULTS.font;
-
-        // the two things we may ask about; stop asking after MAX_QUESTIONS
-        const stillMissing = !storySettings.age || characters.length === 0;
-
-        if (stillMissing && questionsAsked >= MAX_QUESTIONS) {
-            storySettings.age ||= DEFAULTS.age;
-            if (characters.length === 0) {
-                characters.push({
-                    id: `c${crypto.randomUUID().slice(0, 8)}`,
-                    type: "Child",
-                    name: "Buddy",
-                    gender: "",
-                    age: "",
-                    hobbies: "",
-                    favouriteFood: ""
-                });
-            }
-        }
-
-        const ready =
-            Boolean(parsed.ready) &&
-            Boolean(storySettings.age) &&
-            characters.length > 0 &&
-            Boolean(storySettings.idea);
-
-        const chips = (Array.isArray(parsed.chips) ? parsed.chips : [])
-            .map((c) => str(c, 40))
-            .filter(Boolean)
-            .slice(0, 3);
-
-        let replyText = softenText(str(parsed.reply, 900), finalAge) || "Tell me more about your story!";
-
-        // Tell the user, once, when something in their latest message was swapped out.
-        if (safety.softLabels.length) {
-            replyText = `${changeNote(safety.softLabels)} ${replyText}`;
-        }
-
-        return res.json({
-            success: true,
-            reply: replyText,
-            state: { storySettings, characters },
-            ready,
-            chips: ready ? [] : chips
-        });
-    } catch (error) {
-        console.error("Book chat error:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: error.message || "Something went wrong"
-        });
+    if (
+      messages.length === 0 ||
+      messages[messages.length - 1].role !== "user"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "A user message is required",
+      });
     }
+
+    const prevSettings = sanitizeSettings(req.body?.state?.storySettings);
+
+    // ---- content safety (AI mode) -------------------------------------
+    // Latest message: full check (local rules + OpenAI moderation).
+    // Earlier messages: cheap local re-check only.
+    const userTexts = messages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content);
+    const latestText = userTexts[userTexts.length - 1];
+    const knownAge = prevSettings.age;
+    const earlierHardBlock = userTexts
+      .slice(0, -1)
+      .map((t) => findHardBlock(t, knownAge))
+      .find(Boolean);
+    const safety = await checkStoryText(latestText, { age: knownAge });
+
+    if (safety.verdict === "block" || earlierHardBlock) {
+      // No alert here: the chat already shows this message inline, and
+      // alerting on every typed message would be noisy. The alert is
+      // sent from createBook instead.
+      return res.status(422).json({
+        success: false,
+        code: "CONTENT_NOT_ALLOWED",
+        message: safety.message || buildBlockMessage(earlierHardBlock),
+      });
+    }
+
+    const softLabels = [
+      ...new Set([
+        ...userTexts.flatMap((t) => findSoftLabels(t, knownAge)),
+        ...safety.softLabels,
+      ]),
+    ];
+    const safetyNotice = softLabels.length
+      ? `\nSAFETY NOTICE: the user's messages mention ${softLabels.join(", ")}, which is not suitable for this reader's age. Keep only that OUT of idea, theme, subject, centralmsg, characters and your recap, and swap it for a friendlier alternative. Keep everything else the user asked for.`
+      : `\nAGE POLICY IN FORCE: ${knownAge ? policyFor(ageBand(knownAge)) : "age not chosen yet, keep the premise as written."}`;
+
+    const prevCharacters = sanitizeCharacters(req.body?.state?.characters);
+
+    const questionsAsked = messages.filter(
+      (m) => m.role === "assistant" && m.content.includes("?"),
+    ).length;
+
+    const raw = await callLLM({
+      system: buildSystemPrompt({
+        state: { storySettings: prevSettings, characters: prevCharacters },
+        questionsAsked,
+        safetyNotice,
+      }),
+      messages,
+    });
+
+    let parsed;
+    try {
+      parsed = parseJson(raw);
+    } catch {
+      return res.json({
+        success: true,
+        reply:
+          "Sorry, I got a bit muddled. Could you tell me your story idea once more?",
+        state: { storySettings: prevSettings, characters: prevCharacters },
+        ready: false,
+        chips: [],
+      });
+    }
+
+    const storySettings = sanitizeSettings(parsed.storySettings);
+    const finalAge = storySettings.age || prevSettings.age;
+    for (const key of Object.keys(storySettings)) {
+      if (typeof storySettings[key] === "string") {
+        storySettings[key] = softenText(storySettings[key], finalAge);
+      }
+    }
+    const characters = sanitizeCharacters(
+      parsed.characters,
+      prevCharacters,
+    ).map((c) => softenStrings(c, finalAge));
+
+    // keep earlier values when the model returns null
+    for (const key of Object.keys(storySettings)) {
+      if (!storySettings[key] && prevSettings[key]) {
+        storySettings[key] = prevSettings[key];
+      }
+    }
+
+    // fill the things we never ask the user about
+    storySettings.theme ||= DEFAULTS.theme;
+    // subject / central message must belong to the chosen theme
+    if (!subjectsFor(storySettings.theme).includes(storySettings.subject)) {
+      storySettings.subject = subjectsFor(storySettings.theme)[0] || "";
+    }
+    if (!messagesFor(storySettings.theme).includes(storySettings.centralmsg)) {
+      storySettings.centralmsg = messagesFor(storySettings.theme)[0] || "";
+    }
+    storySettings.imageStyle ||= DEFAULTS.imageStyle;
+    storySettings.language ||= DEFAULTS.language;
+    storySettings.font ||= DEFAULTS.font;
+
+    // the two things we may ask about; stop asking after MAX_QUESTIONS
+    const stillMissing = !storySettings.age || characters.length === 0;
+
+    if (stillMissing && questionsAsked >= MAX_QUESTIONS) {
+      storySettings.age ||= DEFAULTS.age;
+      if (characters.length === 0) {
+        characters.push({
+          id: `c${crypto.randomUUID().slice(0, 8)}`,
+          type: "Child",
+          name: "Buddy",
+          gender: "",
+          age: "",
+          hobbies: "",
+          favouriteFood: "",
+        });
+      }
+    }
+
+    const ready =
+      Boolean(parsed.ready) &&
+      Boolean(storySettings.age) &&
+      characters.length > 0 &&
+      Boolean(storySettings.idea);
+
+    const chips = (Array.isArray(parsed.chips) ? parsed.chips : [])
+      .map((c) => str(c, 40))
+      .filter(Boolean)
+      .slice(0, 3);
+
+    let replyText =
+      softenText(str(parsed.reply, 900), finalAge) ||
+      "Tell me more about your story!";
+
+    // Tell the user, once, when something in their latest message was swapped out.
+    if (safety.softLabels.length) {
+      replyText = `${changeNote(safety.softLabels)} ${replyText}`;
+    }
+
+    return res.json({
+      success: true,
+      reply: replyText,
+      state: { storySettings, characters },
+      ready,
+      chips: ready ? [] : chips,
+    });
+  } catch (error) {
+    console.error("Book chat error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Something went wrong",
+    });
+  }
 };
 
 export const getBookImage = async (req, res) => {
-    try {
-        const { bookId, index } = req.params;
+  try {
+    const { bookId, index } = req.params;
 
-        if (!mongoose.isValidObjectId(bookId)) {
-            return res.status(404).json({ success: false, message: "Book not found" });
-        }
-
-        const found = await book
-            .findOne({ _id: bookId, user: req.userId })
-            .select("coverImageUrl pages.position pages.imageUrl")
-            .lean();
-
-        if (!found) {
-            return res.status(404).json({ success: false, message: "Book not found" });
-        }
-
-        let url = null;
-        if (index === "cover") {
-            url = found.coverImageUrl;
-        } else {
-            const sorted = [...(found.pages || [])].sort((a, b) => a.position - b.position);
-            url = sorted[Number(index)]?.imageUrl;
-        }
-
-        if (!url) {
-            return res.status(404).json({ success: false, message: "Image not found" });
-        }
-
-        const upstream = await fetch(url);
-        if (!upstream.ok) {
-            return res.status(502).json({ success: false, message: "Could not load image" });
-        }
-
-        res.set("Content-Type", upstream.headers.get("content-type") || "image/png");
-        res.set("Cache-Control", "private, max-age=3600");
-        return res.send(Buffer.from(await upstream.arrayBuffer()));
-    } catch (error) {
-        console.error("Get book image error:", error);
-
-        return res.status(500).json({ success: false, message: "Failed to load image" });
+    if (!mongoose.isValidObjectId(bookId)) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Book not found" });
     }
+
+    const found = await book
+      .findOne({ _id: bookId, user: req.userId, isDeleted: { $ne: true } })
+      .select("coverImageUrl pages.position pages.imageUrl")
+      .lean();
+
+    if (!found) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Book not found" });
+    }
+
+    let url = null;
+    if (index === "cover") {
+      url = found.coverImageUrl;
+    } else {
+      const sorted = [...(found.pages || [])].sort(
+        (a, b) => a.position - b.position,
+      );
+      url = sorted[Number(index)]?.imageUrl;
+    }
+
+    if (!url) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Image not found" });
+    }
+
+    const upstream = await fetch(url);
+    if (!upstream.ok) {
+      return res
+        .status(502)
+        .json({ success: false, message: "Could not load image" });
+    }
+
+    res.set(
+      "Content-Type",
+      upstream.headers.get("content-type") || "image/png",
+    );
+    res.set("Cache-Control", "private, max-age=3600");
+    return res.send(Buffer.from(await upstream.arrayBuffer()));
+  } catch (error) {
+    console.error("Get book image error:", error);
+
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to load image" });
+  }
+};
+
+export const deleteBook = async (req, res) => {
+  try {
+    const { bookId } = req.params;
+
+    if (!mongoose.isValidObjectId(bookId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid book id" });
+    }
+
+    const result = await book.updateOne(
+      { _id: bookId, user: req.userId, isDeleted: { $ne: true } },
+      { $set: { isDeleted: true, deletedAt: new Date(), isFavorite: false } },
+      { timestamps: false },
+    );
+
+    if (!result.matchedCount) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Book not found" });
+    }
+
+    await Cart.updateMany(
+      { user: req.userId },
+      { $pull: { items: { book: bookId } } },
+    );
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error("Delete book error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete the book",
+    });
+  }
 };

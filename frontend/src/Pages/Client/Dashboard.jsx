@@ -412,7 +412,7 @@ const QuickActions = ({ onAiIdeas }) => {
   const actions = [
     { title: "Create New Book", subtitle: "Start a new magical story", icon: Plus, navigation: '/create' },
     { title: "AI Story Ideas", subtitle: "Get inspired with ideas", icon: Sparkles, onClick: onAiIdeas },
-    { title: "Templates", subtitle: "Choose from beautiful templates", icon: FileText, navigation: '/templates' },
+    { title: "Samples", subtitle: "Choose from beautiful samples", icon: FileText, navigation: '/templates' },
     { title: "MY Orders", subtitle: "View your complete orders", icon: ShoppingBagIcon, navigation: '/orders' },
   ];
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
     Sparkles,
-    Mic,
+    // Mic,
     Send,
     Lightbulb,
     RotateCcw,
@@ -206,8 +206,6 @@ const CircleOptionChip = ({ option, isSelected, onClick }) => (
     </button>
 );
 
-const IMAGE_STYLE_QUICK_IDS = ["watercolor", "3d"];
-
 const CustomizePanel = ({ storySettings, onChange }) => {
     const [expanded, setExpanded] = useState(null);
 
@@ -216,7 +214,6 @@ const CustomizePanel = ({ storySettings, onChange }) => {
     const centralmsgOptions = themeOption ? STORY_OPTIONS.centralmsg[themeOption.id] || [] : [];
     const subjectOption = findOptionByLabel(subjectOptions, storySettings.subject);
     const centralmsgOption = findOptionByLabel(centralmsgOptions, storySettings.centralmsg);
-    const imageStyleOptions = STORY_OPTIONS.imageStyle.filter((o) => IMAGE_STYLE_QUICK_IDS.includes(o.id));
     const styleOption = findOptionByLabel(STORY_OPTIONS.imageStyle, storySettings.imageStyle);
 
     const rows = [
@@ -244,7 +241,7 @@ const CustomizePanel = ({ storySettings, onChange }) => {
         {
             key: "imageStyle",
             label: "Image style",
-            options: imageStyleOptions,
+            options: STORY_OPTIONS.imageStyle,
             selected: styleOption,
             onSelect: (option) => onChange("imageStyle", option),
         },
@@ -285,7 +282,7 @@ const CustomizePanel = ({ storySettings, onChange }) => {
                             </button>
 
                             {isOpen && (
-                                <div className="mt-2 flex gap-3 overflow-x-auto px-1 pb-1">
+                                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-3 px-1 pb-1">
                                     {row.options.map((option) => (
                                         <CircleOptionChip
                                             key={option.id}
@@ -310,8 +307,8 @@ const CustomizePanel = ({ storySettings, onChange }) => {
 export const AiBookCreation = ({ initialIdea = "" }) => {
     const navigate = useNavigate();
     const [limitInfo, setLimitInfo] = useState(null);
-    // Shown once when the user tries to create a book with no characters.
-    const [showNoCharacterAlert, setShowNoCharacterAlert] = useState(false);
+    // Shown once when the user tries to create a book without adding any photo.
+    const [showNoPhotoAlert, setShowNoPhotoAlert] = useState(false);
 
     const [storyIdea, setStoryIdea] = useState("");
     const [otherMode, setOtherMode] = useState(false); // "Other" chip clicked: user is typing their own answer
@@ -558,9 +555,10 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
 
     const handleCreate = async ({ skipCharacterCheck = false } = {}) => {
         if (busy || creatingRef.current) return;
-        // No characters added: ask once whether to continue without one.
-        if (!skipCharacterCheck && store.current.state.characters.length === 0) {
-            setShowNoCharacterAlert(true);
+        // The AI names the characters itself, so only the photo is optional:
+        // if no photo was uploaded, ask once whether to continue without one.
+        if (!skipCharacterCheck && Object.keys(store.current.files).length === 0) {
+            setShowNoPhotoAlert(true);
             return;
         }
         creatingRef.current = true;
@@ -751,213 +749,213 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
 
                         {/* Only this area scrolls; the robot, header and input stay put */}
                         <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overflow-x-hidden pr-2">
-                        {messages.map((message, index) => (
-                            <div key={index} className={`flex w-full ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                                {message.bookCover ? (
-                                    /* ---- Book ready: show ONLY the cover, click it to open the book ---- */
-                                    <div className="flex max-w-[75%] flex-col items-center gap-3 rounded-[20px] rounded-bl-md border border-[#E5E1ED] bg-white px-6 py-5">
-                                        <p className="text-[15px] font-semibold text-[#38345F]">{message.content}</p>
-                                        <button
-                                            onClick={() => handleOpenBook(message.bookCover)}
-                                            className="group relative h-56 w-40 overflow-hidden rounded-[14px] border border-[#DED9EE] shadow-[0_12px_30px_rgba(90,57,199,0.20)] transition-transform duration-300 hover:-translate-y-1"
-                                        >
-                                            <img
-                                                src={message.bookCover.coverImage}
-                                                alt="Your storybook cover"
-                                                className="h-full w-full object-cover"
-                                            />
-                                            <span className="absolute inset-x-0 bottom-0 bg-black/55 py-2 text-center text-[12px] font-semibold text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                                                Open my book →
-                                            </span>
-                                        </button>
-                                        <span className="text-[12px] font-medium text-[#9693A8]">Tap the cover to start reading</span>
-                                    </div>
-                                ) : (
-                                    <div
-                                        className={`max-w-[75%] whitespace-pre-wrap wrap-break-word rounded-[20px] px-5 py-3.5 text-[15px] leading-6 ${message.role === "user" ? "rounded-br-md bg-[#5A39C7] text-white" : "rounded-bl-md border border-[#E5E1ED] bg-white text-[#53577D]"}`}
-                                    >
-                                        {message.photo && (
-                                            <img src={message.photo} alt="" className="mb-2 h-28 w-28 rounded-[14px] object-cover" />
-                                        )}
-                                        {message.content}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-
-                        {isLoading && (
-                            <div className="flex justify-start">
-                                <div className="flex items-center gap-1.5 rounded-[20px] rounded-bl-md border border-[#E5E1ED] bg-white px-5 py-3.5">
-                                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#B9A7E8] [animation-delay:-0.3s]" />
-                                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#B9A7E8] [animation-delay:-0.15s]" />
-                                    <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#B9A7E8]" />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* While the book is generating, give them something fun to do */}
-                        {busy && <MiniGameLoader />}
-
-                        {/* Optional: swap theme / subject / message / style using round-chip pickers */}
-                        {!isLoading && !busy && !companionPrompt && ready && showCustomize && (
-                            <CustomizePanel storySettings={storySettings} onChange={handleSettingChange} />
-                        )}
-
-                        {/* Inline form for adding a character / pet / object — name required, photo optional */}
-                        {companionPrompt && (
-                            <div className="rounded-[20px] border border-[#DED9EE] bg-white p-4">
-                                <p className="mb-3 flex items-center gap-2 text-[14px] font-semibold text-[#38345F]">
-                                    {companionPrompt.type === "pet" ? (
-                                        <PawPrint size={16} className="text-[#5A39C7]" />
-                                    ) : companionPrompt.type === "character" ? (
-                                        <UserPlus size={16} className="text-[#5A39C7]" />
+                            {messages.map((message, index) => (
+                                <div key={index} className={`flex w-full ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                                    {message.bookCover ? (
+                                        /* ---- Book ready: show ONLY the cover, click it to open the book ---- */
+                                        <div className="flex max-w-[75%] flex-col items-center gap-3 rounded-[20px] rounded-bl-md border border-[#E5E1ED] bg-white px-6 py-5">
+                                            <p className="text-[15px] font-semibold text-[#38345F]">{message.content}</p>
+                                            <button
+                                                onClick={() => handleOpenBook(message.bookCover)}
+                                                className="group relative h-56 w-40 overflow-hidden rounded-[14px] border border-[#DED9EE] shadow-[0_12px_30px_rgba(90,57,199,0.20)] transition-transform duration-300 hover:-translate-y-1"
+                                            >
+                                                <img
+                                                    src={message.bookCover.coverImage}
+                                                    alt="Your storybook cover"
+                                                    className="h-full w-full object-cover"
+                                                />
+                                                <span className="absolute inset-x-0 bottom-0 bg-black/55 py-2 text-center text-[12px] font-semibold text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                                    Open my book →
+                                                </span>
+                                            </button>
+                                            <span className="text-[12px] font-medium text-[#9693A8]">Tap the cover to start reading</span>
+                                        </div>
                                     ) : (
-                                        <Box size={16} className="text-[#5A39C7]" />
+                                        <div
+                                            className={`max-w-[75%] whitespace-pre-wrap wrap-break-word rounded-[20px] px-5 py-3.5 text-[15px] leading-6 ${message.role === "user" ? "rounded-br-md bg-[#5A39C7] text-white" : "rounded-bl-md border border-[#E5E1ED] bg-white text-[#53577D]"}`}
+                                        >
+                                            {message.photo && (
+                                                <img src={message.photo} alt="" className="mb-2 h-28 w-28 rounded-[14px] object-cover" />
+                                            )}
+                                            {message.content}
+                                        </div>
                                     )}
-                                    {companionPrompt.type === "pet"
-                                        ? "Add a pet"
-                                        : companionPrompt.type === "character"
-                                            ? "Add a character"
-                                            : "Add an object"}
-                                </p>
+                                </div>
+                            ))}
 
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                                    <button
-                                        type="button"
-                                        onClick={() => companionFileRef.current?.click()}
-                                        className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-[#DED9EE] text-[#9693A8] transition-colors hover:border-[#B9A7E8] hover:text-[#5A39C7]"
-                                        aria-label="Add photo"
-                                    >
-                                        {companionDraft.photoPreview ? (
-                                            <img src={companionDraft.photoPreview} alt="" className="h-full w-full object-cover" />
-                                        ) : (
-                                            <ImageIcon size={20} />
-                                        )}
-                                    </button>
-
-                                    <div className="flex flex-1 flex-col gap-2">
-                                        <input
-                                            value={companionDraft.name}
-                                            onChange={(event) => setCompanionDraft((d) => ({ ...d, name: event.target.value }))}
-                                            placeholder={
-                                                companionPrompt.type === "pet"
-                                                    ? "Pet's name (e.g. Biscuit)"
-                                                    : companionPrompt.type === "character"
-                                                        ? "Character's name (e.g. Grandpa Joe)"
-                                                        : "Object's name (e.g. Rusty the truck)"
-                                            }
-                                            className="w-full rounded-xl border border-[#DED9EE] px-3 py-2 text-[14px] text-[#38345F] outline-none focus:border-[#B9A7E8]"
-                                        />
-                                        <input
-                                            value={companionDraft.description}
-                                            onChange={(event) => setCompanionDraft((d) => ({ ...d, description: event.target.value }))}
-                                            placeholder={
-                                                companionPrompt.type === "pet"
-                                                    ? "What are they like? (optional)"
-                                                    : companionPrompt.type === "character"
-                                                        ? "Who are they to the hero? (optional)"
-                                                        : "Colour, type, etc. (optional)"
-                                            }
-                                            className="w-full rounded-xl border border-[#DED9EE] px-3 py-2 text-[14px] text-[#38345F] outline-none focus:border-[#B9A7E8]"
-                                        />
+                            {isLoading && (
+                                <div className="flex justify-start">
+                                    <div className="flex items-center gap-1.5 rounded-[20px] rounded-bl-md border border-[#E5E1ED] bg-white px-5 py-3.5">
+                                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#B9A7E8] [animation-delay:-0.3s]" />
+                                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#B9A7E8] [animation-delay:-0.15s]" />
+                                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#B9A7E8]" />
                                     </div>
                                 </div>
+                            )}
 
-                                <p className="mt-2 pl-1 text-[11px] text-[#9693A8]">
-                                    No photo? No problem — {companionDraft.name.trim() || "they"}'ll get a friendly default look.
-                                </p>
+                            {/* While the book is generating, give them something fun to do */}
+                            {busy && <MiniGameLoader />}
 
-                                <div className="mt-3 flex justify-end gap-2">
-                                    <button
-                                        onClick={cancelCompanion}
-                                        className="rounded-full px-4 py-2 text-[13px] font-medium text-[#777A9B] hover:text-[#5A39C7]"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={saveCompanion}
-                                        disabled={!companionDraft.name.trim()}
-                                        className="rounded-full bg-[#5A39C7] px-4 py-2 text-[13px] font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                        Save
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                            {/* Optional: swap theme / subject / message / style using round-chip pickers */}
+                            {!isLoading && !busy && !companionPrompt && ready && showCustomize && (
+                                <CustomizePanel storySettings={storySettings} onChange={handleSettingChange} />
+                            )}
 
-                        {/* Chips: quick answers, or the two primary ready-state actions */}
-                        {!isLoading && !busy && !companionPrompt && (chips.length > 0 || ready || pickingPhoto) && (
-                            <div className="flex flex-wrap justify-start gap-2.5 pl-1">
-                                {chips.map((c) => (
-                                    <button
-                                        key={c}
-                                        onClick={() => handleSubmit(c)}
-                                        className="rounded-full border border-[#DED9EE] bg-white px-4 py-2 text-[14px] font-medium text-[#5A39C7] shadow-[0_4px_12px_rgba(120,100,180,0.08)] transition-all hover:-translate-y-0.5 hover:border-[#B9A7E8] hover:shadow-[0_8px_18px_rgba(120,100,180,0.14)]"
-                                    >
-                                        {c}
-                                    </button>
-                                ))}
+                            {/* Inline form for adding a character / pet / object — name required, photo optional */}
+                            {companionPrompt && (
+                                <div className="rounded-[20px] border border-[#DED9EE] bg-white p-4">
+                                    <p className="mb-3 flex items-center gap-2 text-[14px] font-semibold text-[#38345F]">
+                                        {companionPrompt.type === "pet" ? (
+                                            <PawPrint size={16} className="text-[#5A39C7]" />
+                                        ) : companionPrompt.type === "character" ? (
+                                            <UserPlus size={16} className="text-[#5A39C7]" />
+                                        ) : (
+                                            <Box size={16} className="text-[#5A39C7]" />
+                                        )}
+                                        {companionPrompt.type === "pet"
+                                            ? "Add a pet"
+                                            : companionPrompt.type === "character"
+                                                ? "Add a character"
+                                                : "Add an object"}
+                                    </p>
 
-                                {chips.length > 0 && (
-                                    <button
-                                        onClick={() => {
-                                            setOtherMode(true);
-                                            textareaRef.current?.focus();
-                                            textareaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-                                        }}
-                                        className={`flex items-center gap-1.5 rounded-full border border-dashed px-4 py-2 text-[14px] font-medium transition-all hover:-translate-y-0.5 ${otherMode ? "border-[#7654d8] bg-[#f3efff] text-[#4d36a5]" : "border-[#B9A7E8] bg-white text-[#5A39C7] hover:bg-[#faf8ff]"}`}
-                                    >
-                                        <Pencil size={14} />
-                                        Other
-                                    </button>
-                                )}
-
-                                {ready && !pickingPhoto && (
-                                    <>
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                         <button
-                                            onClick={() => handleCreate()}
-                                            className="flex items-center gap-1.5 rounded-full bg-linear-to-r from-[#6539D5] to-[#4822B8] px-5 py-2 text-[14px] font-semibold text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)]"
+                                            type="button"
+                                            onClick={() => companionFileRef.current?.click()}
+                                            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-[#DED9EE] text-[#9693A8] transition-colors hover:border-[#B9A7E8] hover:text-[#5A39C7]"
+                                            aria-label="Add photo"
                                         >
-                                            <Sparkles size={15} />
-                                            Create my book
+                                            {companionDraft.photoPreview ? (
+                                                <img src={companionDraft.photoPreview} alt="" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <ImageIcon size={20} />
+                                            )}
                                         </button>
 
-                                        <button
-                                            onClick={() => setShowCustomize((v) => !v)}
-                                            className="flex items-center gap-1.5 rounded-full border border-[#DED9EE] bg-white px-4 py-2 text-[14px] font-medium text-[#5A39C7] transition-all hover:-translate-y-0.5 hover:border-[#B9A7E8]"
-                                        >
-                                            <Palette size={15} />
-                                            {showCustomize ? "Hide style options" : "Customize style"}
-                                        </button>
-                                    </>
-                                )}
+                                        <div className="flex flex-1 flex-col gap-2">
+                                            <input
+                                                value={companionDraft.name}
+                                                onChange={(event) => setCompanionDraft((d) => ({ ...d, name: event.target.value }))}
+                                                placeholder={
+                                                    companionPrompt.type === "pet"
+                                                        ? "Pet's name (e.g. Biscuit)"
+                                                        : companionPrompt.type === "character"
+                                                            ? "Character's name (e.g. Grandpa Joe)"
+                                                            : "Object's name (e.g. Rusty the truck)"
+                                                }
+                                                className="w-full rounded-xl border border-[#DED9EE] px-3 py-2 text-[14px] text-[#38345F] outline-none focus:border-[#B9A7E8]"
+                                            />
+                                            <input
+                                                value={companionDraft.description}
+                                                onChange={(event) => setCompanionDraft((d) => ({ ...d, description: event.target.value }))}
+                                                placeholder={
+                                                    companionPrompt.type === "pet"
+                                                        ? "What are they like? (optional)"
+                                                        : companionPrompt.type === "character"
+                                                            ? "Who are they to the hero? (optional)"
+                                                            : "Colour, type, etc. (optional)"
+                                                }
+                                                className="w-full rounded-xl border border-[#DED9EE] px-3 py-2 text-[14px] text-[#38345F] outline-none focus:border-[#B9A7E8]"
+                                            />
+                                        </div>
+                                    </div>
 
-                                {pickingPhoto && (
-                                    <>
-                                        {characters
-                                            .filter((c) => !store.current.files[c.id])
-                                            .map((c) => (
-                                                <button
-                                                    key={c.id}
-                                                    onClick={() => openFile(c.id)}
-                                                    className="rounded-full border border-[#DED9EE] bg-white px-4 py-2 text-[14px] font-medium text-[#5A39C7] hover:border-[#B9A7E8]"
-                                                >
-                                                    {c.name}
-                                                </button>
-                                            ))}
+                                    <p className="mt-2 pl-1 text-[11px] text-[#9693A8]">
+                                        No photo? No problem — {companionDraft.name.trim() || "they"}'ll get a friendly default look.
+                                    </p>
+
+                                    <div className="mt-3 flex justify-end gap-2">
                                         <button
-                                            onClick={() => setPickingPhoto(false)}
-                                            className="rounded-full px-4 py-2 text-[14px] font-medium text-[#777A9B] hover:text-[#5A39C7]"
+                                            onClick={cancelCompanion}
+                                            className="rounded-full px-4 py-2 text-[13px] font-medium text-[#777A9B] hover:text-[#5A39C7]"
                                         >
                                             Cancel
                                         </button>
-                                    </>
-                                )}
-                            </div>
-                        )}
+                                        <button
+                                            onClick={saveCompanion}
+                                            disabled={!companionDraft.name.trim()}
+                                            className="rounded-full bg-[#5A39C7] px-4 py-2 text-[13px] font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            Save
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
-                        <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
-                        <input ref={companionFileRef} type="file" accept="image/*" hidden onChange={onCompanionFile} />
+                            {/* Chips: quick answers, or the two primary ready-state actions */}
+                            {!isLoading && !busy && !companionPrompt && (chips.length > 0 || ready || pickingPhoto) && (
+                                <div className="flex flex-wrap justify-start gap-2.5 pl-1">
+                                    {chips.map((c) => (
+                                        <button
+                                            key={c}
+                                            onClick={() => handleSubmit(c)}
+                                            className="rounded-full border border-[#DED9EE] bg-white px-4 py-2 text-[14px] font-medium text-[#5A39C7] shadow-[0_4px_12px_rgba(120,100,180,0.08)] transition-all hover:-translate-y-0.5 hover:border-[#B9A7E8] hover:shadow-[0_8px_18px_rgba(120,100,180,0.14)]"
+                                        >
+                                            {c}
+                                        </button>
+                                    ))}
+
+                                    {chips.length > 0 && (
+                                        <button
+                                            onClick={() => {
+                                                setOtherMode(true);
+                                                textareaRef.current?.focus();
+                                                textareaRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                                            }}
+                                            className={`flex items-center gap-1.5 rounded-full border border-dashed px-4 py-2 text-[14px] font-medium transition-all hover:-translate-y-0.5 ${otherMode ? "border-[#7654d8] bg-[#f3efff] text-[#4d36a5]" : "border-[#B9A7E8] bg-white text-[#5A39C7] hover:bg-[#faf8ff]"}`}
+                                        >
+                                            <Pencil size={14} />
+                                            Other
+                                        </button>
+                                    )}
+
+                                    {ready && !pickingPhoto && (
+                                        <>
+                                            <button
+                                                onClick={() => handleCreate()}
+                                                className="flex items-center gap-1.5 rounded-full bg-linear-to-r from-[#6539D5] to-[#4822B8] px-5 py-2 text-[14px] font-semibold text-white shadow-[0_8px_20px_rgba(74,39,180,0.22)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(74,39,180,0.32)]"
+                                            >
+                                                <Sparkles size={15} />
+                                                Create my book
+                                            </button>
+
+                                            <button
+                                                onClick={() => setShowCustomize((v) => !v)}
+                                                className="flex items-center gap-1.5 rounded-full border border-[#DED9EE] bg-white px-4 py-2 text-[14px] font-medium text-[#5A39C7] transition-all hover:-translate-y-0.5 hover:border-[#B9A7E8]"
+                                            >
+                                                <Palette size={15} />
+                                                {showCustomize ? "Hide style options" : "Customize style"}
+                                            </button>
+                                        </>
+                                    )}
+
+                                    {pickingPhoto && (
+                                        <>
+                                            {characters
+                                                .filter((c) => !store.current.files[c.id])
+                                                .map((c) => (
+                                                    <button
+                                                        key={c.id}
+                                                        onClick={() => openFile(c.id)}
+                                                        className="rounded-full border border-[#DED9EE] bg-white px-4 py-2 text-[14px] font-medium text-[#5A39C7] hover:border-[#B9A7E8]"
+                                                    >
+                                                        {c.name}
+                                                    </button>
+                                                ))}
+                                            <button
+                                                onClick={() => setPickingPhoto(false)}
+                                                className="rounded-full px-4 py-2 text-[14px] font-medium text-[#777A9B] hover:text-[#5A39C7]"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
+                            <input ref={fileRef} type="file" accept="image/*" hidden onChange={onFile} />
+                            <input ref={companionFileRef} type="file" accept="image/*" hidden onChange={onCompanionFile} />
 
                         </div>
                     </div>
@@ -1037,10 +1035,10 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                                     : otherMode && chips.length > 0
                                         ? "Type your own answer here…"
                                         : ready
-                                        ? "Want to change something? Type it here…"
-                                        : hasChat
-                                            ? "Type your reply…"
-                                            : "Type your story idea here..."
+                                            ? "Want to change something? Type it here…"
+                                            : hasChat
+                                                ? "Type your reply…"
+                                                : "Type your story idea here..."
                             }
                             rows={1}
                             disabled={isLoading || busy || !!companionPrompt}
@@ -1049,13 +1047,13 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
 
                         <div className="mx-3 hidden h-9 w-px bg-[#E7E3EF] sm:block" />
 
-                        <button
+                        {/* <button
                             type="button"
                             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[#5B3BC4] sm:mr-3 sm:h-11 sm:w-11 transition-all duration-200 hover:bg-[#F3EFFF] hover:text-[#4323B2]"
                             aria-label="Voice input"
                         >
                             <Mic size={22} />
-                        </button>
+                        </button> */}
 
                         <button
                             onClick={() => handleSubmit()}
@@ -1078,20 +1076,21 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
             <PlanLimitAlert info={limitInfo} onClose={() => setLimitInfo(null)} />
 
             <WonderAlertModal
-                isOpen={showNoCharacterAlert}
-                onClose={() => setShowNoCharacterAlert(false)}
+                isOpen={showNoPhotoAlert}
+                onClose={() => setShowNoPhotoAlert(false)}
                 type="info"
-                title="No characters yet"
-                message="You haven't added any characters. Your story will be created without a main character. Want to add one first?"
+                title="No photo added"
+                message="You haven't added a photo of your character. We'll imagine how they look for you. Want to add a photo first?"
                 primaryText="Continue"
-                secondaryText="Add Character"
+                secondaryText="Add Photo"
                 onPrimary={() => {
-                    setShowNoCharacterAlert(false);
+                    setShowNoPhotoAlert(false);
                     handleCreate({ skipCharacterCheck: true });
                 }}
                 onSecondary={() => {
-                    setShowNoCharacterAlert(false);
-                    setShowAddMenu(true);
+                    setShowNoPhotoAlert(false);
+                    if (store.current.state.characters.length > 0) startPhoto();
+                    else setShowAddMenu(true);
                 }}
             />
         </div>

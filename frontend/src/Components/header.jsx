@@ -1,9 +1,15 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, Loader2 } from "lucide-react";
 import { HeaderAnimationSearch } from "./HeaderAnimationSearch";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./Notificationbell";
 import { useNavigate } from "react-router-dom";
 import { CartButton } from "./CartButton";
+import { useAuth } from "../context/AuthContext";
+import { uploadAvatar } from "../services/settingsService";
+
+const AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024; // same limit the backend enforces
 
 
 
@@ -35,6 +41,47 @@ export const Header = ({
 }) => {
     const [story, setStory] = useState("");
     const navigate = useNavigate();
+
+    // Super admins have no /settings page, so the profile circle lets them
+    // change their photo directly (camera badge).
+    const isSuperAdmin = userRole === "super admin";
+    const { updateUser } = useAuth();
+    const fileInputRef = useRef(null);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const [avatarError, setAvatarError] = useState("");
+
+    // Error bubble disappears on its own.
+    useEffect(() => {
+        if (!avatarError) return;
+        const t = setTimeout(() => setAvatarError(""), 5000);
+        return () => clearTimeout(t);
+    }, [avatarError]);
+
+    const handleAvatarChange = async (event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (!file) return;
+
+        if (!AVATAR_TYPES.includes(file.type)) {
+            setAvatarError("Please choose a PNG, JPG or WEBP image.");
+            return;
+        }
+        if (file.size > AVATAR_MAX_BYTES) {
+            setAvatarError("That photo is too big. Please choose one under 5 MB.");
+            return;
+        }
+
+        setAvatarError("");
+        setAvatarUploading(true);
+        try {
+            const { avatarUrl: newUrl } = await uploadAvatar(file);
+            updateUser({ avatarUrl: newUrl });
+        } catch (err) {
+            setAvatarError(err.response?.data?.message || "Couldn't upload your photo. Please try again.");
+        } finally {
+            setAvatarUploading(false);
+        }
+    };
 
     return (
         <header className="relative isolate w-full shrink-0 overflow-hidden rounded-b-[20px] border border-[#ebe5ff] bg-[#fbf9ff] shadow-[0_4px_24px_rgba(84,38,199,0.06)] md:h-30 md:rounded-b-none md:rounded-r-3xl">
@@ -80,30 +127,68 @@ export const Header = ({
                 <NotificationBell />
 
                 {/* Profile */}
-                <button
-                    type="button"
-                    aria-label="Profile"
-                    className="flex items-center justify-center rounded-full transition hover:scale-105"
-                >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full md:h-12.5 md:w-12.5 border-2 border-white bg-[#cfe8c1] shadow-[0_3px_12px_rgba(80,50,30,0.10)]"
-                    onClick={() => {
-                        // Handle profile click, e.g., navigate to profile page or open a dropdown
-                        // console.log("Profile button clicked");
-                        navigate("/settings"); // Example navigation to profile page
-                    }}>
-                        {avatarUrl ? (
-                            <img
-                                src={avatarUrl}
-                                alt={userName}
-                                className="h-full w-full object-cover"
+                <div className="relative">
+                    <button
+                        type="button"
+                        aria-label={isSuperAdmin ? "Change profile photo" : "Profile"}
+                        title={isSuperAdmin ? "Change profile photo" : undefined}
+                        disabled={isSuperAdmin && avatarUploading}
+                        onClick={() =>
+                            isSuperAdmin ? fileInputRef.current?.click() : navigate("/settings")
+                        }
+                        className="flex items-center justify-center rounded-full transition hover:scale-105"
+                    >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full md:h-12.5 md:w-12.5 border-2 border-white bg-[#cfe8c1] shadow-[0_3px_12px_rgba(80,50,30,0.10)]">
+                            {avatarUrl ? (
+                                <img
+                                    src={avatarUrl}
+                                    alt={userName}
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <span className="text-[17px] font-bold text-[#33502a]">
+                                    {userName.charAt(0)}
+                                </span>
+                            )}
+                        </div>
+                    </button>
+
+                    {isSuperAdmin && (
+                        <>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="hidden"
+                                onChange={handleAvatarChange}
                             />
-                        ) : (
-                            <span className="text-[17px] font-bold text-[#33502a]">
-                                {userName.charAt(0)}
-                            </span>
-                        )}
-                    </div>
-                </button>
+
+                            {/* Camera badge */}
+                            <button
+                                type="button"
+                                aria-label="Change profile photo"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={avatarUploading}
+                                className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-(--tint) bg-white text-(--accent) shadow-md transition hover:scale-110 disabled:opacity-70 md:h-6 md:w-6"
+                            >
+                                {avatarUploading ? (
+                                    <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                    <Camera size={12} />
+                                )}
+                            </button>
+
+                            {avatarError && (
+                                <div
+                                    role="alert"
+                                    className="absolute right-0 top-full z-40 mt-2 w-56 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600 shadow-md"
+                                >
+                                    {avatarError}
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
 
 

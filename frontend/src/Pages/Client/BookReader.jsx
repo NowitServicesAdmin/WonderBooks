@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
 import { BookViewer } from "../../Components/BookViewer";
 import { BookInfoPage } from "../../Components/BookInfoPage";
 import { BookActions } from "../../Components/BookActions";
-import { getBookById } from "../../services/bookService";
+import {
+  getBookById,
+  updateBookPageText,
+} from "../../services/bookService";
 
 const POLL_MS = 5000;
 
@@ -128,6 +132,7 @@ export const BookReader = () => {
       ...book.pages.map((p, i) => ({
         kind: "story",
         imageKey: String(i),
+        pageId: p._id,
         image: p.imageUrl,
         text: p.content,
       })),
@@ -140,6 +145,95 @@ export const BookReader = () => {
       },
     ];
   }, [book]);
+
+  // =======================================================
+  // Edit page text (text only - images are never editable)
+  // =======================================================
+
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // The textarea lives inside the flip book; its draft is kept in a ref
+  // so typing never re-renders the whole book.
+  const draftRef = useRef("");
+
+  const handleDraftChange = useCallback((value) => {
+    draftRef.current = value;
+  }, []);
+
+  const activePage = pages[currentPageIndex];
+
+  const canEdit =
+    book?.status === "completed" &&
+    activePage?.kind === "story" &&
+    Boolean(activePage?.pageId);
+
+  const startEdit = () => {
+    if (!canEdit) return;
+    draftRef.current = activePage.text || "";
+    setEditing(true);
+  };
+
+  const cancelEdit = () => {
+    if (saving) return;
+    setEditing(false);
+  };
+
+  // Returns { ok } or { ok: false, message } so BookActions can show a notice.
+  const saveEdit = async () => {
+    if (!editing || saving || !activePage?.pageId) {
+      return { ok: false };
+    }
+
+    const content = draftRef.current;
+
+    if (!content.trim()) {
+      return { ok: false, message: "Page text can't be empty." };
+    }
+
+    // nothing changed
+    if (content === activePage.text) {
+      setEditing(false);
+      return { ok: false };
+    }
+
+    setSaving(true);
+
+    try {
+      const saved = await updateBookPageText(
+        book._id,
+        activePage.pageId,
+        content
+      );
+
+      setBook((prev) => ({
+        ...prev,
+        pages: prev.pages.map((p) =>
+          String(p._id) === String(activePage.pageId)
+            ? { ...p, content: saved }
+            : p
+        ),
+      }));
+
+      setEditing(false);
+
+      return { ok: true };
+    } catch (err) {
+      return {
+        ok: false,
+        message:
+          err.response?.data?.message ||
+          "Couldn't save your changes. Please try again.",
+      };
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Safety: if the visible page ever changes, leave edit mode.
+  useEffect(() => {
+    setEditing(false);
+  }, [currentPageIndex]);
 
   // =======================================================
   // Loading
@@ -305,6 +399,13 @@ export const BookReader = () => {
             onNextPage={() => {
               nextPageHandler?.();
             }}
+
+            canEdit={canEdit}
+            editing={editing}
+            saving={saving}
+            onStartEdit={startEdit}
+            onSaveEdit={saveEdit}
+            onCancelEdit={cancelEdit}
           />
         </div>
       </div>
@@ -331,6 +432,11 @@ export const BookReader = () => {
            */
           onNextPageReady={
             setNextPageHandler
+          }
+
+          editing={editing}
+          onDraftChange={
+            handleDraftChange
           }
 
           renderInfoPage={(page) => (

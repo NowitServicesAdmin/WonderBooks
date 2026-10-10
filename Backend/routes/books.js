@@ -1,4 +1,4 @@
-import { createBook, getMyBooks, acknowledgeFailures, getBookById, getBookImage, testImagePrompts ,chatBook, toggleFavorite} from "../controllers/books.js";
+import { createBook, getMyBooks, acknowledgeFailures, getBookById, getBookImage, testImagePrompts ,chatBook, toggleFavorite, updatePageText, deleteBook} from "../controllers/books.js";
 import express,{ Router } from "express";
 import { uploadCharacterPhotos } from "../middleware/upload.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -9,7 +9,9 @@ router.post("/chat", requireAuth, express.json({ limit: "1mb" }), chatBook);
 router.get("/", requireAuth, getMyBooks);
 router.post("/failures/ack", requireAuth, express.json({ limit: "10kb" }), acknowledgeFailures);
 router.patch("/:bookId/favorite", requireAuth, express.json({ limit: "10kb" }), toggleFavorite);
+router.patch("/:bookId/pages/:pageId", requireAuth, express.json({ limit: "20kb" }), updatePageText);
 router.get("/:bookId", requireAuth, getBookById);
+router.delete("/:bookId", requireAuth, deleteBook);
 router.get("/:bookId/image/:index", requireAuth, getBookImage);
 
 export default router;
