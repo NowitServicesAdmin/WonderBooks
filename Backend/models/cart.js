@@ -4,6 +4,11 @@ const CartItemSchema = new mongoose.Schema(
     {
         book: { type: mongoose.Schema.Types.ObjectId, ref: "Book", required: true },
         quantity: { type: Number, default: 1, min: 1 },
+        printOptions: {
+            cover: { type: String, default: "soft" },
+            pages: { type: String, default: "normal" },
+            size: { type: String, default: "a5" },
+        },
         addedAt: { type: Date, default: Date.now },
     },
     { _id: false }

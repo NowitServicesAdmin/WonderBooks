@@ -7,6 +7,7 @@ import {
     Check,
     Loader2,
     Minus,
+    Settings2,
     Plus,
     ShieldCheck,
     ShoppingCart,
@@ -21,6 +22,7 @@ import { deleteAddress, getAddresses } from "../../services/addressService";
 import { AddressSection } from "../../Components/printOrder/AddressSection";
 import { AddressFormModal } from "../../Components/printOrder/AddressFormModal";
 import { e164Phone } from "../../utils/phone";
+import { PrintOptionsModal } from "../../Components/PrintOptionsModal";
 
 const money = (amount) => `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 const copies = (n) => `${n} ${n === 1 ? "copy" : "copies"}`;
@@ -53,7 +55,7 @@ const Steps = ({ current }) => {
 };
 
 // One book in the cart
-const CartItem = ({ item, maxQuantity, disabled, onQuantity, onRemove, onOpen }) => {
+const CartItem = ({ item, maxQuantity, disabled, onQuantity, onRemove, onOpen, onEditOptions }) => {
     const { book, quantity } = item;
     return (
         <section className="rounded-3xl border border-(--border) bg-(--surface) p-4 sm:p-6">
@@ -83,6 +85,27 @@ const CartItem = ({ item, maxQuantity, disabled, onQuantity, onRemove, onOpen })
                                 Printed storybook · {item.pageCount} story pages
                             </p>
                             <p className="mt-1 text-sm font-bold text-(--accent)">{money(item.unitPrice)} each</p>
+
+                            {item.printOptionLabels?.length > 0 && (
+                                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                    {item.printOptionLabels.map((label) => (
+                                        <span
+                                            key={label}
+                                            className="rounded-full bg-(--tint) px-2.5 py-0.5 text-[11px] font-bold text-(--accent)"
+                                        >
+                                            {label}
+                                        </span>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={() => onEditOptions(item)}
+                                        disabled={disabled}
+                                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold text-(--text-muted) underline-offset-2 transition hover:text-(--accent) hover:underline disabled:opacity-40"
+                                    >
+                                        <Settings2 size={12} /> Change
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <button
                             type="button"
@@ -138,8 +161,11 @@ const CartItem = ({ item, maxQuantity, disabled, onQuantity, onRemove, onOpen })
 export const PrintCart = () => {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { items, totals, loaded, refresh, updateQuantity, removeItem } = useCart();
+    const { items, totals, loaded, refresh, updateQuantity, updatePrintOptions, removeItem } = useCart();
     const { openCheckout } = useRazorpayCheckout();
+
+    // the cart item whose print options are being changed (null = modal closed)
+    const [editingItem, setEditingItem] = useState(null);
 
     const [cartBusy, setCartBusy] = useState(false);
     const [cartError, setCartError] = useState("");
@@ -232,7 +258,7 @@ export const PrintCart = () => {
         return () => {
             cancelled = true;
         };
-    }, [selectedId, items.length, totals.itemCount]);
+    }, [selectedId, items.length, totals.itemCount, totals.subtotal]);
 
     const runCartAction = async (action) => {
         if (cartBusy || paying) return;
@@ -249,6 +275,12 @@ export const PrintCart = () => {
     };
 
     const handleRemove = (bookId) => runCartAction(() => removeItem(bookId));
+
+    const handleSaveOptions = async (printOptions) => {
+        const result = await updatePrintOptions(editingItem.book._id, printOptions);
+        if (result.ok) setEditingItem(null);
+        return result;
+    };
 
     const handleDeleteAddress = async (address) => {
         try {
@@ -394,6 +426,7 @@ export const PrintCart = () => {
                             onQuantity={handleQuantity}
                             onRemove={handleRemove}
                             onOpen={(id) => navigate(`/books/${id}`)}
+                            onEditOptions={setEditingItem}
                         />
                     ))}
                     {cartError && <p className="text-xs font-semibold text-[#c0392b]">{cartError}</p>}
@@ -417,8 +450,13 @@ export const PrintCart = () => {
                     <dl className="mt-4 space-y-3 text-sm">
                         {items.map((item) => (
                             <div key={item.book._id} className="flex justify-between gap-3">
-                                <dt className="min-w-0 truncate text-(--text-muted)">
-                                    {item.book.title} × {item.quantity}
+                                <dt className="min-w-0 text-(--text-muted)">
+                                    <span className="block truncate">
+                                        {item.book.title} × {item.quantity}
+                                    </span>
+                                    {item.printOptionLabels?.length > 0 && (
+                                        <span className="block text-[11px]">{item.printOptionLabels.join(" · ")}</span>
+                                    )}
                                 </dt>
                                 <dd className="shrink-0 font-bold text-(--text-heading)">{money(item.lineTotal)}</dd>
                             </div>
@@ -506,6 +544,17 @@ export const PrintCart = () => {
                     }}
                 />
             )}
+
+            <PrintOptionsModal
+                isOpen={Boolean(editingItem)}
+                onClose={() => setEditingItem(null)}
+                onConfirm={handleSaveOptions}
+                bookId={editingItem?.book._id}
+                bookTitle={editingItem?.book.title}
+                initialOptions={editingItem?.printOptions}
+                title="Change print options"
+                confirmLabel="Save changes"
+            />
         </div>
     );
 };

@@ -78,6 +78,18 @@ const OrderSchema = new mongoose.Schema(
             type: Number,
             default: null,
         },
+        
+        printOptions: {
+            cover: { type: String, default: "soft" },
+            coverLabel: { type: String, default: "Soft cover" },
+            pages: { type: String, default: "normal" },
+            pagesLabel: { type: String, default: "Normal pages" },
+            size: { type: String, default: "a5" },
+            sizeLabel: { type: String, default: "A5" },
+            widthMm: { type: Number, default: 148 },
+            heightMm: { type: Number, default: 210 },
+            extraPrice: { type: Number, default: 0 },
+        },
 
         shippingFee: {
             type: Number,

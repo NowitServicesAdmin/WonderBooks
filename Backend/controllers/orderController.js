@@ -14,6 +14,13 @@ import {
   PRINT_CURRENCY,
 } from "../config/printPricing.js";
 import { loadBookSummaries, loadCartLines } from "../services/cartService.js";
+import {
+  decodePrintOptions,
+  describePrintOptions,
+  encodePrintOptions,
+  normalizePrintOptions,
+  snapshotPrintOptions,
+} from "../config/printOptions.js";
 import { notify } from "../services/alertService.js"; // ALERTS
 import {
   getDeliveryQuote,
@@ -145,6 +152,8 @@ const toClientOrder = (order) => ({
   currency: order.currency,
   quantity: order.quantity || 1,
   unitPrice: order.unitPrice ?? null,
+  printOptions: order.printOptions || snapshotPrintOptions(),
+  printOptionLabels: describePrintOptions(order.printOptions),
   subtotal: order.subtotal ?? null,
   shippingFee: order.shippingFee || 0,
   gstPercent: order.gst || 0,
@@ -201,7 +210,7 @@ export const getOrderQuote = async (req, res) => {
         title: book.title,
         coverImageUrl: book.coverImageUrl || null,
       },
-      quote: getOrderTotals(book, req.query.quantity),
+      quote: getOrderTotals(book, req.query.quantity, normalizePrintOptions(req.query)),
     });
   } catch (error) {
     console.error("getOrderQuote error:", error);
@@ -212,7 +221,7 @@ export const getOrderQuote = async (req, res) => {
 };
 
 // Lines to charge for: one book ("buy now") or the whole cart
-const loadCheckoutLines = async ({ userId, bookId, quantity }) => {
+const loadCheckoutLines = async ({ userId, bookId, quantity, printOptions }) => {
   if (bookId) {
     const { book, status, message } = await loadPrintableBook(bookId, userId);
     if (!book) return { status, message };
@@ -222,6 +231,7 @@ const loadCheckoutLines = async ({ userId, bookId, quantity }) => {
           bookId: String(book._id),
           quantity,
           pageCount: book.pages?.length || 0,
+          printOptions: normalizePrintOptions(printOptions),
         },
       ],
     };
@@ -232,10 +242,7 @@ const loadCheckoutLines = async ({ userId, bookId, quantity }) => {
   return { lines };
 };
 
-// The ONE place that decides what the customer pays. Used by the cart-page
-// quote AND by initiateOrder, so both always agree. Nothing here comes from
-// the browser except addressId / bookId / quantity.
-const buildCheckoutQuote = async ({ userId, bookId, quantity, addressId, shippingAddress }) => {
+const buildCheckoutQuote = async ({ userId, bookId, quantity, printOptions, addressId, shippingAddress }) => {
   const { shipping, error } = await resolveShippingAddress({
     userId,
     addressId,
@@ -243,7 +250,7 @@ const buildCheckoutQuote = async ({ userId, bookId, quantity, addressId, shippin
   });
   if (error) return { status: 400, message: error };
 
-  const loaded = await loadCheckoutLines({ userId, bookId, quantity });
+  const loaded = await loadCheckoutLines({ userId, bookId, quantity, printOptions });
   if (!loaded.lines) return loaded;
 
   const totals = getCartTotals(loaded.lines);
@@ -263,24 +270,63 @@ const buildCheckoutQuote = async ({ userId, bookId, quantity, addressId, shippin
   };
 };
 
-// "bookId:qty,bookId:qty" - what a Razorpay order carries about its items
-const encodeItems = (lines) =>
-  lines.map((line) => `${line.bookId}:${line.quantity}`).join(",");
+const NOTE_VALUE_LIMIT = 250;
+
+const encodeItemNotes = (lines) => {
+  const parts = lines.map(
+    (line) => `${line.bookId}:${line.quantity}:${encodePrintOptions(line.printOptions)}`,
+  );
+  const chunks = [];
+  let current = "";
+  for (const part of parts) {
+    const next = current ? `${current},${part}` : part;
+    if (current && next.length > NOTE_VALUE_LIMIT) {
+      chunks.push(current);
+      current = part;
+    } else {
+      current = next;
+    }
+  }
+  if (current) chunks.push(current);
+
+  return Object.fromEntries(
+    chunks.map((chunk, index) => [index === 0 ? "items" : `items${index + 1}`, chunk]),
+  );
+};
+
+const readItemNotes = (notes = {}) => {
+  const chunks = [];
+  for (let n = 1; ; n += 1) {
+    const value = notes[n === 1 ? "items" : `items${n}`];
+    if (!value) break;
+    chunks.push(String(value));
+  }
+  return chunks.join(",");
+};
 
 const decodeItems = (notes = {}) => {
-  if (notes.items) {
-    return String(notes.items)
+  const encoded = readItemNotes(notes);
+  if (encoded) {
+    return encoded
       .split(",")
       .map((part) => {
-        const [bookId, qty] = part.split(":");
-        return { bookId, quantity: normalizeQuantity(qty) };
+        const [bookId, qty, opts] = part.split(":");
+        return {
+          bookId,
+          quantity: normalizeQuantity(qty),
+          printOptions: decodePrintOptions(opts),
+        };
       })
       .filter((item) => mongoose.isValidObjectId(item.bookId));
   }
   // Payments started before the cart existed carried a single book
   if (notes.bookId && mongoose.isValidObjectId(notes.bookId)) {
     return [
-      { bookId: notes.bookId, quantity: normalizeQuantity(notes.quantity) },
+      {
+        bookId: notes.bookId,
+        quantity: normalizeQuantity(notes.quantity),
+        printOptions: decodePrintOptions(),
+      },
     ];
   }
   return [];
@@ -292,12 +338,13 @@ const decodeItems = (notes = {}) => {
 // Delivery charge + GST are calculated HERE, never taken from the browser.
 export const initiateOrder = async (req, res) => {
   try {
-    const { bookId, addressId, shippingAddress, quantity } = req.body;
+    const { bookId, addressId, shippingAddress, quantity, printOptions } = req.body;
 
     const result = await buildCheckoutQuote({
       userId: req.userId,
       bookId,
       quantity,
+      printOptions,
       addressId,
       shippingAddress,
     });
@@ -315,7 +362,7 @@ export const initiateOrder = async (req, res) => {
       receipt: `print_${req.userId}_${Date.now()}`,
       notes: {
         userId: req.userId.toString(),
-        items: encodeItems(totals.lines),
+        ...encodeItemNotes(totals.lines),
 
         shippingFee: String(delivery.deliveryCharge), // what the customer pays
         baseRate: String(delivery.baseRate), // what Shiprocket charges us
@@ -453,6 +500,7 @@ export const verifyOrder = async (req, res) => {
         bookId: i.bookId,
         quantity: i.quantity,
         pageCount: byId.get(i.bookId).pageCount,
+        printOptions: i.printOptions,
       })),
     ).lines;
 
@@ -476,6 +524,7 @@ export const verifyOrder = async (req, res) => {
 
         quantity: line.quantity,
         unitPrice: line.unitPrice,
+        printOptions: snapshotPrintOptions(line.printOptions),
         subtotal: line.lineTotal,
         shippingFee: first ? deliveryCharge : 0,
         gst: gstPercent, // existing schema field holds the GST %

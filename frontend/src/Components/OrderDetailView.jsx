@@ -214,7 +214,7 @@ export default function OrderDetailView({ order, onBack, onCancel, cancelling = 
       </div>
 
       {/* Items */}
-      <div className={`${card} mt-4`}>
+      {/* <div className={`${card} mt-4`}>
         <h3 className={`${ui.text} text-sm font-semibold`}>Order Items</h3>
         <div className="mt-3 flex items-center gap-4">
           <BookCover book={order.book} className="h-19 w-15" />
@@ -225,7 +225,7 @@ export default function OrderDetailView({ order, onBack, onCancel, cancelling = 
           <span className={`${ui.muted} text-[13px]`}>Qty: {order.quantity}</span>
           <span className={`${ui.text} text-base font-bold`}>₹{order.price}</span>
         </div>
-      </div>
+      </div> */}
 
       {/* Cancel (only while still "confirmed", as before) */}
       {order.rawStatus === "confirmed" && (

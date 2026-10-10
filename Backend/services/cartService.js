@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Cart from "../models/cart.js";
 import Book from "../models/book.js";
 import { getCartTotals } from "../config/printPricing.js";
+import { normalizePrintOptions, describePrintOptions } from "../config/printOptions.js";
 
 const toObjectIds = (ids) => ids.map((id) => new mongoose.Types.ObjectId(String(id)));
 
@@ -48,6 +49,7 @@ export const loadCartLines = async (userId) => {
             coverImageUrl: book.coverImageUrl || null,
             pageCount: book.pageCount,
             quantity: item.quantity,
+            printOptions: normalizePrintOptions(item.printOptions),
         });
     }
 
@@ -71,6 +73,8 @@ export const buildCartView = async (userId) => {
             },
             pageCount: line.pageCount,
             quantity: line.quantity,
+            printOptions: line.printOptions,
+            printOptionLabels: describePrintOptions(line.printOptions),
             unitPrice: line.unitPrice,
             lineTotal: line.lineTotal,
         })),

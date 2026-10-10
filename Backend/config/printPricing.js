@@ -1,5 +1,7 @@
-const BASE_PRICE = 599;
-const BASE_PAGE_LIMIT = 20;
+import { getPrintOptionsPrice } from "./printOptions.js";
+
+const BASE_PRICE = 499;
+const BASE_PAGE_LIMIT = 10;
 const PRICE_PER_EXTRA_PAGE = 15;
 
 export const SHIPPING_FEE = 0;
@@ -10,12 +12,13 @@ export const MAX_CART_ITEMS = 8;
 
 export const PRINT_CURRENCY = "INR";
 
-export const getPrintPriceForPageCount = (pageCount = 0) => {
+export const getPrintPriceForPageCount = (pageCount = 0, printOptions) => {
     const extraPages = Math.max(0, Number(pageCount) - BASE_PAGE_LIMIT);
-    return BASE_PRICE + extraPages * PRICE_PER_EXTRA_PAGE;
+    return BASE_PRICE + extraPages * PRICE_PER_EXTRA_PAGE + getPrintOptionsPrice(printOptions);
 };
 
-export const getPrintPrice = (book) => getPrintPriceForPageCount(book?.pages?.length || 0);
+export const getPrintPrice = (book, printOptions) =>
+    getPrintPriceForPageCount(book?.pages?.length || 0, printOptions);
 
 export const normalizeQuantity = (value) => {
     const qty = Math.floor(Number(value));
@@ -23,9 +26,9 @@ export const normalizeQuantity = (value) => {
     return Math.min(qty, MAX_COPIES_PER_ORDER);
 };
 
-export const getOrderTotals = (book, quantity = 1) => {
+export const getOrderTotals = (book, quantity = 1, printOptions) => {
     const qty = normalizeQuantity(quantity);
-    const unitPrice = getPrintPrice(book);
+    const unitPrice = getPrintPrice(book, printOptions);
     const subtotal = unitPrice * qty;
     const shippingFee = SHIPPING_FEE;
     return {
@@ -43,7 +46,7 @@ export const getOrderTotals = (book, quantity = 1) => {
 export const getCartTotals = (lines = []) => {
     const priced = lines.map((line) => {
         const quantity = normalizeQuantity(line.quantity);
-        const unitPrice = getPrintPriceForPageCount(line.pageCount);
+        const unitPrice = getPrintPriceForPageCount(line.pageCount, line.printOptions);
         return {
             ...line,
             quantity,

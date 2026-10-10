@@ -70,9 +70,9 @@ export const CartProvider = ({ children }) => {
 
     // Each action resolves to { ok, message?, alreadyInCart? } so callers can show feedback
     const addToCart = useCallback(
-        async (bookId) => {
+        async (bookId, printOptions) => {
             try {
-                const { data } = await cartApi.addCartItem(bookId);
+                const { data } = await cartApi.addCartItem(bookId, 1, printOptions);
                 apply(data);
                 return { ok: true, alreadyInCart: Boolean(data.alreadyInCart) };
             } catch (err) {
@@ -90,6 +90,19 @@ export const CartProvider = ({ children }) => {
                 return { ok: true };
             } catch (err) {
                 return { ok: false, message: errorMessage(err, "Couldn't update your cart.") };
+            }
+        },
+        [apply],
+    );
+
+    const updatePrintOptions = useCallback(
+        async (bookId, printOptions) => {
+            try {
+                const { data } = await cartApi.updateCartPrintOptions(bookId, printOptions);
+                apply(data);
+                return { ok: true };
+            } catch (err) {
+                return { ok: false, message: errorMessage(err, "Couldn't update the print options.") };
             }
         },
         [apply],
@@ -119,9 +132,10 @@ export const CartProvider = ({ children }) => {
             refresh,
             addToCart,
             updateQuantity,
+            updatePrintOptions,
             removeItem,
         }),
-        [hasCart, items, totals, loaded, refresh, addToCart, updateQuantity, removeItem],
+        [hasCart, items, totals, loaded, refresh, addToCart, updateQuantity, updatePrintOptions, removeItem],
     );
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

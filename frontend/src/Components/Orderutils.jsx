@@ -71,7 +71,9 @@ const TAG = "rounded-md px-2 py-0.5 text-[11px] font-medium";
 export function OrderTags({ book }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <span className={`${TAG} bg-violet-500/10 text-violet-700 dark:text-violet-300`}>{book?.binding || "Hardcover"}</span>
+      {book?.binding && <span className={`${TAG} bg-violet-500/10 text-violet-700 dark:text-violet-300`}>{book.binding}</span>}
+      {book?.pagesFinish && <span className={`${TAG} bg-emerald-500/10 text-emerald-700 dark:text-emerald-300`}>{book.pagesFinish}</span>}
+      {book?.size && <span className={`${TAG} bg-amber-500/10 text-amber-700 dark:text-amber-300`}>{book.size}</span>}
       {book?.language && <span className={`${TAG} bg-sky-500/10 text-sky-700 dark:text-sky-300`}>{book.language}</span>}
       {book?.ageRange && <span className={`${TAG} bg-orange-500/10 text-orange-700 dark:text-orange-300`}>Ages {book.ageRange}</span>}
     </div>

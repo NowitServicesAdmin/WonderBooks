@@ -738,6 +738,7 @@ export const getOrderDetail = async (req, res) => {
                 ...toAdminOrder(o),
                 quantity: o.quantity || 1,
                 unitPrice: o.unitPrice,
+                printOptions: o.printOptions || null,
                 shippingFee: o.shippingFee || 0,
                 subtotal: o.subtotal,
                 gstAmount: o.gstAmount,

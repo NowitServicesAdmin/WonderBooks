@@ -1079,11 +1079,14 @@ const mapOrder = (apiOrder) => {
       title: apiOrder.book?.title,
       cover: apiOrder.book?.coverImageUrl,
       // optional – tags are hidden if the API doesn't send them
-      binding: apiOrder.book?.binding,
+      binding: apiOrder.printOptions?.coverLabel || apiOrder.book?.binding,
+      pagesFinish: apiOrder.printOptions?.pagesLabel,
       language: apiOrder.book?.language,
       ageRange: apiOrder.book?.ageRange,
       pages: apiOrder.book?.pageCount,
-      size: apiOrder.book?.size,
+      size: apiOrder.printOptions?.widthMm
+        ? `${apiOrder.printOptions.sizeLabel} · ${apiOrder.printOptions.widthMm} × ${apiOrder.printOptions.heightMm} mm`
+        : apiOrder.book?.size,
     },
   };
 };

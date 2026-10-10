@@ -2,7 +2,9 @@ import mongoose from "mongoose";
 import Cart from "../models/cart.js";
 import Book from "../models/book.js";
 import { MAX_CART_ITEMS, normalizeQuantity } from "../config/printPricing.js";
-import { buildCartView } from "../services/cartService.js";
+import { buildCartView, loadBookSummaries } from "../services/cartService.js";
+import { getPrintPriceForPageCount } from "../config/printPricing.js";
+import { getPublicPrintOptions, parsePrintOptions } from "../config/printOptions.js";
 
 const fail = (res, status, message) =>
   res.status(status).json({ success: false, message });
@@ -21,12 +23,32 @@ export const getCart = async (req, res) => {
   }
 };
 
+export const getPrintOptions = async (req, res) => {
+  try {
+    const { bookId } = req.query;
+    let basePrice = null;
+
+    if (bookId && mongoose.isValidObjectId(bookId)) {
+      const [book] = await loadBookSummaries(req.userId, [bookId], { completedOnly: false });
+      if (book) basePrice = getPrintPriceForPageCount(book.pageCount);
+    }
+
+    return res.json({ success: true, ...getPublicPrintOptions(), basePrice });
+  } catch (error) {
+    console.error("getPrintOptions error:", error);
+    return fail(res, 500, "Unable to load the print options");
+  }
+};
+
 export const addToCart = async (req, res) => {
   try {
     const { bookId } = req.body;
     if (!bookId || !mongoose.isValidObjectId(bookId)) {
       return fail(res, 400, "A valid bookId is required");
     }
+
+    const parsed = parsePrintOptions(req.body.printOptions);
+    if (parsed.error) return fail(res, 400, parsed.error);
 
     const book = await Book.findOne({ _id: bookId, user: req.userId, isDeleted: { $ne: true } })
       .select("status")
@@ -57,7 +79,11 @@ export const addToCart = async (req, res) => {
       );
     }
 
-    cart.items.push({ book: bookId, quantity: normalizeQuantity(req.body.quantity) });
+    cart.items.push({
+      book: bookId,
+      quantity: normalizeQuantity(req.body.quantity),
+      printOptions: parsed.options,
+    });
     await cart.save();
 
     return await sendCart(res, req.userId, { alreadyInCart: false });
@@ -76,7 +102,17 @@ export const updateCartItem = async (req, res) => {
     const item = cart?.items.find((i) => String(i.book) === String(bookId));
     if (!item) return fail(res, 404, "That book isn't in your cart");
 
-    item.quantity = normalizeQuantity(req.body.quantity);
+    // Either field can be sent on its own: { quantity } and/or { printOptions }
+    const { quantity, printOptions } = req.body;
+
+    if (printOptions !== undefined) {
+      const parsed = parsePrintOptions(printOptions);
+      if (parsed.error) return fail(res, 400, parsed.error);
+      item.printOptions = parsed.options;
+    }
+    if (quantity !== undefined) {
+      item.quantity = normalizeQuantity(quantity);
+    }
     await cart.save();
 
     return await sendCart(res, req.userId);

@@ -21,6 +21,7 @@ import { downloadBookPdf, printBook } from "../utils/bookExport";
 import { useNavigate } from "react-router-dom";
 import { useTTS } from "../hooks/useTTs";
 import { useCart } from "../context/CartContext";
+import { PrintOptionsModal } from "./PrintOptionsModal";
 
 const BTN =
   "inline-flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold transition disabled:pointer-events-none disabled:opacity-50 sm:px-4";
@@ -178,7 +179,8 @@ export const BookActions = ({
   const { addToCart, isInCart } =
     useCart();
 
-  const [addingToCart, setAddingToCart] =
+  // The print-options modal ("soft/hard cover, laminated pages, size")
+  const [showPrintOptions, setShowPrintOptions] =
     useState(false);
 
   // Templates are previews, not saved books.
@@ -761,39 +763,36 @@ export const BookActions = ({
   // Cart
   // =======================================================
 
-  const handleCart = async () => {
-    if (addingToCart) {
-      return;
-    }
-
+  // Clicking the cart button asks how the book should be printed first.
+  const handleCart = () => {
     if (inCart) {
       navigate("/cart");
       return;
     }
 
-    setAddingToCart(true);
+    setShowPrintOptions(true);
+  };
 
-    try {
+  // Called by the modal with { cover, pages, size }. Returning { ok: false }
+  // keeps the modal open so the message is shown inside it.
+  const handleConfirmPrintOptions =
+    async (printOptions) => {
       const result =
         await addToCart(
-          book._id
+          book._id,
+          printOptions
         );
 
       if (result.ok) {
+        setShowPrintOptions(false);
         flash(
           "ok",
           "Added to your cart."
         );
-      } else {
-        flash(
-          "error",
-          result.message
-        );
       }
-    } finally {
-      setAddingToCart(false);
-    }
-  };
+
+      return result;
+    };
 
   // =======================================================
   // Print
@@ -942,7 +941,6 @@ export const BookActions = ({
         disabled={
           book.status !== "completed" ||
           isTemplate ||
-          addingToCart ||
           editing
         }
         aria-label={
@@ -965,12 +963,7 @@ export const BookActions = ({
             : BTN_IDLE
         }`}
       >
-        {addingToCart ? (
-          <Loader2
-            size={17}
-            className="animate-spin"
-          />
-        ) : inCart ? (
+        {inCart ? (
           <Check size={17} />
         ) : (
           <ShoppingCartIcon
@@ -1176,6 +1169,22 @@ export const BookActions = ({
           </div>
         )}
       </div>
+
+      {/* ---------------------------------------------------
+          Print options (opens from the cart button)
+      --------------------------------------------------- */}
+
+      <PrintOptionsModal
+        isOpen={showPrintOptions}
+        onClose={() =>
+          setShowPrintOptions(false)
+        }
+        onConfirm={
+          handleConfirmPrintOptions
+        }
+        bookId={book._id}
+        bookTitle={book.title}
+      />
     </div>
   );
 };
