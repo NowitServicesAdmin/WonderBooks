@@ -23,7 +23,7 @@ import { ProtectedRoute, RoleHomeRedirect, RoleRoute } from './protectedRoute/Pr
 import HomePage from './Pages/Home/page'
 import Privacy from './Pages/Home/Privacy'
 import Terms from './Pages/Home/terms'
-
+import Refund from './Pages/Home/refund'
 export const Router=createBrowserRouter([
     {
         path:'/',
@@ -44,6 +44,10 @@ export const Router=createBrowserRouter([
     {
         path:'/terms',
         element:<Terms />
+    },
+    {
+        path:'/refund',
+        element:<Refund />
     },
     {
         element:<ProtectedRoute />,

@@ -1,22 +1,1041 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  Search,
-  ChevronRight,
-  X,
-  Package,
-  Check,
-  Printer,
-  Truck,
-  BookOpen,
-  Pencil,
-  Trash2,
-  ShoppingBag,
-  Loader2,
-} from "lucide-react";
-import { CartButton } from "../../Components/CartButton";
+// import React, { useEffect, useMemo, useState } from "react";
+// import {
+//   Search,
+//   ChevronRight,
+//   X,
+//   Package,
+//   Check,
+//   Printer,
+//   Truck,
+//   BookOpen,
+//   Pencil,
+//   Trash2,
+//   ShoppingBag,
+//   Loader2,
+// } from "lucide-react";
+// import { CartButton } from "../../Components/CartButton";
+// import {
+//   getMyOrders,
+//   getOrderTracking,
+//   cancelOrder as cancelOrderRequest,
+// } from "../../services/orderService";
+
+// /* -------------------------------------------------------------------------- */
+// /*                                  ORDER DATA                                */
+// /* -------------------------------------------------------------------------- */
+
+// // Backend status -> the label/step the (mock-era) UI below was built around.
+// const STATUS_LABELS = {
+//   confirmed: "In Progress",
+//   printing: "In Progress",
+//   shipped: "Shipped",
+//   delivered: "Delivered",
+//   cancelled: "Cancelled",
+// };
+
+// // Shapes a /api/orders row into what the components on this page expect.
+// const mapOrder = (apiOrder) => {
+//   const created = new Date(apiOrder.createdAt);
+
+//   return {
+//     orderId: apiOrder.orderNumber,
+//     _id: apiOrder._id,
+//     status: STATUS_LABELS[apiOrder.status] || "In Progress",
+//     rawStatus: apiOrder.status,
+//     date: created.toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" }),
+//     time: created.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
+//     price: apiOrder.amount,
+//     subtotal:
+//       apiOrder.subtotal ??
+//       apiOrder.amount - (apiOrder.shippingFee || 0) - (apiOrder.gstAmount || 0),
+//     shippingFee: apiOrder.shippingFee || 0,
+//     gstPercent: apiOrder.gstPercent || 0,
+//     gstAmount: apiOrder.gstAmount || 0,
+//     shipment: apiOrder.shipment || null,
+//     statusStep: apiOrder.statusStep,
+//     shippingAddress: apiOrder.shippingAddress,
+//     book: {
+//       title: apiOrder.book?.title,
+//       cover: apiOrder.book?.coverImageUrl,
+//     },
+//   };
+// };
+
+// const steps = [
+//   {
+//     key: "confirmed",
+//     label: "Confirmed",
+//     icon: Check,
+//   },
+//   {
+//     key: "printing",
+//     label: "Printing",
+//     icon: Printer,
+//   },
+//   {
+//     key: "shipped",
+//     label: "Shipped",
+//     icon: Truck,
+//   },
+//   {
+//     key: "delivered",
+//     label: "Delivered",
+//     icon: BookOpen,
+//   },
+// ];
+// // status Helpers
+
+// const statusStyles = {
+//   "In Progress":
+//     "border-[#f3d6b6] bg-[#fffaf3] text-[#c87520]",
+
+//   Delivered:
+//     "border-[#bfe3d7] bg-[#f2fbf7] text-[#317d65]",
+
+//   Shipped:
+//     "border-[#bcd8ef] bg-[#f4f9fd] text-[#3d77a6]",
+
+//   Cancelled:
+//     "border-[#f3caca] bg-[#fff7f7] text-[#c95a55]",
+// };
+
+// const getStatusClass = (status) =>
+//   statusStyles[status] || statusStyles["In Progress"];
+
+// // Physical Book card
+// const BookCover = ({
+//   book,
+//   size = "small",
+//   className = "",
+// }) => {
+//   const sizes = {
+//     small: {
+//       wrapper: "w-[102px] h-[142px]",
+//       spine: "w-[10px]",
+//     },
+//     large: {
+//       wrapper: "w-[170px] h-[205px]",
+//       spine: "w-[16px]",
+//     },
+//   };
+
+//   const config = sizes[size];
+
+//   return (
+//     <div
+//       className={`relative shrink-0 ${config.wrapper} ${className}`}
+//       style={{
+//         perspective: "800px",
+//       }}
+//     >
+//       {/* Shadow */}
+//       <div className="absolute -bottom-2 left-3 right-0 h-4 rounded-full bg-black/15 blur-md" />
+
+//       {/* Pages */}
+//       <div className="absolute bottom-1 -right-1.5 top-0.75 w-2.25 rounded-r-sm bg-[#eee7da] shadow-md" />
+
+//       {/* Spine */}
+//       <div
+//         className={`absolute bottom-0 left-0 top-0 ${config.spine} rounded-l-sm`}
+//         style={{
+//           background:
+//             book?.spineDark ||
+//             "linear-gradient(90deg,#312454,#18122e)",
+//         }}
+//       />
+
+//       {/* Cover */}
+//       <div
+//         className="absolute bottom-0 left-2 right-0 top-0 overflow-hidden rounded-r-[5px] border border-black/10 bg-slate-900 shadow-[8px_10px_15px_rgba(20,15,40,0.25)]"
+//         style={{
+//           transform: "rotateY(-3deg)",
+//           transformOrigin: "left center",
+//         }}
+//       >
+//         <img
+//           src={book?.cover}
+//           alt={book?.title}
+//           className="h-full w-full object-cover"
+//         />
+
+//         {/* Dark overlay */}
+//         <div className="absolute inset-0 bg-linear-to-b from-black/5 via-transparent to-[#120c22]/70" />
+
+//         {/* Book title */}
+//         <div className="absolute inset-x-2 top-3 text-center">
+//           <p
+//             className={`font-semibold leading-tight text-[#f7b94e] drop-shadow ${size === "large"
+//               ? "text-[16px]"
+//               : "text-[10px]"
+//               }`}
+//           >
+//             {book?.title}
+//           </p>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// /* ========================================================================== */
+// /*                         REUSABLE COMPONENT 1                               */
+// /*                              ORDER LIST ITEM                               */
+// /* ========================================================================== */
+
+// export const OrderListItem = ({
+//   order,
+//   selected,
+//   onClick,
+// }) => {
+//   return (
+//     <button
+//       onClick={onClick}
+//       className={`
+//         relative w-full rounded-[15px] border text-left transition-all
+//         ${selected
+//           ? "border-[#8066d7] bg-white shadow-[0_8px_25px_rgba(91,67,177,0.12)]"
+//           : "border-[#ebe9f3] bg-white hover:border-[#cfc5ef] hover:shadow-md"
+//         }
+//       `}
+//     >
+//       <div className="flex min-h-30.25 items-center gap-5 px-6 py-4">
+//         {/* Book */}
+//         <BookCover book={order.book} size="small" />
+
+//         {/* Main content */}
+//         <div className="min-w-0 flex-1">
+//           <h3 className="truncate text-[17px] font-bold text-[#252b50]">
+//             {order.book.title}
+//           </h3>
+
+//           <p className="mt-2 text-[13px] text-[#5c6488]">
+//             Order ID: {order.orderId}
+//           </p>
+
+//           <p className="mt-1 text-[13px] text-[#5c6488]">
+//             Ordered on {order.date}
+//             <span className="mx-2">•</span>
+//             {order.time}
+//           </p>
+//         </div>
+
+//         {/* Right */}
+//         <div className="flex h-full flex-col items-end self-stretch py-1">
+//           <span
+//             className={`
+//               rounded-md border px-3 py-1.5
+//               text-[11px] font-semibold
+//               ${getStatusClass(order.status)}
+//             `}
+//           >
+//             {order.status}
+//           </span>
+
+//           <div className="mt-4 flex items-center gap-5">
+//             <span className="text-[16px] font-bold text-[#342e79]">
+//               ₹{order.price}
+//             </span>
+
+//             <ChevronRight
+//               size={18}
+//               className="text-[#7365b6]"
+//             />
+//           </div>
+//         </div>
+//       </div>
+//     </button>
+//   );
+// };
+
+// /* ========================================================================== */
+// /*                              SHIPMENT TRACKING                             */
+// /* ========================================================================== */
+
+// const prettyStatus = (value) =>
+//   String(value || "")
+//     .replace(/_/g, " ")
+//     .toLowerCase()
+//     .replace(/^\w|\s\w/g, (c) => c.toUpperCase());
+
+// const ShipmentCard = ({ order }) => {
+//   const [live, setLive] = useState(null);
+//   const [activities, setActivities] = useState([]);
+
+//   const awb = order.shipment?.awbCode;
+
+//   // refresh from Shiprocket whenever an order with an AWB is opened
+//   useEffect(() => {
+//     if (!awb) return undefined;
+//     let cancelled = false;
+//     getOrderTracking(order._id)
+//       .then(({ data }) => {
+//         if (cancelled) return;
+//         setLive(data.shipment || null);
+//         setActivities(data.activities || []);
+//       })
+//       .catch(() => {});
+//     return () => {
+//       cancelled = true;
+//     };
+//   }, [order._id, awb]);
+
+//   if (!awb) return null;
+
+//   const shipment = live || order.shipment;
+//   const days = shipment.estimatedDeliveryDays;
+
+//   return (
+//     <div className="mx-8 mt-4 rounded-xl border border-(--tint) p-5">
+//       <div className="flex items-center justify-between">
+//         <h4 className="text-[12px] font-bold text-[#2f3456]">Shipment tracking</h4>
+//         {shipment.trackUrl && (
+//           <a
+//             href={shipment.trackUrl}
+//             target="_blank"
+//             rel="noreferrer"
+//             className="text-[11px] font-semibold text-[#6147bf]"
+//           >
+//             Track on courier site
+//           </a>
+//         )}
+//       </div>
+
+//       <div className="mt-3 space-y-2 text-[11px] text-[#5f6682]">
+//         <p>
+//           Status:{" "}
+//           <span className="font-semibold text-[#4c536f]">
+//             {shipment.shiprocketStatus || prettyStatus(shipment.status)}
+//           </span>
+//         </p>
+//         {shipment.courierName && <p>Courier: {shipment.courierName}</p>}
+//         <p>Tracking number (AWB): {awb}</p>
+//         {shipment.estimatedDelivery ? (
+//           <p>Expected delivery: {shipment.estimatedDelivery}</p>
+//         ) : (
+//           days && <p>Expected delivery: about {days} days after dispatch</p>
+//         )}
+//       </div>
+
+//       {activities.length > 0 && (
+//         <ul className="mt-4 space-y-2 border-t border-(--tint) pt-3 text-[11px] text-[#5f6682]">
+//           {activities.slice(0, 6).map((a, i) => (
+//             <li key={`${a.date}-${i}`}>
+//               <span className="font-semibold text-[#4c536f]">{a.activity || a.status}</span>
+//               {a.location ? ` · ${a.location}` : ""}
+//               <span className="block text-[10px] text-[#8a90a8]">{a.date}</span>
+//             </li>
+//           ))}
+//         </ul>
+//       )}
+//     </div>
+//   );
+// };
+
+// /* ========================================================================== */
+// /*                         REUSABLE COMPONENT 2                               */
+// /*                              ORDER DETAILS                                 */
+// /* ========================================================================== */
+
+// export const OrderDetails = ({
+//   order,
+//   onClose,
+//   onCancel,
+//   cancelling,
+// }) => {
+//   if (!order) return null;
+
+//   const isCancelled = order.status === "Cancelled";
+
+//   const currentStep = order.statusStep;
+
+//   return (
+//     // FIX: min-h-full (was h-full) so the card can grow taller than its
+//     // container and the parent <section> scrolls instead of squeezing it.
+//     <div className="flex min-h-full flex-col overflow-hidden rounded-[18px] border border-[#ebe9f2] bg-white shadow-[0_6px_25px_rgba(65,50,120,0.05)]">
+
+//       {/* -------------------------------------------------------------- */}
+//       {/* Top */}
+//       {/* -------------------------------------------------------------- */}
+
+//       <div className="relative border-b border-(--tint) px-8 pb-6 pt-7">
+//         <button
+//           onClick={onClose}
+//           className="absolute right-6 top-6 text-[#687092] transition hover:text-[#403780]"
+//         >
+//           <X size={22} />
+//         </button>
+
+//         <div className="flex gap-6">
+//           <BookCover
+//             book={order.book}
+//             size="large"
+//           />
+
+//           <div className="pt-2">
+//             <h2 className="text-[21px] font-bold text-[#24294e]">
+//               {order.book.title}
+//             </h2>
+
+//             <span
+//               className={`
+//                 mt-3 inline-flex rounded-md border px-3 py-1.5
+//                 text-[11px] font-semibold
+//                 ${getStatusClass(order.status)}
+//               `}
+//             >
+//               {order.status}
+//             </span>
+
+//             <p className="mt-3 text-[13px] text-[#626987]">
+//               Order ID: {order.orderId}
+//             </p>
+
+//             <p className="mt-2 text-[13px] text-[#626987]">
+//               Ordered on {order.date}
+//               <span className="mx-2">•</span>
+//               {order.time}
+//             </p>
+
+//             <p className="mt-4 text-[21px] font-bold text-[#332b79]">
+//               ₹{order.price}
+//             </p>
+//           </div>
+//         </div>
+
+//         {/* Progress timeline */}
+
+//         {!isCancelled && (
+//           <div className="mt-7">
+//             <div className="flex items-center">
+//               {steps.map((step, index) => {
+//                 const Icon = step.icon;
+
+//                 const completed =
+//                   index <= currentStep;
+
+//                 const active =
+//                   index === currentStep;
+
+//                 return (
+//                   <React.Fragment key={step.key}>
+//                     <div className="flex flex-col items-center">
+//                       <div
+//                         className={`
+//                           flex h-8 w-8 items-center justify-center
+//                           rounded-full border transition
+//                           ${completed
+//                             ? "border-[#6849c8] bg-[#6747c6] text-white"
+//                             : "border-[#cfceda] bg-white text-[#aaa9b8]"
+//                           }
+//                           ${active
+//                             ? "ring-4 ring-(--tint)"
+//                             : ""
+//                           }
+//                         `}
+//                       >
+//                         {index < currentStep ? (
+//                           <Check size={15} strokeWidth={3} />
+//                         ) : (
+//                           <Icon size={15} />
+//                         )}
+//                       </div>
+//                     </div>
+
+//                     {index < steps.length - 1 && (
+//                       <div
+//                         className={`
+//                           h-0.5 flex-1
+//                           ${index < currentStep
+//                             ? "bg-[#9d8be2]"
+//                             : "bg-[#dedde7]"
+//                           }
+//                         `}
+//                       />
+//                     )}
+//                   </React.Fragment>
+//                 );
+//               })}
+//             </div>
+
+//             <div className="mt-3 grid grid-cols-4">
+//               {steps.map((step, index) => (
+//                 <div
+//                   key={step.key}
+//                   className="text-center"
+//                 >
+//                   <p
+//                     className={`
+//                       text-[11px] font-semibold
+//                       ${index === currentStep
+//                         ? "text-[#563eb5]"
+//                         : "text-[#666b86]"
+//                       }
+//                     `}
+//                   >
+//                     {step.label}
+//                   </p>
+
+//                   <p className="mt-1 text-[10px] text-[#777b93]">
+//                     {index === 0
+//                       ? "May 28"
+//                       : index === 1 && currentStep >= 1
+//                         ? "May 29"
+//                         : "—"}
+//                   </p>
+//                 </div>
+//               ))}
+//             </div>
+//           </div>
+//         )}
+//       </div>
+
+//       {/* -------------------------------------------------------------- */}
+//       {/* Status message */}
+//       {/* -------------------------------------------------------------- */}
+
+//       {!isCancelled && (
+//         <div className="mx-8 mt-4 flex items-center gap-4 rounded-[10px] border border-[#d9d0f3] bg-[#f8f6ff] px-5 py-4">
+//           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-(--tint) text-[#634ac4]">
+//             <Printer size={17} />
+//           </div>
+
+//           <div>
+//             <p className="text-[12px] font-medium text-[#474d70]">
+//               {currentStep === 0 &&
+//                 "Your order has been confirmed!"}
+
+//               {currentStep === 1 &&
+//                 "Your book is being printed with care!"}
+
+//               {currentStep === 2 &&
+//                 "Your book is on its way!"}
+
+//               {currentStep === 3 &&
+//                 "Your book has been delivered!"}
+//             </p>
+
+//             <p className="mt-1 text-[11px] text-[#5d6482]">
+//               {currentStep === 1 &&
+//                 "We'll ship it soon and notify you once it's on the way."}
+
+//               {currentStep === 2 &&
+//                 "It will reach you soon. Please keep an eye on delivery updates."}
+
+//               {currentStep === 3 &&
+//                 "We hope you enjoy reading your personalized Wonder Book!"}
+//             </p>
+//           </div>
+//         </div>
+//       )}
+
+//       {!isCancelled && <ShipmentCard order={order} />}
+
+//       {/* -------------------------------------------------------------- */}
+//       {/* Shipping + payment */}
+//       {/* -------------------------------------------------------------- */}
+
+//       <div className="mx-8 mt-4 grid grid-cols-[1fr_1fr] overflow-hidden rounded-xl border border-(--tint)">
+
+//         {/* Shipping */}
+
+//         <div className="border-r border-(--tint) px-5 py-4">
+//           <div className="flex items-center justify-between">
+//             <h4 className="text-[12px] font-bold text-[#2f3456]">
+//               Shipping Address
+//             </h4>
+
+//             <button className="flex items-center gap-1 text-[11px] font-semibold text-[#6147bf]">
+//               <Pencil size={13} />
+//               Edit
+//             </button>
+//           </div>
+
+//           <div className="mt-4 space-y-2 text-[11px] leading-relaxed text-[#5f6682]">
+//             <p>{order.shippingAddress?.name}</p>
+//             <p>{order.shippingAddress?.line1}</p>
+//             {order.shippingAddress?.line2 && <p>{order.shippingAddress.line2}</p>}
+//             <p>
+//               {[order.shippingAddress?.city, order.shippingAddress?.state, order.shippingAddress?.postalCode]
+//                 .filter(Boolean)
+//                 .join(", ")}
+//             </p>
+//             <p>{order.shippingAddress?.country}</p>
+//             <p>{order.shippingAddress?.phone}</p>
+//           </div>
+//         </div>
+
+//         {/* Payment */}
+
+//         <div className="px-5 py-4">
+//           <h4 className="text-[12px] font-bold text-[#2f3456]">
+//             Payment Summary
+//           </h4>
+
+//           <div className="mt-4 space-y-3 text-[11px]">
+//             <div className="flex justify-between text-[#626984]">
+//               <span>Book Price</span>
+//               <span>₹{order.subtotal}</span>
+//             </div>
+
+//             <div className="flex justify-between text-[#626984]">
+//               <span>Delivery</span>
+//               {order.shippingFee > 0 ? (
+//                 <span>₹{order.shippingFee}</span>
+//               ) : (
+//                 <span className="font-semibold text-[#41805f]">FREE</span>
+//               )}
+//             </div>
+
+//             {order.gstAmount > 0 && (
+//               <div className="flex justify-between text-[#626984]">
+//                 <span>GST ({order.gstPercent}%)</span>
+//                 <span>₹{order.gstAmount}</span>
+//               </div>
+//             )}
+
+//             <div className="border-t border-(--tint) pt-3">
+//               <div className="flex justify-between font-bold text-[#393061]">
+//                 <span>Total Paid</span>
+//                 <span>₹{order.price}</span>
+//               </div>
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* -------------------------------------------------------------- */}
+//       {/* Book details */}
+//       {/* -------------------------------------------------------------- */}
+
+//       <div className="mx-8 mt-4 rounded-xl border border-(--tint) p-5">
+//         <h4 className="text-[12px] font-bold text-[#2f3456]">
+//           Book Details
+//         </h4>
+
+//         <div className="mt-4 grid grid-cols-[1fr_300px] gap-6">
+//           {/* Details */}
+
+//           <div className="space-y-3">
+//             <DetailRow
+//               label="Story Title"
+//               value={order.book.title}
+//             />
+
+//             <DetailRow
+//               label="Size"
+//               value="8 × 10 inches"
+//             />
+
+//             <DetailRow
+//               label="Cover"
+//               value="Hardcover"
+//             />
+
+//             <DetailRow
+//               label="Paper Quality"
+//               value="Premium Matte"
+//             />
+//           </div>
+
+//           {/* Book preview */}
+
+//           <div className="relative flex h-42.5 items-center justify-center overflow-hidden rounded-[5px] bg-[#f4eee4] shadow-inner">
+//             <div className="absolute right-0 top-0 h-full w-[48%] bg-[#fffdf8]" />
+
+//             <div className="absolute right-4 top-7 w-[35%] text-[8px] leading-[1.8] text-[#575d72]">
+//               <p>
+//                 The boy and his dog, Buddy looked up at the stars.
+//                 “Wow! The universe is so big and beautiful!”
+//               </p>
+
+//               <p className="mt-3">
+//                 They climbed into their rocket, ready for the greatest adventure ever.
+//               </p>
+//             </div>
+
+//             <div className="absolute left-7 -top-0.5">
+//               <BookCover
+//                 book={order.book}
+//                 size="large"
+//                 className="scale-[0.78] origin-top-left"
+//               />
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+
+//       {/* -------------------------------------------------------------- */}
+//       {/* Bottom actions */}
+//       {/* -------------------------------------------------------------- */}
+
+//       <div className="mt-auto flex items-center justify-between border-t border-(--tint) px-8 py-5">
+//         {order.rawStatus === "confirmed" && (
+//           <button
+//             onClick={onCancel}
+//             disabled={cancelling}
+//             className="flex items-center gap-2 rounded-[9px] border border-[#f1bebe] px-4 py-2.5 text-[12px] font-semibold text-[#c95752] transition hover:bg-[#fff7f7] disabled:pointer-events-none disabled:opacity-50"
+//           >
+//             {cancelling ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+//             {cancelling ? "Cancelling..." : "Cancel Order"}
+//           </button>
+//         )}
+//       </div>
+//     </div>
+//   );
+// };
+
+// /* -------------------------------------------------------------------------- */
+// /*                              DETAIL ROW                                    */
+// /* -------------------------------------------------------------------------- */
+
+// const DetailRow = ({
+//   label,
+//   value,
+// }) => (
+//   <div className="grid grid-cols-[100px_1fr] gap-4 text-[11px]">
+//     <span className="text-[#777c94]">
+//       {label}
+//     </span>
+
+//     <span className="font-medium text-[#4c536f]">
+//       {value}
+//     </span>
+//   </div>
+// );
+
+// /* ========================================================================== */
+// /*                              MAIN ORDERS PAGE                              */
+// /* ========================================================================== */
+
+// export const Orders = () => {
+//   const [orders, setOrders] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState("");
+//   const [cancelling, setCancelling] = useState(false);
+
+//   const [activeTab, setActiveTab] = useState("All Orders");
+//   const [selectedOrder, setSelectedOrder] = useState(null);
+//   const [search, setSearch] = useState("");
+
+//   useEffect(() => {
+//     let cancelled = false;
+
+//     const load = async () => {
+//       try {
+//         const { data } = await getMyOrders();
+//         if (cancelled) return;
+//         setOrders((data.orders || []).map(mapOrder));
+//         setError("");
+//       } catch {
+//         if (!cancelled) setError("We couldn't load your orders. Please try again.");
+//       } finally {
+//         if (!cancelled) setLoading(false);
+//       }
+//     };
+
+//     load();
+//     return () => {
+//       cancelled = true;
+//     };
+//   }, []);
+
+//   const handleCancelOrder = async () => {
+//     if (!selectedOrder || cancelling) return;
+//     setCancelling(true);
+//     try {
+//       await cancelOrderRequest(selectedOrder._id);
+//       setOrders((prev) =>
+//         prev.map((order) =>
+//           order._id === selectedOrder._id
+//             ? { ...order, status: "Cancelled", rawStatus: "cancelled", statusStep: -1 }
+//             : order
+//         )
+//       );
+//       setSelectedOrder((prev) =>
+//         prev ? { ...prev, status: "Cancelled", rawStatus: "cancelled", statusStep: -1 } : prev
+//       );
+//     } catch {
+//       setError("Couldn't cancel this order. Please try again.");
+//     } finally {
+//       setCancelling(false);
+//     }
+//   };
+
+//   const tabs = [
+//     {
+//       label: "All Orders",
+//       count: orders.length,
+//     },
+//     {
+//       label: "In Progress",
+//       count: orders.filter(
+//         (o) => o.status === "In Progress"
+//       ).length,
+//     },
+//     {
+//       label: "Shipped",
+//       count: orders.filter(
+//         (o) => o.status === "Shipped"
+//       ).length,
+//     },
+//     {
+//       label: "Delivered",
+//       count: orders.filter(
+//         (o) => o.status === "Delivered"
+//       ).length,
+//     },
+//     {
+//       label: "Cancelled",
+//       count: orders.filter(
+//         (o) => o.status === "Cancelled"
+//       ).length,
+//     },
+//   ];
+
+//   const filteredOrders = useMemo(() => {
+//     return orders.filter((order) => {
+//       const matchesTab =
+//         activeTab === "All Orders" ||
+//         order.status === activeTab;
+
+//       const matchesSearch =
+//         order.book.title
+//           .toLowerCase()
+//           .includes(search.toLowerCase()) ||
+//         order.orderId
+//           .toLowerCase()
+//           .includes(search.toLowerCase());
+
+//       return matchesTab && matchesSearch;
+//     });
+//   }, [orders, activeTab, search]);
+
+//   const hasSelection = Boolean(selectedOrder);
+
+//   // The list uses flex centering for loading / error / empty states,
+//   // and a grid for the actual order cards.
+//   const listIsCentered = loading || Boolean(error) || filteredOrders.length === 0;
+
+//   return (
+//     <div className="h-full min-h-0 bg-[#faf9fd] p-4 lg:p-5">
+//       <main className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#e6e3ee] bg-[#fcfbfe] shadow-[0_10px_40px_rgba(64,48,110,0.06)]">
+//         {/* HEADER */}
+//         <header className="shrink-0 flex flex-col gap-5  px-7 py-2 lg:flex-row lg:items-center lg:justify-between">
+//           <div className="flex items-center gap-4  border-[#e6e3ee]">
+//             {/* <div className="flex h-14.5 w-14.5 items-center justify-center rounded-[18px] bg-linear-to-br from-[#f1effb] to-[#e7e3f8] text-[#513cb0]">
+//               <ShoppingBag size={26} strokeWidth={1.8} />
+//             </div> */}
+//             <div>
+//               <h1 className="text-[20px] font-bold tracking-[-0.5px] text-[#25294c]">
+//                 Orders
+//               </h1>
+
+//               <p className="mt-1 text-[13px] text-[#5e6687]">
+//                 Track your physical book orders and their delivery status
+//               </p>
+//             </div>
+//           </div>
+//           <CartButton />  
+//         </header>
+
+//         <div
+//           className={`grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] ${hasSelection ? "lg:grid-cols-[50%_50%]" : ""
+//             }`}
+//         >
+
+//           {/* ======================================================== */}
+//           {/* LEFT - ORDER LIST */}
+//           {/* ======================================================== */}
+
+//           <section
+//             className={`flex min-h-0 flex-col overflow-hidden ${hasSelection ? "border-r border-(--tint)" : ""
+//               }`}
+//           >
+//             {/* Tabs */}
+
+//             <div className="shrink-0 flex flex-col gap-4 border-b border-[#eceaf1] px-7 pt-4 lg:flex-row lg:items-center lg:justify-between">
+
+//               <div className="flex gap-7 overflow-x-auto">
+//                 {tabs.map((tab) => (
+//                   <button
+//                     key={tab.label}
+//                     onClick={() =>
+//                       setActiveTab(tab.label)
+//                     }
+//                     className={`
+//                       relative flex shrink-0 items-center gap-2 pb-4
+//                       text-[12px] font-semibold transition
+//                       ${activeTab === tab.label
+//                         ? "text-[#4333a2]"
+//                         : "text-[#565d7c]"
+//                       }
+//                     `}
+//                   >
+//                     {tab.label}
+
+//                     {activeTab === tab.label && (
+//                       <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-[#654bc7]" />
+//                     )}
+//                   </button>
+//                 ))}
+//               </div>
+//             </div>
+
+//             {/* Search */}
+
+//             <div className="shrink-0 flex gap-4 px-7 py-4">
+//               <div className="relative flex-1">
+//                 <Search
+//                   size={18}
+//                   className="absolute left-4 top-1/2 -translate-y-1/2 text-[#706e94]"
+//                 />
+
+//                 <input
+//                   value={search}
+//                   onChange={(e) =>
+//                     setSearch(e.target.value)
+//                   }
+//                   placeholder="Search your orders..."
+//                   className="h-10.75 w-full rounded-full border border-[#e1deea] bg-white pl-11 pr-4 text-[12px] text-[#3c4160] outline-none transition placeholder:text-[#9a9aad] focus:border-[#917ee0] focus:ring-2 focus:ring-[#eeeaff]"
+//                 />
+//               </div>
+//             </div>
+
+//             {/* Orders (the only part of the left column that scrolls) */}
+//             {/* FIX: the old class string was `pb-5  border${...}` — no space  */}
+//             {/* before the template, so it produced `borderflex` / `bordergrid` */}
+//             {/* and neither `grid` nor `gap-3` ever applied.                    */}
+
+//             <div
+//               className={`min-h-0 flex-1 overflow-y-auto px-7 pb-5 ${listIsCentered
+//                 ? "flex items-center justify-center"
+//                 : hasSelection
+//                   ? "grid grid-cols-1 content-start gap-3"
+//                   : "grid grid-cols-1 content-start gap-3 lg:grid-cols-2"
+//                 }`}
+//             >
+//               {loading ? (
+//                 <div className="flex h-full w-full flex-col items-center justify-center text-center">
+//                   <Loader2
+//                     size={32}
+//                     className="animate-spin text-[#8066d7]"
+//                   />
+
+//                   <p className="mt-4 text-[12px] text-[#7b8098]">
+//                     Loading your orders...
+//                   </p>
+//                 </div>
+//               ) : error ? (
+//                 <div className="flex h-full w-full flex-col items-center justify-center text-center">
+//                   <Package
+//                     size={40}
+//                     className="text-[#b4afc8]"
+//                   />
+
+//                   <h3 className="mt-4 text-[16px] font-bold text-[#3d4262]">
+//                     {error}
+//                   </h3>
+//                 </div>
+//               ) : filteredOrders.length > 0 ? (
+//                 filteredOrders.map((order) => (
+//                   <OrderListItem
+//                     key={order.orderId}
+//                     order={order}
+//                     selected={
+//                       selectedOrder?.orderId === order.orderId
+//                     }
+//                     onClick={() => setSelectedOrder(order)}
+//                   />
+//                 ))
+//               ) : (
+//                 <div className="flex flex-col items-center justify-center text-center p-5">
+//                   <Package
+//                     size={40}
+//                     className="text-[#b4afc8]"
+//                   />
+
+//                   <h3 className="mt-4 text-[16px] font-bold text-[#3d4262]">
+//                     No orders found
+//                   </h3>
+
+//                   <p className="mt-2 text-[12px] text-[#7b8098]">
+//                     {orders.length === 0
+//                       ? "Order a printed copy of one of your books to see it here."
+//                       : "Try changing your search or filter."}
+//                   </p>
+//                 </div>
+//               )}
+//             </div>
+
+//             {/* Pagination */}
+//             {/* FIX: removed the stray `div` attribute and added shrink-0 so   */}
+//             {/* the bar is always pinned to the bottom of the left column.     */}
+
+//             {orders.length > 0 && (
+//               <div className="flex shrink-0 items-center justify-between border-t border-[#eeecf2] px-7 py-2">
+//                 <p className="text-[12px] text-[#666d89]">
+//                   Showing 1-{filteredOrders.length} of{" "}
+//                   {orders.length} orders
+//                 </p>
+
+//                 <div className="flex items-center gap-2">
+//                   <button className="flex h-9.5 w-9.5 items-center justify-center rounded-full text-[#817b9b] hover:bg-[#f1eef8]">
+//                     <ChevronRight
+//                       size={17}
+//                       className="rotate-180"
+//                     />
+//                   </button>
+
+//                   <button className="flex h-9.5 w-9.5 items-center justify-center rounded-xl bg-[#f0ecfa] text-[12px] font-semibold text-[#5943b2]">
+//                     1
+//                   </button>
+
+//                   <button className="flex h-9.5 w-7.5 items-center justify-center text-[12px] font-semibold text-[#4d4675]">
+//                     2
+//                   </button>
+
+//                   <button className="flex h-9.5 w-7.5 items-center justify-center text-[12px] font-semibold text-[#4d4675]">
+//                     3
+//                   </button>
+
+//                   <button className="flex h-9.5 w-9.5 items-center justify-center rounded-full text-[#5843ae] hover:bg-[#f1eef8]">
+//                     <ChevronRight size={17} />
+//                   </button>
+//                 </div>
+//               </div>
+//             )}
+//           </section>
+
+//           {/* ======================================================== */}
+//           {/* RIGHT - ORDER DETAILS */}
+//           {/* ======================================================== */}
+
+//           {/* FIX: min-h-0 + overflow-y-auto so the details panel scrolls on its own. */}
+
+//           {hasSelection && (
+//             <section className="min-h-0 overflow-y-auto bg-[#fcfbfe] p-3">
+//               <OrderDetails
+//                 order={selectedOrder}
+//                 onClose={() =>
+//                   setSelectedOrder(null)
+//                 }
+//                 onCancel={handleCancelOrder}
+//                 cancelling={cancelling}
+//               />
+//             </section>
+//           )}
+//         </div>
+//       </main>
+//     </div>
+//   );
+// };
+
+
+import { useEffect, useState } from "react";
+import OrderList from "../../Components/OrdersList";
+import OrderDetailView from "../../Components/OrderDetailView";
 import {
   getMyOrders,
-  getOrderTracking,
   cancelOrder as cancelOrderRequest,
 } from "../../services/orderService";
 
@@ -24,7 +1043,7 @@ import {
 /*                                  ORDER DATA                                */
 /* -------------------------------------------------------------------------- */
 
-// Backend status -> the label/step the (mock-era) UI below was built around.
+// Backend status -> UI label
 const STATUS_LABELS = {
   confirmed: "In Progress",
   printing: "In Progress",
@@ -33,7 +1052,7 @@ const STATUS_LABELS = {
   cancelled: "Cancelled",
 };
 
-// Shapes a /api/orders row into what the components on this page expect.
+// Shapes a /api/orders row into what the components expect.
 const mapOrder = (apiOrder) => {
   const created = new Date(apiOrder.createdAt);
 
@@ -42,9 +1061,11 @@ const mapOrder = (apiOrder) => {
     _id: apiOrder._id,
     status: STATUS_LABELS[apiOrder.status] || "In Progress",
     rawStatus: apiOrder.status,
+    createdAt: apiOrder.createdAt, // used for Newest/Oldest sorting
     date: created.toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" }),
     time: created.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
     price: apiOrder.amount,
+    quantity: apiOrder.quantity || 1,
     subtotal:
       apiOrder.subtotal ??
       apiOrder.amount - (apiOrder.shippingFee || 0) - (apiOrder.gstAmount || 0),
@@ -57,671 +1078,27 @@ const mapOrder = (apiOrder) => {
     book: {
       title: apiOrder.book?.title,
       cover: apiOrder.book?.coverImageUrl,
+      // optional – tags are hidden if the API doesn't send them
+      binding: apiOrder.book?.binding,
+      language: apiOrder.book?.language,
+      ageRange: apiOrder.book?.ageRange,
+      pages: apiOrder.book?.pageCount,
+      size: apiOrder.book?.size,
     },
   };
 };
-
-const steps = [
-  {
-    key: "confirmed",
-    label: "Confirmed",
-    icon: Check,
-  },
-  {
-    key: "printing",
-    label: "Printing",
-    icon: Printer,
-  },
-  {
-    key: "shipped",
-    label: "Shipped",
-    icon: Truck,
-  },
-  {
-    key: "delivered",
-    label: "Delivered",
-    icon: BookOpen,
-  },
-];
-
-/* -------------------------------------------------------------------------- */
-/*                               STATUS HELPERS                               */
-/* -------------------------------------------------------------------------- */
-
-const statusStyles = {
-  "In Progress":
-    "border-[#f3d6b6] bg-[#fffaf3] text-[#c87520]",
-
-  Delivered:
-    "border-[#bfe3d7] bg-[#f2fbf7] text-[#317d65]",
-
-  Shipped:
-    "border-[#bcd8ef] bg-[#f4f9fd] text-[#3d77a6]",
-
-  Cancelled:
-    "border-[#f3caca] bg-[#fff7f7] text-[#c95a55]",
-};
-
-const getStatusClass = (status) =>
-  statusStyles[status] || statusStyles["In Progress"];
-
-/* -------------------------------------------------------------------------- */
-/*                              PHYSICAL BOOK CARD                            */
-/* -------------------------------------------------------------------------- */
-
-const BookCover = ({
-  book,
-  size = "small",
-  className = "",
-}) => {
-  const sizes = {
-    small: {
-      wrapper: "w-[102px] h-[142px]",
-      spine: "w-[10px]",
-    },
-    large: {
-      wrapper: "w-[170px] h-[205px]",
-      spine: "w-[16px]",
-    },
-  };
-
-  const config = sizes[size];
-
-  return (
-    <div
-      className={`relative shrink-0 ${config.wrapper} ${className}`}
-      style={{
-        perspective: "800px",
-      }}
-    >
-      {/* Shadow */}
-      <div className="absolute -bottom-2 left-3 right-0 h-4 rounded-full bg-black/15 blur-md" />
-
-      {/* Pages */}
-      <div className="absolute bottom-1 -right-1.5 top-0.75 w-2.25 rounded-r-sm bg-[#eee7da] shadow-md" />
-
-      {/* Spine */}
-      <div
-        className={`absolute bottom-0 left-0 top-0 ${config.spine} rounded-l-sm`}
-        style={{
-          background:
-            book?.spineDark ||
-            "linear-gradient(90deg,#312454,#18122e)",
-        }}
-      />
-
-      {/* Cover */}
-      <div
-        className="absolute bottom-0 left-2 right-0 top-0 overflow-hidden rounded-r-[5px] border border-black/10 bg-slate-900 shadow-[8px_10px_15px_rgba(20,15,40,0.25)]"
-        style={{
-          transform: "rotateY(-3deg)",
-          transformOrigin: "left center",
-        }}
-      >
-        <img
-          src={book?.cover}
-          alt={book?.title}
-          className="h-full w-full object-cover"
-        />
-
-        {/* Dark overlay */}
-        <div className="absolute inset-0 bg-linear-to-b from-black/5 via-transparent to-[#120c22]/70" />
-
-        {/* Book title */}
-        <div className="absolute inset-x-2 top-3 text-center">
-          <p
-            className={`font-semibold leading-tight text-[#f7b94e] drop-shadow ${size === "large"
-              ? "text-[16px]"
-              : "text-[10px]"
-              }`}
-          >
-            {book?.title}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* ========================================================================== */
-/*                         REUSABLE COMPONENT 1                               */
-/*                              ORDER LIST ITEM                               */
-/* ========================================================================== */
-
-export const OrderListItem = ({
-  order,
-  selected,
-  onClick,
-}) => {
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        relative w-full rounded-[15px] border text-left transition-all
-        ${selected
-          ? "border-[#8066d7] bg-white shadow-[0_8px_25px_rgba(91,67,177,0.12)]"
-          : "border-[#ebe9f3] bg-white hover:border-[#cfc5ef] hover:shadow-md"
-        }
-      `}
-    >
-      <div className="flex min-h-30.25 items-center gap-5 px-6 py-4">
-        {/* Book */}
-        <BookCover book={order.book} size="small" />
-
-        {/* Main content */}
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[17px] font-bold text-[#252b50]">
-            {order.book.title}
-          </h3>
-
-          <p className="mt-2 text-[13px] text-[#5c6488]">
-            Order ID: {order.orderId}
-          </p>
-
-          <p className="mt-1 text-[13px] text-[#5c6488]">
-            Ordered on {order.date}
-            <span className="mx-2">•</span>
-            {order.time}
-          </p>
-        </div>
-
-        {/* Right */}
-        <div className="flex h-full flex-col items-end self-stretch py-1">
-          <span
-            className={`
-              rounded-md border px-3 py-1.5
-              text-[11px] font-semibold
-              ${getStatusClass(order.status)}
-            `}
-          >
-            {order.status}
-          </span>
-
-          <div className="mt-4 flex items-center gap-5">
-            <span className="text-[16px] font-bold text-[#342e79]">
-              ₹{order.price}
-            </span>
-
-            <ChevronRight
-              size={18}
-              className="text-[#7365b6]"
-            />
-          </div>
-        </div>
-      </div>
-    </button>
-  );
-};
-
-/* ========================================================================== */
-/*                              SHIPMENT TRACKING                             */
-/* ========================================================================== */
-
-const prettyStatus = (value) =>
-  String(value || "")
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/^\w|\s\w/g, (c) => c.toUpperCase());
-
-const ShipmentCard = ({ order }) => {
-  const [live, setLive] = useState(null);
-  const [activities, setActivities] = useState([]);
-
-  const awb = order.shipment?.awbCode;
-
-  // refresh from Shiprocket whenever an order with an AWB is opened
-  useEffect(() => {
-    if (!awb) return undefined;
-    let cancelled = false;
-    getOrderTracking(order._id)
-      .then(({ data }) => {
-        if (cancelled) return;
-        setLive(data.shipment || null);
-        setActivities(data.activities || []);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [order._id, awb]);
-
-  if (!awb) return null;
-
-  const shipment = live || order.shipment;
-  const days = shipment.estimatedDeliveryDays;
-
-  return (
-    <div className="mx-8 mt-4 rounded-xl border border-(--tint) p-5">
-      <div className="flex items-center justify-between">
-        <h4 className="text-[12px] font-bold text-[#2f3456]">Shipment tracking</h4>
-        {shipment.trackUrl && (
-          <a
-            href={shipment.trackUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-[11px] font-semibold text-[#6147bf]"
-          >
-            Track on courier site
-          </a>
-        )}
-      </div>
-
-      <div className="mt-3 space-y-2 text-[11px] text-[#5f6682]">
-        <p>
-          Status:{" "}
-          <span className="font-semibold text-[#4c536f]">
-            {shipment.shiprocketStatus || prettyStatus(shipment.status)}
-          </span>
-        </p>
-        {shipment.courierName && <p>Courier: {shipment.courierName}</p>}
-        <p>Tracking number (AWB): {awb}</p>
-        {shipment.estimatedDelivery ? (
-          <p>Expected delivery: {shipment.estimatedDelivery}</p>
-        ) : (
-          days && <p>Expected delivery: about {days} days after dispatch</p>
-        )}
-      </div>
-
-      {activities.length > 0 && (
-        <ul className="mt-4 space-y-2 border-t border-(--tint) pt-3 text-[11px] text-[#5f6682]">
-          {activities.slice(0, 6).map((a, i) => (
-            <li key={`${a.date}-${i}`}>
-              <span className="font-semibold text-[#4c536f]">{a.activity || a.status}</span>
-              {a.location ? ` · ${a.location}` : ""}
-              <span className="block text-[10px] text-[#8a90a8]">{a.date}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-};
-
-/* ========================================================================== */
-/*                         REUSABLE COMPONENT 2                               */
-/*                              ORDER DETAILS                                 */
-/* ========================================================================== */
-
-export const OrderDetails = ({
-  order,
-  onClose,
-  onCancel,
-  cancelling,
-}) => {
-  if (!order) return null;
-
-  const isCancelled = order.status === "Cancelled";
-
-  const currentStep = order.statusStep;
-
-  return (
-    // FIX: min-h-full (was h-full) so the card can grow taller than its
-    // container and the parent <section> scrolls instead of squeezing it.
-    <div className="flex min-h-full flex-col overflow-hidden rounded-[18px] border border-[#ebe9f2] bg-white shadow-[0_6px_25px_rgba(65,50,120,0.05)]">
-
-      {/* -------------------------------------------------------------- */}
-      {/* Top */}
-      {/* -------------------------------------------------------------- */}
-
-      <div className="relative border-b border-(--tint) px-8 pb-6 pt-7">
-        <button
-          onClick={onClose}
-          className="absolute right-6 top-6 text-[#687092] transition hover:text-[#403780]"
-        >
-          <X size={22} />
-        </button>
-
-        <div className="flex gap-6">
-          <BookCover
-            book={order.book}
-            size="large"
-          />
-
-          <div className="pt-2">
-            <h2 className="text-[21px] font-bold text-[#24294e]">
-              {order.book.title}
-            </h2>
-
-            <span
-              className={`
-                mt-3 inline-flex rounded-md border px-3 py-1.5
-                text-[11px] font-semibold
-                ${getStatusClass(order.status)}
-              `}
-            >
-              {order.status}
-            </span>
-
-            <p className="mt-3 text-[13px] text-[#626987]">
-              Order ID: {order.orderId}
-            </p>
-
-            <p className="mt-2 text-[13px] text-[#626987]">
-              Ordered on {order.date}
-              <span className="mx-2">•</span>
-              {order.time}
-            </p>
-
-            <p className="mt-4 text-[21px] font-bold text-[#332b79]">
-              ₹{order.price}
-            </p>
-          </div>
-        </div>
-
-        {/* Progress timeline */}
-
-        {!isCancelled && (
-          <div className="mt-7">
-            <div className="flex items-center">
-              {steps.map((step, index) => {
-                const Icon = step.icon;
-
-                const completed =
-                  index <= currentStep;
-
-                const active =
-                  index === currentStep;
-
-                return (
-                  <React.Fragment key={step.key}>
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={`
-                          flex h-8 w-8 items-center justify-center
-                          rounded-full border transition
-                          ${completed
-                            ? "border-[#6849c8] bg-[#6747c6] text-white"
-                            : "border-[#cfceda] bg-white text-[#aaa9b8]"
-                          }
-                          ${active
-                            ? "ring-4 ring-(--tint)"
-                            : ""
-                          }
-                        `}
-                      >
-                        {index < currentStep ? (
-                          <Check size={15} strokeWidth={3} />
-                        ) : (
-                          <Icon size={15} />
-                        )}
-                      </div>
-                    </div>
-
-                    {index < steps.length - 1 && (
-                      <div
-                        className={`
-                          h-0.5 flex-1
-                          ${index < currentStep
-                            ? "bg-[#9d8be2]"
-                            : "bg-[#dedde7]"
-                          }
-                        `}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-
-            <div className="mt-3 grid grid-cols-4">
-              {steps.map((step, index) => (
-                <div
-                  key={step.key}
-                  className="text-center"
-                >
-                  <p
-                    className={`
-                      text-[11px] font-semibold
-                      ${index === currentStep
-                        ? "text-[#563eb5]"
-                        : "text-[#666b86]"
-                      }
-                    `}
-                  >
-                    {step.label}
-                  </p>
-
-                  <p className="mt-1 text-[10px] text-[#777b93]">
-                    {index === 0
-                      ? "May 28"
-                      : index === 1 && currentStep >= 1
-                        ? "May 29"
-                        : "—"}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* -------------------------------------------------------------- */}
-      {/* Status message */}
-      {/* -------------------------------------------------------------- */}
-
-      {!isCancelled && (
-        <div className="mx-8 mt-4 flex items-center gap-4 rounded-[10px] border border-[#d9d0f3] bg-[#f8f6ff] px-5 py-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-(--tint) text-[#634ac4]">
-            <Printer size={17} />
-          </div>
-
-          <div>
-            <p className="text-[12px] font-medium text-[#474d70]">
-              {currentStep === 0 &&
-                "Your order has been confirmed!"}
-
-              {currentStep === 1 &&
-                "Your book is being printed with care!"}
-
-              {currentStep === 2 &&
-                "Your book is on its way!"}
-
-              {currentStep === 3 &&
-                "Your book has been delivered!"}
-            </p>
-
-            <p className="mt-1 text-[11px] text-[#5d6482]">
-              {currentStep === 1 &&
-                "We'll ship it soon and notify you once it's on the way."}
-
-              {currentStep === 2 &&
-                "It will reach you soon. Please keep an eye on delivery updates."}
-
-              {currentStep === 3 &&
-                "We hope you enjoy reading your personalized Wonder Book!"}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {!isCancelled && <ShipmentCard order={order} />}
-
-      {/* -------------------------------------------------------------- */}
-      {/* Shipping + payment */}
-      {/* -------------------------------------------------------------- */}
-
-      <div className="mx-8 mt-4 grid grid-cols-[1fr_1fr] overflow-hidden rounded-xl border border-(--tint)">
-
-        {/* Shipping */}
-
-        <div className="border-r border-(--tint) px-5 py-4">
-          <div className="flex items-center justify-between">
-            <h4 className="text-[12px] font-bold text-[#2f3456]">
-              Shipping Address
-            </h4>
-
-            <button className="flex items-center gap-1 text-[11px] font-semibold text-[#6147bf]">
-              <Pencil size={13} />
-              Edit
-            </button>
-          </div>
-
-          <div className="mt-4 space-y-2 text-[11px] leading-relaxed text-[#5f6682]">
-            <p>{order.shippingAddress?.name}</p>
-            <p>{order.shippingAddress?.line1}</p>
-            {order.shippingAddress?.line2 && <p>{order.shippingAddress.line2}</p>}
-            <p>
-              {[order.shippingAddress?.city, order.shippingAddress?.state, order.shippingAddress?.postalCode]
-                .filter(Boolean)
-                .join(", ")}
-            </p>
-            <p>{order.shippingAddress?.country}</p>
-            <p>{order.shippingAddress?.phone}</p>
-          </div>
-        </div>
-
-        {/* Payment */}
-
-        <div className="px-5 py-4">
-          <h4 className="text-[12px] font-bold text-[#2f3456]">
-            Payment Summary
-          </h4>
-
-          <div className="mt-4 space-y-3 text-[11px]">
-            <div className="flex justify-between text-[#626984]">
-              <span>Book Price</span>
-              <span>₹{order.subtotal}</span>
-            </div>
-
-            <div className="flex justify-between text-[#626984]">
-              <span>Delivery</span>
-              {order.shippingFee > 0 ? (
-                <span>₹{order.shippingFee}</span>
-              ) : (
-                <span className="font-semibold text-[#41805f]">FREE</span>
-              )}
-            </div>
-
-            {order.gstAmount > 0 && (
-              <div className="flex justify-between text-[#626984]">
-                <span>GST ({order.gstPercent}%)</span>
-                <span>₹{order.gstAmount}</span>
-              </div>
-            )}
-
-            <div className="border-t border-(--tint) pt-3">
-              <div className="flex justify-between font-bold text-[#393061]">
-                <span>Total Paid</span>
-                <span>₹{order.price}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* -------------------------------------------------------------- */}
-      {/* Book details */}
-      {/* -------------------------------------------------------------- */}
-
-      <div className="mx-8 mt-4 rounded-xl border border-(--tint) p-5">
-        <h4 className="text-[12px] font-bold text-[#2f3456]">
-          Book Details
-        </h4>
-
-        <div className="mt-4 grid grid-cols-[1fr_300px] gap-6">
-          {/* Details */}
-
-          <div className="space-y-3">
-            <DetailRow
-              label="Story Title"
-              value={order.book.title}
-            />
-
-            <DetailRow
-              label="Size"
-              value="8 × 10 inches"
-            />
-
-            <DetailRow
-              label="Cover"
-              value="Hardcover"
-            />
-
-            <DetailRow
-              label="Paper Quality"
-              value="Premium Matte"
-            />
-          </div>
-
-          {/* Book preview */}
-
-          <div className="relative flex h-42.5 items-center justify-center overflow-hidden rounded-[5px] bg-[#f4eee4] shadow-inner">
-            <div className="absolute right-0 top-0 h-full w-[48%] bg-[#fffdf8]" />
-
-            <div className="absolute right-4 top-7 w-[35%] text-[8px] leading-[1.8] text-[#575d72]">
-              <p>
-                The boy and his dog, Buddy looked up at the stars.
-                “Wow! The universe is so big and beautiful!”
-              </p>
-
-              <p className="mt-3">
-                They climbed into their rocket, ready for the greatest adventure ever.
-              </p>
-            </div>
-
-            <div className="absolute left-7 -top-0.5">
-              <BookCover
-                book={order.book}
-                size="large"
-                className="scale-[0.78] origin-top-left"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* -------------------------------------------------------------- */}
-      {/* Bottom actions */}
-      {/* -------------------------------------------------------------- */}
-
-      <div className="mt-auto flex items-center justify-between border-t border-(--tint) px-8 py-5">
-        {order.rawStatus === "confirmed" && (
-          <button
-            onClick={onCancel}
-            disabled={cancelling}
-            className="flex items-center gap-2 rounded-[9px] border border-[#f1bebe] px-4 py-2.5 text-[12px] font-semibold text-[#c95752] transition hover:bg-[#fff7f7] disabled:pointer-events-none disabled:opacity-50"
-          >
-            {cancelling ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-            {cancelling ? "Cancelling..." : "Cancel Order"}
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
-/* -------------------------------------------------------------------------- */
-/*                              DETAIL ROW                                    */
-/* -------------------------------------------------------------------------- */
-
-const DetailRow = ({
-  label,
-  value,
-}) => (
-  <div className="grid grid-cols-[100px_1fr] gap-4 text-[11px]">
-    <span className="text-[#777c94]">
-      {label}
-    </span>
-
-    <span className="font-medium text-[#4c536f]">
-      {value}
-    </span>
-  </div>
-);
 
 /* ========================================================================== */
 /*                              MAIN ORDERS PAGE                              */
 /* ========================================================================== */
 
-export const Orders = () => {
+export const Orders = ({ onChangeAddress }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [cancelError, setCancelError] = useState("");
   const [cancelling, setCancelling] = useState(false);
-
-  const [activeTab, setActiveTab] = useState("All Orders");
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [search, setSearch] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -748,290 +1125,47 @@ export const Orders = () => {
   const handleCancelOrder = async () => {
     if (!selectedOrder || cancelling) return;
     setCancelling(true);
+    setCancelError("");
     try {
       await cancelOrderRequest(selectedOrder._id);
+      const patch = { status: "Cancelled", rawStatus: "cancelled", statusStep: -1 };
       setOrders((prev) =>
-        prev.map((order) =>
-          order._id === selectedOrder._id
-            ? { ...order, status: "Cancelled", rawStatus: "cancelled", statusStep: -1 }
-            : order
-        )
+        prev.map((o) => (o._id === selectedOrder._id ? { ...o, ...patch } : o))
       );
-      setSelectedOrder((prev) =>
-        prev ? { ...prev, status: "Cancelled", rawStatus: "cancelled", statusStep: -1 } : prev
-      );
+      setSelectedOrder((prev) => (prev ? { ...prev, ...patch } : prev));
     } catch {
-      setError("Couldn't cancel this order. Please try again.");
+      setCancelError("Couldn't cancel this order. Please try again.");
     } finally {
       setCancelling(false);
     }
   };
 
-  const tabs = [
-    {
-      label: "All Orders",
-      count: orders.length,
-    },
-    {
-      label: "In Progress",
-      count: orders.filter(
-        (o) => o.status === "In Progress"
-      ).length,
-    },
-    {
-      label: "Shipped",
-      count: orders.filter(
-        (o) => o.status === "Shipped"
-      ).length,
-    },
-    {
-      label: "Delivered",
-      count: orders.filter(
-        (o) => o.status === "Delivered"
-      ).length,
-    },
-    {
-      label: "Cancelled",
-      count: orders.filter(
-        (o) => o.status === "Cancelled"
-      ).length,
-    },
-  ];
+  const openOrder = (order) => {
+    setCancelError("");
+    setSelectedOrder(order);
+  };
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      const matchesTab =
-        activeTab === "All Orders" ||
-        order.status === activeTab;
-
-      const matchesSearch =
-        order.book.title
-          .toLowerCase()
-          .includes(search.toLowerCase()) ||
-        order.orderId
-          .toLowerCase()
-          .includes(search.toLowerCase());
-
-      return matchesTab && matchesSearch;
-    });
-  }, [orders, activeTab, search]);
-
-  const hasSelection = Boolean(selectedOrder);
-
-  // The list uses flex centering for loading / error / empty states,
-  // and a grid for the actual order cards.
-  const listIsCentered = loading || Boolean(error) || filteredOrders.length === 0;
+  if (selectedOrder) {
+    return (
+      <OrderDetailView
+        order={selectedOrder}
+        onBack={() => setSelectedOrder(null)}
+        onCancel={handleCancelOrder}
+        cancelling={cancelling}
+        error={cancelError}
+        onChangeAddress={onChangeAddress}
+      />
+    );
+  }
 
   return (
-    <div className="h-full min-h-0 bg-[#faf9fd] p-4 lg:p-5">
-      <main className="flex h-full min-h-0 flex-col overflow-hidden rounded-[28px] border border-[#e6e3ee] bg-[#fcfbfe] shadow-[0_10px_40px_rgba(64,48,110,0.06)]">
-        {/* HEADER */}
-        <header className="shrink-0 flex flex-col gap-5  px-7 py-2 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4  border-[#e6e3ee]">
-            {/* <div className="flex h-14.5 w-14.5 items-center justify-center rounded-[18px] bg-linear-to-br from-[#f1effb] to-[#e7e3f8] text-[#513cb0]">
-              <ShoppingBag size={26} strokeWidth={1.8} />
-            </div> */}
-            <div>
-              <h1 className="text-[20px] font-bold tracking-[-0.5px] text-[#25294c]">
-                Orders
-              </h1>
-
-              <p className="mt-1 text-[13px] text-[#5e6687]">
-                Track your physical book orders and their delivery status
-              </p>
-            </div>
-          </div>
-          <CartButton />  
-        </header>
-
-        <div
-          className={`grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] ${hasSelection ? "lg:grid-cols-[50%_50%]" : ""
-            }`}
-        >
-
-          {/* ======================================================== */}
-          {/* LEFT - ORDER LIST */}
-          {/* ======================================================== */}
-
-          <section
-            className={`flex min-h-0 flex-col overflow-hidden ${hasSelection ? "border-r border-(--tint)" : ""
-              }`}
-          >
-            {/* Tabs */}
-
-            <div className="shrink-0 flex flex-col gap-4 border-b border-[#eceaf1] px-7 pt-4 lg:flex-row lg:items-center lg:justify-between">
-
-              <div className="flex gap-7 overflow-x-auto">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.label}
-                    onClick={() =>
-                      setActiveTab(tab.label)
-                    }
-                    className={`
-                      relative flex shrink-0 items-center gap-2 pb-4
-                      text-[12px] font-semibold transition
-                      ${activeTab === tab.label
-                        ? "text-[#4333a2]"
-                        : "text-[#565d7c]"
-                      }
-                    `}
-                  >
-                    {tab.label}
-
-                    {activeTab === tab.label && (
-                      <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-[#654bc7]" />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Search */}
-
-            <div className="shrink-0 flex gap-4 px-7 py-4">
-              <div className="relative flex-1">
-                <Search
-                  size={18}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-[#706e94]"
-                />
-
-                <input
-                  value={search}
-                  onChange={(e) =>
-                    setSearch(e.target.value)
-                  }
-                  placeholder="Search your orders..."
-                  className="h-10.75 w-full rounded-full border border-[#e1deea] bg-white pl-11 pr-4 text-[12px] text-[#3c4160] outline-none transition placeholder:text-[#9a9aad] focus:border-[#917ee0] focus:ring-2 focus:ring-[#eeeaff]"
-                />
-              </div>
-            </div>
-
-            {/* Orders (the only part of the left column that scrolls) */}
-            {/* FIX: the old class string was `pb-5  border${...}` — no space  */}
-            {/* before the template, so it produced `borderflex` / `bordergrid` */}
-            {/* and neither `grid` nor `gap-3` ever applied.                    */}
-
-            <div
-              className={`min-h-0 flex-1 overflow-y-auto px-7 pb-5 ${listIsCentered
-                ? "flex items-center justify-center"
-                : hasSelection
-                  ? "grid grid-cols-1 content-start gap-3"
-                  : "grid grid-cols-1 content-start gap-3 lg:grid-cols-2"
-                }`}
-            >
-              {loading ? (
-                <div className="flex h-full w-full flex-col items-center justify-center text-center">
-                  <Loader2
-                    size={32}
-                    className="animate-spin text-[#8066d7]"
-                  />
-
-                  <p className="mt-4 text-[12px] text-[#7b8098]">
-                    Loading your orders...
-                  </p>
-                </div>
-              ) : error ? (
-                <div className="flex h-full w-full flex-col items-center justify-center text-center">
-                  <Package
-                    size={40}
-                    className="text-[#b4afc8]"
-                  />
-
-                  <h3 className="mt-4 text-[16px] font-bold text-[#3d4262]">
-                    {error}
-                  </h3>
-                </div>
-              ) : filteredOrders.length > 0 ? (
-                filteredOrders.map((order) => (
-                  <OrderListItem
-                    key={order.orderId}
-                    order={order}
-                    selected={
-                      selectedOrder?.orderId === order.orderId
-                    }
-                    onClick={() => setSelectedOrder(order)}
-                  />
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center text-center p-5">
-                  <Package
-                    size={40}
-                    className="text-[#b4afc8]"
-                  />
-
-                  <h3 className="mt-4 text-[16px] font-bold text-[#3d4262]">
-                    No orders found
-                  </h3>
-
-                  <p className="mt-2 text-[12px] text-[#7b8098]">
-                    {orders.length === 0
-                      ? "Order a printed copy of one of your books to see it here."
-                      : "Try changing your search or filter."}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Pagination */}
-            {/* FIX: removed the stray `div` attribute and added shrink-0 so   */}
-            {/* the bar is always pinned to the bottom of the left column.     */}
-
-            {orders.length > 0 && (
-              <div className="flex shrink-0 items-center justify-between border-t border-[#eeecf2] px-7 py-2">
-                <p className="text-[12px] text-[#666d89]">
-                  Showing 1-{filteredOrders.length} of{" "}
-                  {orders.length} orders
-                </p>
-
-                <div className="flex items-center gap-2">
-                  <button className="flex h-9.5 w-9.5 items-center justify-center rounded-full text-[#817b9b] hover:bg-[#f1eef8]">
-                    <ChevronRight
-                      size={17}
-                      className="rotate-180"
-                    />
-                  </button>
-
-                  <button className="flex h-9.5 w-9.5 items-center justify-center rounded-xl bg-[#f0ecfa] text-[12px] font-semibold text-[#5943b2]">
-                    1
-                  </button>
-
-                  <button className="flex h-9.5 w-7.5 items-center justify-center text-[12px] font-semibold text-[#4d4675]">
-                    2
-                  </button>
-
-                  <button className="flex h-9.5 w-7.5 items-center justify-center text-[12px] font-semibold text-[#4d4675]">
-                    3
-                  </button>
-
-                  <button className="flex h-9.5 w-9.5 items-center justify-center rounded-full text-[#5843ae] hover:bg-[#f1eef8]">
-                    <ChevronRight size={17} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </section>
-
-          {/* ======================================================== */}
-          {/* RIGHT - ORDER DETAILS */}
-          {/* ======================================================== */}
-
-          {/* FIX: min-h-0 + overflow-y-auto so the details panel scrolls on its own. */}
-
-          {hasSelection && (
-            <section className="min-h-0 overflow-y-auto bg-[#fcfbfe] p-3">
-              <OrderDetails
-                order={selectedOrder}
-                onClose={() =>
-                  setSelectedOrder(null)
-                }
-                onCancel={handleCancelOrder}
-                cancelling={cancelling}
-              />
-            </section>
-          )}
-        </div>
-      </main>
-    </div>
+    <OrderList
+      orders={orders}
+      loading={loading}
+      error={error}
+      onSelectOrder={openOrder}
+    />
   );
 };
+
+export default Orders;

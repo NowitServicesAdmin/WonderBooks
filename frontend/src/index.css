@@ -4,6 +4,11 @@
 @import "./theme/dark.generated.css";
 @import "./theme/dark.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* or, if it sets data-theme="dark" instead */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* Theme tokens (light values). Every var(--x) used across the app
    for colour (--ink, --accent, --tint, --surface, --border, etc.)
    reads from here — without this block those properties had no

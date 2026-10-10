@@ -753,6 +753,7 @@ export default function HomePage() {
                                 <a href="https://nowitservices.com/" target="_blank" rel="noopener noreferrer" className={footerLink}>About Us</a>
                                 <Link to="/terms" className={footerLink}>Terms &amp; Conditions</Link>
                                 <Link to="/privacy" className={footerLink}>Privacy Policy</Link>
+                                <Link to="/refund" className={footerLink}>Refund Policy</Link>
                             </div>
                         </div>
                     </div>
