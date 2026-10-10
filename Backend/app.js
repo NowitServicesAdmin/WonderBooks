@@ -2,11 +2,8 @@ import "dotenv/config";
 import dns from "node:dns";
 import path from "path";
 import crypto from "crypto";
-
 import { generateAudio } from "./AudioService.js/ttsWorker.js";
-
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
-
 import express from "express";
 import cors from "cors";
 import connectDB from "./config.db.js";
