@@ -14,10 +14,11 @@ export const ui = {
     "border border-[#ece8f7] bg-white shadow-sm dark:border-[#2e2a4a] dark:bg-[#1b1830] dark:shadow-black/40",
   divider: "border-[#ece8f7] dark:border-[#2e2a4a]",
   iconWrap: "bg-[#ebe5ff] text-[#4f3fc4] dark:bg-[#8b73ff]/25 dark:text-[#b3a6ff]",
+  // Toolbar icon buttons (search / reset / sort) use the theme's purple tokens, same as the cart
   iconBtn:
-    "border border-[#ddd6fe] bg-white text-[#1e2140] hover:bg-[#f5f3ff] dark:border-[#3a3563] dark:bg-[#1b1830] dark:text-[#f3f1ff] dark:hover:bg-[#262245]",
+    "border border-(--accent-border) bg-(--surface) text-(--accent) hover:border-(--accent) hover:bg-(--tint) hover:text-(--accent-hover)",
   iconBtnActive:
-    "border border-[#8b7be0] bg-[#ede9fe] text-[#4f3fc4] dark:border-[#8b73ff] dark:bg-[#8b73ff]/20 dark:text-[#b3a6ff]",
+    "border border-(--accent) bg-(--accent-bg) text-(--accent) hover:text-(--accent-hover)",
   input:
     "border border-[#8b7be0] bg-white text-[#1e2140] placeholder:text-[#8d93ab] focus:ring-4 focus:ring-[#dcd3fb] dark:border-[#8b73ff] dark:bg-[#1b1830] dark:text-[#f3f1ff] dark:focus:ring-[#8b73ff]/30",
   notice:
@@ -84,11 +85,11 @@ export function BookCover({ book, className = "" }) {
       {book?.cover ? (
         <img src={book.cover} alt={book.title} className="h-full w-full rounded-l-sm rounded-r-md object-cover shadow-[4px_6px_10px_rgba(20,15,40,0.35)]" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center rounded-l-sm rounded-r-md bg-gradient-to-br from-violet-400 to-indigo-600 p-2 text-center text-[10px] font-semibold text-white shadow-md">
+        <div className="flex h-full w-full items-center justify-center rounded-l-sm rounded-r-md bg-linear-to-br from-violet-400 to-indigo-600 p-2 text-center text-[10px] font-semibold text-white shadow-md">
           {book?.title}
         </div>
       )}
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-2 rounded-l-sm bg-gradient-to-r from-black/35 to-transparent" />
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-2 rounded-l-sm bg-linear-to-r from-black/35 to-transparent" />
     </div>
   );
 }

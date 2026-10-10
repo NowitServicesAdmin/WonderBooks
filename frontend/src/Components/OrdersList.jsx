@@ -74,7 +74,6 @@ export default function OrderList({ orders = [], loading = false, error = "", on
 
         <div className="flex items-center gap-3">
           {/* Search expands to the LEFT of the icon buttons */}
-          <CartButton/>
           <div
             aria-hidden={!showSearch}
             className={`overflow-hidden transition-all duration-300 ease-out ${
@@ -101,6 +100,7 @@ export default function OrderList({ orders = [], loading = false, error = "", on
             className={`${iconBtnBase} ${refreshing ? ui.iconBtnActive : ui.iconBtn}`}>
             <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
           </button>
+          <CartButton bordered />
 
           <button aria-label="Toggle sort order" aria-pressed={sort === "oldest"}
             title={sort === "newest" ? "Newest first (click for oldest first)" : "Oldest first (click for newest first)"}
