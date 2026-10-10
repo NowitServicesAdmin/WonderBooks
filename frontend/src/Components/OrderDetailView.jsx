@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, CalendarDays, Check, Printer, Truck, PackageCheck, CircleCheck, MapPin, FileText, Trash2, Loader2 } from "lucide-react";
 import { StatusBadge, OrderTags, BookCover, ui } from "./orderUtils";
 import { getOrderTracking } from "../services/orderService";
+import { displayPhone } from "../utils/phone";
 
 /* Backend statusStep: 0 confirmed, 1 printing, 2 shipped, 3 delivered, -1 cancelled.
    The design adds "Out for Delivery" between shipped and delivered. */
@@ -111,7 +112,7 @@ export default function OrderDetailView({ order, onBack, onCancel, cancelling = 
 
       {/* Summary */}
       <div className={`${card} mt-5 flex items-start gap-5`}>
-        <BookCover book={order.book} className="h-[136px] w-[96px]" />
+        <BookCover book={order.book} className="h-34 w-24" />
         <div className="min-w-0 flex-1 space-y-2">
           <h2 className={`${ui.text} text-lg font-semibold`}>{order.book?.title}</h2>
           <p className={`${ui.muted} text-[13px]`}>Order ID: {order.orderId}</p>
@@ -188,7 +189,7 @@ export default function OrderDetailView({ order, onBack, onCancel, cancelling = 
             {addr.line2 && <p>{addr.line2}</p>}
             <p>{[addr.city, addr.state, addr.postalCode].filter(Boolean).join(", ")}</p>
             <p>{addr.country}</p>
-            <p>Phone: {addr.phone}</p>
+            {addr.phone && <p>Phone: {displayPhone(addr)}</p>}
           </div>
         </div>
 
@@ -216,7 +217,7 @@ export default function OrderDetailView({ order, onBack, onCancel, cancelling = 
       <div className={`${card} mt-4`}>
         <h3 className={`${ui.text} text-sm font-semibold`}>Order Items</h3>
         <div className="mt-3 flex items-center gap-4">
-          <BookCover book={order.book} className="h-[76px] w-[60px]" />
+          <BookCover book={order.book} className="h-19 w-15" />
           <div className="min-w-0 flex-1 space-y-2">
             <p className={`${ui.text} text-sm font-semibold`}>{order.book?.title}</p>
             <OrderTags book={order.book} />

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, RefreshCw, ArrowUpDown, CalendarDays, BookOpen, ChevronRight, ChevronLeft, Loader2, Package } from "lucide-react";
 import { StatusBadge, BookCover, ui, statusStyle } from "./orderUtils";
+import { CartButton } from './CartButton';
 
 const TABS = [
   { key: "All Orders", label: "All" }, // key = original tab name, label = new design
@@ -73,6 +74,7 @@ export default function OrderList({ orders = [], loading = false, error = "", on
 
         <div className="flex items-center gap-3">
           {/* Search expands to the LEFT of the icon buttons */}
+          <CartButton/>
           <div
             aria-hidden={!showSearch}
             className={`overflow-hidden transition-all duration-300 ease-out ${
@@ -111,7 +113,7 @@ export default function OrderList({ orders = [], loading = false, error = "", on
 
       {/* Underline tabs: outer div draws the line, inner div scrolls sideways only */}
       <div className={`${ui.divider} mt-6 border-b`}>
-        <div className="flex gap-8 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex gap-8 overflow-x-auto overflow-y-hidden scrollbar-none [&::-webkit-scrollbar]:hidden">
           {TABS.map((t) => {
             const active = activeTab === t.key;
             return (
@@ -168,11 +170,11 @@ export default function OrderList({ orders = [], loading = false, error = "", on
               <button
                 key={o.orderId}
                 onClick={() => onSelectOrder(o)}
-                className={`${ui.surface} group relative flex min-h-[128px] w-full items-center gap-4 overflow-hidden rounded-2xl bg-gradient-to-r ${st.card} to-white to-60% py-3 pl-6 pr-12 text-left transition hover:shadow-md dark:to-[#1b1830]`}
+                className={`${ui.surface} group relative flex min-h-32 w-full items-center gap-4 overflow-hidden rounded-2xl bg-linear-to-r ${st.card} to-white to-60% py-3 pl-6 pr-12 text-left transition hover:shadow-md dark:to-[#1b1830]`}
               >
                 <span className={`absolute inset-y-0 left-0 w-1.5 ${st.bar}`} />
 
-                <BookCover book={o.book} className="h-[104px] w-[80px]" />
+                <BookCover book={o.book} className="h-26 w-20" />
 
                 <div className="min-w-0 flex-1 space-y-2.5">
                   <h3 className={`${ui.text} truncate pr-24 text-[15px] font-semibold`}>{o.book?.title}</h3>
