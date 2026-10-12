@@ -1,5 +1,5 @@
 
-name: WonderBooks Docker CI-CD Deployment
+name: WonderBooks CI-CD Docker Deployment
 
 on:
   push:
@@ -45,18 +45,23 @@ jobs:
           CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]
           EOF
 
-      # 4. Build Docker images
+      # 4. Build backend image
       - name: Build backend image
-        run: docker build -t wonderbooks-backend:latest ./Backend
+        run: |
+          docker build \
+            -f Backend/Dockerfile \
+            -t wonderbooks-backend:latest \
+            ./Backend
 
+      # 5. Build frontend image
       - name: Build frontend image
-        run: docker build -t wonderbooks-frontend:latest ./frontend
+        run: |
+          docker build \
+            -f frontend/Dockerfile \
+            -t wonderbooks-frontend:latest \
+            ./frontend
 
-      # 5. Verify images
-      - name: Show Docker images
-        run: docker images
-
-      # 6. Save both images
+      # 6. Save images
       - name: Save Docker images
         run: |
           docker save \
@@ -64,33 +69,80 @@ jobs:
             wonderbooks-frontend:latest \
             -o wonderbooks-images.tar
 
-      # 7. Copy archive to EC2
-      - name: Transfer images to EC2
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: wonderbooks-images.tar
-          target: /home/ubuntu/
-
-      # 8. Deploy and verify application
-      - name: Deploy and test applications
+      # 7. Install host dependencies on NEW EC2
+      - name: Prepare EC2 server
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            set -eu
+            set -e
 
-            echo "========== LOADING IMAGES =========="
+            echo "Updating Ubuntu packages..."
+            sudo apt-get update
+
+            echo "Installing Docker, Nginx and required tools..."
+            sudo apt-get install -y \
+              docker.io \
+              nginx \
+              ca-certificates \
+              curl \
+              gnupg
+
+            echo "Installing Node.js 20 and npm..."
+            curl -fsSL https://deb.nodesource.com/setup_20.x \
+              -o /tmp/nodesource_setup.sh
+            sudo bash /tmp/nodesource_setup.sh
+            sudo apt-get install -y nodejs
+            rm -f /tmp/nodesource_setup.sh
+
+            echo "Enabling services..."
+            sudo systemctl enable --now docker
+            sudo systemctl enable --now nginx
+
+            echo "Checking installed dependencies..."
+            docker --version
+            node --version
+            npm --version
+            nginx -v
+
+            echo "EC2 dependencies installed successfully."
+
+      # 8. Transfer Docker images
+      - name: Transfer images to EC2
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "wonderbooks-images.tar"
+          target: "/home/ubuntu/"
+
+      # 9. Deploy containers and configure Nginx
+      - name: Deploy WonderBooks
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "Loading Docker images..."
             sudo docker load -i /home/ubuntu/wonderbooks-images.tar
 
-            echo "========== STOPPING OLD CONTAINERS =========="
-            sudo docker rm -f wonderbooks-backend wonderbooks-frontend || true
+            echo "Checking backend environment file..."
+            if [ ! -f /home/ubuntu/WonderBooks/Backend/.env ]; then
+              echo "WARNING: Backend .env file is missing."
+              echo "Ensure backend environment variables are configured."
+            fi
 
-            echo "========== STARTING BACKEND =========="
+            echo "Removing old WonderBooks containers..."
+            sudo docker rm -f wonderbooks-backend || true
+            sudo docker rm -f wonderbooks-frontend || true
+
+            echo "Starting backend..."
             if [ -f /home/ubuntu/WonderBooks/Backend/.env ]; then
               sudo docker run -d \
                 --name wonderbooks-backend \
@@ -106,57 +158,61 @@ jobs:
                 wonderbooks-backend:latest
             fi
 
-            echo "========== STARTING FRONTEND =========="
+            echo "Starting frontend..."
             sudo docker run -d \
               --name wonderbooks-frontend \
               --restart unless-stopped \
-              -p 5173:5173 \
+              -p 127.0.0.1:5173:5173 \
               wonderbooks-frontend:latest
 
-            echo "========== WAITING FOR STARTUP =========="
+            echo "Configuring Nginx reverse proxy..."
+            sudo tee /etc/nginx/sites-available/default > /dev/null <<'NGINX'
+            server {
+                listen 80 default_server;
+                listen [::]:80 default_server;
+
+                server_name _;
+
+                location /api/ {
+                    proxy_pass http://127.0.0.1:5000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                }
+
+                location / {
+                    proxy_pass http://127.0.0.1:5173;
+                    proxy_http_version 1.1;
+                    proxy_set_header Host $host;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_cache_bypass $http_upgrade;
+                }
+            }
+            NGINX
+
+            sudo nginx -t
+            sudo systemctl enable nginx
+            sudo systemctl restart nginx
+
+            echo "Waiting for application startup..."
             sleep 10
 
-            echo "========== CONTAINER STATUS =========="
+            echo "Checking container status..."
             sudo docker ps -a
 
-            echo "========== BACKEND LOGS =========="
-            sudo docker logs --tail 100 wonderbooks-backend 2>&1 || true
+            echo "Checking backend logs..."
+            sudo docker logs --tail 50 wonderbooks-backend
 
-            echo "========== FRONTEND LOGS =========="
-            sudo docker logs --tail 100 wonderbooks-frontend 2>&1 || true
+            echo "Checking frontend logs..."
+            sudo docker logs --tail 50 wonderbooks-frontend
 
-            echo "========== BACKEND HTTP TEST =========="
-            if command -v curl >/dev/null 2>&1; then
-              curl -sS -i --max-time 10 http://127.0.0.1:5000/ || true
-            else
-              echo "curl is not installed on EC2"
-            fi
+            echo "Checking local HTTP response..."
+            curl -I --max-time 10 http://127.0.0.1/ || true
 
-            echo "========== FRONTEND HTTP TEST =========="
-            if command -v curl >/dev/null 2>&1; then
-              curl -sS -i --max-time 10 http://127.0.0.1:5173/ || true
-            else
-              echo "curl is not installed on EC2"
-            fi
-
-            echo "========== PORT STATUS =========="
-            sudo docker port wonderbooks-backend || true
-            sudo docker port wonderbooks-frontend || true
-
-            echo "========== EC2 PUBLIC IP =========="
-            TOKEN=$(curl -sS --max-time 3 -X PUT \
-              -H "X-aws-ec2-metadata-token-ttl-seconds: 60" \
-              http://169.254.169.254/latest/api/token || true)
-
-            if [ -n "$TOKEN" ]; then
-              curl -sS --max-time 3 \
-                -H "X-aws-ec2-metadata-token: $TOKEN" \
-                http://169.254.169.254/latest/meta-data/public-ipv4 || true
-            else
-              echo "Public IP could not be retrieved from EC2 metadata"
-            fi
-
-            echo
-            echo "========== DEPLOYMENT DIAGNOSTICS COMPLETED =========="
-
+            echo "Cleaning transferred archive..."
             rm -f /home/ubuntu/wonderbooks-images.tar
+
+            echo "WonderBooks deployment workflow completed."
