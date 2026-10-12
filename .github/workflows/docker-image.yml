@@ -1,5 +1,5 @@
 
-name: WonderBooks Docker Deployment
+name: WonderBooks CI-CD Docker Deployment
 
 on:
   push:
@@ -15,47 +15,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout GitHub repository
+      # 1. Clone repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Verify Dockerfile paths
-      - name: Check repository structure
+      # 2. Create backend Dockerfile
+      - name: Create backend Dockerfile
         run: |
-          echo "Repository root:"
-          pwd
-          ls -la
+          cat > Backend/Dockerfile <<'EOF'
+          FROM node:20-alpine
+          WORKDIR /app
+          COPY package*.json ./
+          RUN npm ci --omit=dev
+          COPY . .
+          EXPOSE 5000
+          CMD ["node", "app.js"]
+          EOF
 
-          echo "Dockerfiles:"
-          find . -maxdepth 3 -iname 'Dockerfile' -print
+      # 3. Create frontend Dockerfile
+      - name: Create frontend Dockerfile
+        run: |
+          cat > frontend/Dockerfile <<'EOF'
+          FROM node:20-alpine
+          WORKDIR /app
+          COPY package*.json ./
+          RUN npm ci
+          COPY . .
+          EXPOSE 5173
+          CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]
+          EOF
 
-          test -f Backend/Dockerfile || {
-            echo "Backend/Dockerfile not found"
-            exit 1
-          }
-
-          test -f frontend/Dockerfile || {
-            echo "frontend/Dockerfile not found"
-            exit 1
-          }
-
-      # 3. Build backend image
-      - name: Build backend Docker image
+      # 4. Build backend Docker image
+      - name: Build backend image
         run: |
           docker build \
             -f Backend/Dockerfile \
             -t wonderbooks-backend:latest \
             ./Backend
 
-      # 4. Build frontend image
-      - name: Build frontend Docker image
+      # 5. Build frontend Docker image
+      - name: Build frontend image
         run: |
           docker build \
             -f frontend/Dockerfile \
             -t wonderbooks-frontend:latest \
             ./frontend
 
-      # 5. Save both Docker images
+      # 6. Save images for transfer
       - name: Save Docker images
         run: |
           docker save \
@@ -63,8 +69,8 @@ jobs:
             wonderbooks-frontend:latest \
             -o wonderbooks-images.tar
 
-      # 6. Transfer images to new EC2
-      - name: Copy Docker images to EC2
+      # 7. Copy images to new EC2
+      - name: Transfer images to EC2
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -73,8 +79,8 @@ jobs:
           source: "wonderbooks-images.tar"
           target: "/home/ubuntu/"
 
-      # 7. Deploy containers on EC2
-      - name: Deploy to EC2
+      # 8. Deploy containers
+      - name: Deploy Docker containers
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -87,12 +93,11 @@ jobs:
             sudo docker load \
               -i /home/ubuntu/wonderbooks-images.tar
 
-            echo "Stopping existing containers..."
+            echo "Removing previous containers..."
             sudo docker rm -f wonderbooks-backend || true
             sudo docker rm -f wonderbooks-frontend || true
 
-            echo "Deploying backend..."
-
+            echo "Starting backend on port 5000..."
             if [ -f /home/ubuntu/WonderBooks/Backend/.env ]; then
               sudo docker run -d \
                 --name wonderbooks-backend \
@@ -108,26 +113,23 @@ jobs:
                 wonderbooks-backend:latest
             fi
 
-            echo "Deploying frontend..."
+            echo "Starting frontend on port 5173..."
             sudo docker run -d \
               --name wonderbooks-frontend \
               --restart unless-stopped \
               -p 5173:5173 \
               wonderbooks-frontend:latest
 
-            echo "Waiting for containers..."
+            echo "Checking containers..."
             sleep 5
-
-            echo "Container status:"
             sudo docker ps -a
 
-            echo "Backend logs:"
+            echo "Backend logs..."
             sudo docker logs --tail 50 wonderbooks-backend
 
-            echo "Frontend logs:"
+            echo "Frontend logs..."
             sudo docker logs --tail 50 wonderbooks-frontend
 
-            echo "Cleaning transferred archive..."
             rm -f /home/ubuntu/wonderbooks-images.tar
 
             echo "WonderBooks deployment completed."
