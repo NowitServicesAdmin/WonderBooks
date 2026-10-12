@@ -1,5 +1,5 @@
 
-name: Deploy WonderBooks to New EC2
+name: WonderBooks Docker Deployment
 
 on:
   push:
@@ -11,25 +11,31 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Download source code from GitHub
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build backend image
+      # 2. Build backend image using Backend/Dockerfile
+      - name: Build backend Docker image
         run: |
           docker build \
+            -f Backend/Dockerfile \
             -t wonderbooks-backend:latest \
             ./Backend
 
-      - name: Build frontend image
+      # 3. Build frontend image using frontend/Dockerfile
+      - name: Build frontend Docker image
         run: |
           docker build \
+            -f frontend/Dockerfile \
             -t wonderbooks-frontend:latest \
             ./frontend
 
+      # 4. Save both images into one archive
       - name: Save Docker images
         run: |
           docker save \
@@ -37,7 +43,8 @@ jobs:
             wonderbooks-frontend:latest \
             -o wonderbooks-images.tar
 
-      - name: Copy images to EC2
+      # 5. Transfer images directly to the new EC2
+      - name: Copy Docker images to EC2
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -46,7 +53,8 @@ jobs:
           source: "wonderbooks-images.tar"
           target: "/home/ubuntu/"
 
-      - name: Deploy containers on EC2
+      # 6. Load images and deploy containers on EC2
+      - name: Deploy Docker containers on EC2
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -55,28 +63,51 @@ jobs:
           script: |
             set -e
 
-            docker load \
+            echo "Loading Docker images..."
+            sudo docker load \
               -i /home/ubuntu/wonderbooks-images.tar
 
-            # Replace the old application containers
-            docker rm -f wonderbooks-backend || true
-            docker rm -f wonderbooks-frontend || true
+            echo "Stopping old containers..."
+            sudo docker rm -f wonderbooks-backend || true
+            sudo docker rm -f wonderbooks-frontend || true
 
-            # Start backend using its existing environment file
-            docker run -d \
-              --name wonderbooks-backend \
-              --restart unless-stopped \
-              --env-file /home/ubuntu/WonderBooks/Backend/.env \
-              -p 127.0.0.1:5000:5000 \
-              wonderbooks-backend:latest
+            echo "Starting backend container..."
 
-            # Start frontend
-            docker run -d \
+            if [ -f /home/ubuntu/WonderBooks/Backend/.env ]; then
+              sudo docker run -d \
+                --name wonderbooks-backend \
+                --restart unless-stopped \
+                --env-file /home/ubuntu/WonderBooks/Backend/.env \
+                -p 5000:5000 \
+                wonderbooks-backend:latest
+            else
+              sudo docker run -d \
+                --name wonderbooks-backend \
+                --restart unless-stopped \
+                -p 5000:5000 \
+                wonderbooks-backend:latest
+            fi
+
+            echo "Starting frontend container..."
+            sudo docker run -d \
               --name wonderbooks-frontend \
               --restart unless-stopped \
-              -p 5173:80 \
+              -p 5173:5173 \
               wonderbooks-frontend:latest
 
+            echo "Waiting for containers to start..."
+            sleep 5
+
+            echo "Container status:"
+            sudo docker ps -a
+
+            echo "Backend logs:"
+            sudo docker logs --tail 50 wonderbooks-backend
+
+            echo "Frontend logs:"
+            sudo docker logs --tail 50 wonderbooks-frontend
+
+            echo "Removing transferred archive..."
             rm -f /home/ubuntu/wonderbooks-images.tar
 
-            docker ps
+            echo "Deployment commands completed."
