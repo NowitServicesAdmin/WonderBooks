@@ -1,5 +1,5 @@
 
-name: WonderBooks CI-CD Docker Deployment
+name: WonderBooks Docker CI-CD Deployment
 
 on:
   push:
@@ -45,23 +45,18 @@ jobs:
           CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]
           EOF
 
-      # 4. Build backend Docker image
+      # 4. Build Docker images
       - name: Build backend image
-        run: |
-          docker build \
-            -f Backend/Dockerfile \
-            -t wonderbooks-backend:latest \
-            ./Backend
+        run: docker build -t wonderbooks-backend:latest ./Backend
 
-      # 5. Build frontend Docker image
       - name: Build frontend image
-        run: |
-          docker build \
-            -f frontend/Dockerfile \
-            -t wonderbooks-frontend:latest \
-            ./frontend
+        run: docker build -t wonderbooks-frontend:latest ./frontend
 
-      # 6. Save images for transfer
+      # 5. Verify images
+      - name: Show Docker images
+        run: docker images
+
+      # 6. Save both images
       - name: Save Docker images
         run: |
           docker save \
@@ -69,35 +64,33 @@ jobs:
             wonderbooks-frontend:latest \
             -o wonderbooks-images.tar
 
-      # 7. Copy images to new EC2
+      # 7. Copy archive to EC2
       - name: Transfer images to EC2
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "wonderbooks-images.tar"
-          target: "/home/ubuntu/"
+          source: wonderbooks-images.tar
+          target: /home/ubuntu/
 
-      # 8. Deploy containers
-      - name: Deploy Docker containers
+      # 8. Deploy and verify application
+      - name: Deploy and test applications
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            set -e
+            set -eu
 
-            echo "Loading Docker images..."
-            sudo docker load \
-              -i /home/ubuntu/wonderbooks-images.tar
+            echo "========== LOADING IMAGES =========="
+            sudo docker load -i /home/ubuntu/wonderbooks-images.tar
 
-            echo "Removing previous containers..."
-            sudo docker rm -f wonderbooks-backend || true
-            sudo docker rm -f wonderbooks-frontend || true
+            echo "========== STOPPING OLD CONTAINERS =========="
+            sudo docker rm -f wonderbooks-backend wonderbooks-frontend || true
 
-            echo "Starting backend on port 5000..."
+            echo "========== STARTING BACKEND =========="
             if [ -f /home/ubuntu/WonderBooks/Backend/.env ]; then
               sudo docker run -d \
                 --name wonderbooks-backend \
@@ -113,23 +106,57 @@ jobs:
                 wonderbooks-backend:latest
             fi
 
-            echo "Starting frontend on port 5173..."
+            echo "========== STARTING FRONTEND =========="
             sudo docker run -d \
               --name wonderbooks-frontend \
               --restart unless-stopped \
               -p 5173:5173 \
               wonderbooks-frontend:latest
 
-            echo "Checking containers..."
-            sleep 5
+            echo "========== WAITING FOR STARTUP =========="
+            sleep 10
+
+            echo "========== CONTAINER STATUS =========="
             sudo docker ps -a
 
-            echo "Backend logs..."
-            sudo docker logs --tail 50 wonderbooks-backend
+            echo "========== BACKEND LOGS =========="
+            sudo docker logs --tail 100 wonderbooks-backend 2>&1 || true
 
-            echo "Frontend logs..."
-            sudo docker logs --tail 50 wonderbooks-frontend
+            echo "========== FRONTEND LOGS =========="
+            sudo docker logs --tail 100 wonderbooks-frontend 2>&1 || true
+
+            echo "========== BACKEND HTTP TEST =========="
+            if command -v curl >/dev/null 2>&1; then
+              curl -sS -i --max-time 10 http://127.0.0.1:5000/ || true
+            else
+              echo "curl is not installed on EC2"
+            fi
+
+            echo "========== FRONTEND HTTP TEST =========="
+            if command -v curl >/dev/null 2>&1; then
+              curl -sS -i --max-time 10 http://127.0.0.1:5173/ || true
+            else
+              echo "curl is not installed on EC2"
+            fi
+
+            echo "========== PORT STATUS =========="
+            sudo docker port wonderbooks-backend || true
+            sudo docker port wonderbooks-frontend || true
+
+            echo "========== EC2 PUBLIC IP =========="
+            TOKEN=$(curl -sS --max-time 3 -X PUT \
+              -H "X-aws-ec2-metadata-token-ttl-seconds: 60" \
+              http://169.254.169.254/latest/api/token || true)
+
+            if [ -n "$TOKEN" ]; then
+              curl -sS --max-time 3 \
+                -H "X-aws-ec2-metadata-token: $TOKEN" \
+                http://169.254.169.254/latest/meta-data/public-ipv4 || true
+            else
+              echo "Public IP could not be retrieved from EC2 metadata"
+            fi
+
+            echo
+            echo "========== DEPLOYMENT DIAGNOSTICS COMPLETED =========="
 
             rm -f /home/ubuntu/wonderbooks-images.tar
-
-            echo "WonderBooks deployment completed."
