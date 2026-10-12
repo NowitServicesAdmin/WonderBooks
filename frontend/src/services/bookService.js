@@ -1,18 +1,5 @@
 import api from "../api/axios";
 
-// export const createBook = async (payload) => {
-//     try {
-//         const response = await api.post("/book/create-book", payload);
-//         return response.data;
-//     } catch (error) {
-//         console.error(
-//             "Create book API error:",
-//             error.response?.data || error.message
-//         );
-//         throw error;
-//     }
-// };
-
 const buildBookFormData = ({
   mode = "manual",
   storySettings,
@@ -35,12 +22,6 @@ const buildBookFormData = ({
   return fd;
 };
 
-/**
- * Accepts either:
- *  - a ready-made FormData (manual mode builds its own), or
- *  - { mode, storySettings, characters, files, message } (AI chat mode - we
- *    build the FormData; mode is "ai" or "manual", default "manual")
- */
 export const createBook = async (input) => {
   const fd = input instanceof FormData ? input : buildBookFormData(input);
 
@@ -139,4 +120,14 @@ export const updateBookPageText = async (bookId, pageId, content) => {
 // Permanently delete a book (and its images).
 export const deleteBook = async (bookId) => {
   await api.delete(`/book/${bookId}`);
+};
+
+export const getSamples = async () => {
+  const response = await api.get("/book/samples");
+  return response.data.samples || [];
+};
+
+export const getSampleById = async (bookId) => {
+  const response = await api.get(`/book/samples/${bookId}`);
+  return response.data.sample;
 };

@@ -19,6 +19,8 @@ export const deleteUser = (id) => api.delete(`${BASE}/users/${id}`);
 export const getBooks = (params) => api.get(`${BASE}/books`, { params });
 export const getBookDetail = (id) => api.get(`${BASE}/books/${id}`);
 export const deleteBook = (id) => api.delete(`${BASE}/books/${id}`);
+export const setBookSample = (id, isSample, category) =>
+    api.patch(`${BASE}/books/${id}/sample`, { isSample, category });
 
 // Orders
 export const getOrders = (params) => api.get(`${BASE}/orders`, { params });

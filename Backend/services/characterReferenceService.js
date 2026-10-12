@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { getFromS3 } from "./s3Service.js";
 import { uploadImage } from "./storageService.js";
 import { generateImage } from "../components/imageGenerator.js";
+import { stripLiteralText } from "../components/promptSafety.js";
 
 const prepareReferenceImage = async (buffer) => {
     return sharp(buffer)
@@ -43,13 +44,13 @@ Eyes: ${character.appearance?.eyes || "Not specified"}
 Skin Tone: ${character.appearance?.skinTone || "Not specified"}
 Body: ${character.appearance?.body || "Not specified"}
 Fur: ${character.appearance?.fur || "Not specified"}
-Markings: ${character.appearance?.markings || "Not specified"}
+Markings: ${stripLiteralText(character.appearance?.markings || "Not specified")}
 
 Clothing:
 Top: ${character.clothing?.top || "Not specified"}
 Bottom: ${character.clothing?.bottom || "Not specified"}
 Shoes: ${character.clothing?.shoes || "Not specified"}
-Accessories: ${character.clothing?.accessories || "Not specified"}
+Accessories: ${stripLiteralText(character.clothing?.accessories || "Not specified")}
 
 Colors:
 Primary: ${character.colors?.primary || "Not specified"}
@@ -60,7 +61,7 @@ Personality:
 ${(character.personality || []).join(", ")}
 
 Signature Details:
-${(character.signatureDetails || []).join(", ")}
+${stripLiteralText((character.signatureDetails || []).join(", "))}
 
 CHARACTER CONSISTENCY:
 
@@ -85,7 +86,7 @@ Do not redesign the character.
 Create a clean full-body character reference.
 Use a simple uncluttered background.
 Show the entire character clearly.
-No text.
+No text, letters or words anywhere: a sticker, label or print is a plain blank shape with a simple symbol.
 No watermark.
 `;
 };

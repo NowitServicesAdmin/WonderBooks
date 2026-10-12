@@ -10,6 +10,7 @@ import {
     deleteUser,
     listBooks,
     deleteBook,
+    setBookSample,
     getBookDetail,
     getOrderDetail,
     listOrders,
@@ -33,6 +34,7 @@ router.delete("/users/:id", deleteUser);
 
 router.get("/books", listBooks);
 router.get("/books/:id", getBookDetail);
+router.patch("/books/:id/sample", setBookSample);
 router.delete("/books/:id", deleteBook);
 
 router.get("/orders", listOrders);

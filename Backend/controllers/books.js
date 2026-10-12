@@ -2,6 +2,7 @@ import crypto from "crypto";
 import OpenAI from "openai";
 import mongoose from "mongoose";
 import book from "../models/book.js";
+import { SAMPLE_CATEGORIES } from "../config/sampleCategories.js";
 import Cart from "../models/cart.js";
 import {
   canAccessFeature,
@@ -263,6 +264,11 @@ const buildCorrection = (verdict, characterNames = []) => {
   return `FIX FROM THE LAST ATTEMPT (it was rejected: ${verdict.reason || "it did not show the scene"}): draw the exact setting and action described in the SCENE as a storybook illustration - not a photo, sign, object on its own or plain generic background - with the listed characters in it.`;
 };
 
+const placeForCheck = (prompt = "", fallback = "") => {
+  const match = String(prompt).match(/^SCENE:\s*(.+?[.!?])(?:\s|$)/s);
+  return (match?.[1] || fallback || prompt).trim();
+};
+
 // Generates ONE picture, checks it, and on a mismatch tries again with a
 // correction. Used by the cover and every page, so both behave the same.
 // Throws an error with imageMismatch = true when nothing usable came out.
@@ -380,7 +386,7 @@ const generatePageImage = async ({ bookId, storyData, imageData }) => {
     label: `Page ${pageNumber} image`,
     prompt,
     referenceImages: pageReferenceImages,
-    scene: imageData.scene || prompt,
+    scene: placeForCheck(prompt, imageData.scene),
     characterNames: sceneCharacterNames,
     acceptMissing: true,
   });
@@ -482,43 +488,10 @@ const generateBookInBackground = async ({
       `Creating a ${BOOK_PAGE_COUNT}-page book (BOOK_PAGE_COUNT in the server's environment = ${process.env.BOOK_PAGE_COUNT ?? "not set"}).`,
     );
 
-    const generatedStory = await generateStory(storyData);
-
-    console.log("Story generation completed:", generatedStory);
-
-    if (
-      !generatedStory?.title ||
-      generatedStory.title === "undefined" ||
-      !Array.isArray(generatedStory?.pages) ||
-      generatedStory.pages.length === 0
-    ) {
-      throw new Error("Generated story is invalid or contains no pages");
-    }
-
-    bookTitle = generatedStory.title; // ALERTS
-
-    await book.updateOne(
-      { _id: bookId },
-      {
-        $set: {
-          title: generatedStory.title,
-          storyData,
-          pages: generatedStory.pages.map((page, index) => ({
-            position: index + 1,
-            pageNumber: index + 1, // generateStory already renumbers 1..N
-            content: normalizePageLines(page.content),
-            imageUrl: null,
-            storageProvider: null,
-            storageKey: null,
-            imagePrompt: "",
-            status: "pending",
-          })),
-        },
-      },
-    );
-
-    console.log("Book story saved:", bookId);
-
+    // ORDER OF WORK (changed): 1) look at the uploaded photos and build the
+    // Character Bible + reference images, 2) THEN write the story, so the story
+    // knows what each pet / object really is (a cat is not written as a dog,
+    // the Pencil is the golden pencil from its photo), 3) image prompts, 4) images.
     // Upload character photos to private AWS S3
     const uploadedCharacters = [...storyData.characters];
 
@@ -586,7 +559,7 @@ const generateBookInBackground = async ({
           ["busy", "network"].includes(classifyGeminiError(error)),
         task: () =>
           generateCharacterBible({
-            story: generatedStory,
+            story: null, // the story is written AFTER the bible (see below)
             storyData,
             characterPhotos: characterPhotosForBible,
           }),
@@ -674,6 +647,45 @@ const generateBookInBackground = async ({
       );
     }
 
+    // The characters now carry the Character Bible's real look (species, fur,
+    // colours) from the photos, so the story is written to match them.
+    const generatedStory = await generateStory(storyData);
+
+    console.log("Story generation completed:", generatedStory);
+
+    if (
+      !generatedStory?.title ||
+      generatedStory.title === "undefined" ||
+      !Array.isArray(generatedStory?.pages) ||
+      generatedStory.pages.length === 0
+    ) {
+      throw new Error("Generated story is invalid or contains no pages");
+    }
+
+    bookTitle = generatedStory.title; // ALERTS
+
+    await book.updateOne(
+      { _id: bookId },
+      {
+        $set: {
+          title: generatedStory.title,
+          storyData,
+          pages: generatedStory.pages.map((page, index) => ({
+            position: index + 1,
+            pageNumber: index + 1, // generateStory already renumbers 1..N
+            content: normalizePageLines(page.content),
+            imageUrl: null,
+            storageProvider: null,
+            storageKey: null,
+            imagePrompt: "",
+            status: "pending",
+          })),
+        },
+      },
+    );
+
+    console.log("Book story saved:", bookId);
+
     const imagePrompts = await generateImagePrompt(generatedStory, storyData);
 
     console.log("Image prompts generated");
@@ -720,7 +732,10 @@ const generateBookInBackground = async ({
           label: "Cover image",
           prompt: imagePrompts.cover.prompt,
           referenceImages: coverReferenceImages,
-          scene: imagePrompts.cover.scene || imagePrompts.cover.prompt,
+          scene: placeForCheck(
+            imagePrompts.cover.prompt,
+            imagePrompts.cover.scene,
+          ),
           characterNames: resolveCharacterBriefs(
             storyData.characters,
             imagePrompts.cover.characters || [],
@@ -1392,13 +1407,42 @@ const DEFAULTS = {
 const subjectsFor = (theme) => OPTS.subjectByTheme[theme] || [];
 const messagesFor = (theme) => OPTS.centralmsgByTheme[theme] || [];
 
-const MAX_QUESTIONS = 2;
+// After this many assistant replies we stop asking and assume sensible
+// defaults. Counted per reply (not per "?"), because recaps and friendly
+// asides also contain "?" and used to burn the budget before the hero-name
+// question could be asked.
+const MAX_ASSISTANT_TURNS = 5;
+
+// Used only when the model gives no name ideas for the hero-name question.
+const NAME_IDEAS = ["Leo", "Mia", "Max", "Luna", "Sam", "Zoe", "Noah", "Ella"];
+
+const capitalizeName = (v) =>
+  str(v, 60)
+    .replace(/[^\p{L}\p{M}'’\- ]/gu, "")
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+
+// "4-7 years" / "4–7 years" / "4 to 7 years" -> same key
+const ageKey = (v) =>
+  String(v || "")
+    .toLowerCase()
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/\s+/g, "")
+    .replace(/to/g, "-");
+
+const matchAgeChip = (text) =>
+  ALLOWED.age.find((a) => ageKey(a) === ageKey(text)) || null;
+
+const AGE_QUESTION = "Who is this story for?";
+const HERO_QUESTION = "What's the name of our hero?";
 
 /* ------------------------------------------------------------------ */
 /* Prompt                                                              */
 /* ------------------------------------------------------------------ */
 
-const buildSystemPrompt = ({ state, questionsAsked, safetyNotice = "" }) =>
+const buildSystemPrompt = ({ state, assistantTurns, safetyNotice = "" }) =>
   `
 You are Bookie, a warm, playful assistant inside a children's picture-book app.
 People type rough, casual ideas like "we are going on a road trip". Turn that into a complete story brief
@@ -1425,7 +1469,9 @@ WHAT TO DO
 2. Never ask for something you can reasonably infer or choose yourself.
 3. The ONLY things you may ask about, and only if missing: who the story is for (age group) and the hero's name.
    Ask at most ONE question per reply. One friendly sentence can cover both.
-4. Questions asked so far: ${questionsAsked}. If that is ${MAX_QUESTIONS} or more, do NOT ask anything.
+   If the age group OR the hero's name is still unknown (see CURRENT BRIEF), your reply MUST end with that one
+   question, and you MUST NOT say the story is ready, or mention pressing Create, in that same reply.
+4. Replies so far: ${assistantTurns}. If that is ${MAX_ASSISTANT_TURNS} or more, do NOT ask anything.
    Make sensible assumptions and finish.
 5. When you have enough, set "ready": true and reply with a short, excited recap of the enhanced story
    (2-3 sentences, mention the hero). Tell them they can type any change or press Create.
@@ -1433,7 +1479,11 @@ WHAT TO DO
 7. Keep everything already in the current brief unless the user changes it.
 8. Reply style: 1-3 short sentences, warm, no lists, no headings. Never mention fields, settings, JSON or forms.
    Reply in the user's language.
-9. "chips": 0-3 short tappable suggestions ONLY when you ask a question (e.g. age groups). Otherwise [].
+9. "chips": short tappable suggestions whenever you ask a question. ALWAYS fill them, never leave chips empty
+   when your reply ends with a question. When you ask for the age group, return the allowed age values as chips.
+   When you ask for the hero's name, return 3 friendly first names (just the names, e.g. "Leo", "Mia", "Max").
+   If the user just chose an age group and there is no hero yet, your reply MUST ask for the hero's name with
+   name chips. Otherwise [].
 10. CONTENT BY AGE. Keep the user's premise. Do NOT water it down. Only adjust what the age below requires:
    - 0–3 years: ${policyFor("0-3")}
    - 4–7 years: ${policyFor("4-7")}
@@ -1600,7 +1650,7 @@ const sanitizeCharacters = (list, previous = []) => {
   return limitCharacters(cleaned);
 };
 
-const sanitizeSettings = (s = {}) => {
+const sanitizeSettings = (s = {}, lenient = false) => {
   const theme = oneOf(s.theme, ALLOWED.theme);
   return {
     idea: str(s.idea, 1200),
@@ -1608,8 +1658,12 @@ const sanitizeSettings = (s = {}) => {
     subject: oneOf(s.subject, subjectsFor(theme)),
     centralmsg: oneOf(s.centralmsg, messagesFor(theme)),
     imageStyle: matchImageStyle(s.imageStyle),
-    language: oneOf(s.language, ALLOWED.language),
-    font: oneOf(s.font, ALLOWED.font),
+    language:
+      oneOf(s.language, ALLOWED.language) ||
+      (lenient ? str(s.language, 40) || null : null),
+    font:
+      oneOf(s.font, ALLOWED.font) ||
+      (lenient ? str(s.font, 40) || null : null),
     age: oneOf(s.age, ALLOWED.age),
   };
 };
@@ -1628,7 +1682,10 @@ export const chatBook = async (req, res) => {
       });
     }
 
-    const prevSettings = sanitizeSettings(req.body?.state?.storySettings);
+    const prevSettings = sanitizeSettings(
+      req.body?.state?.storySettings,
+      /* lenient */ true,
+    );
 
     // ---- content safety (AI mode) -------------------------------------
     // Latest message: full check (local rules + OpenAI moderation).
@@ -1667,14 +1724,14 @@ export const chatBook = async (req, res) => {
 
     const prevCharacters = sanitizeCharacters(req.body?.state?.characters);
 
-    const questionsAsked = messages.filter(
-      (m) => m.role === "assistant" && m.content.includes("?"),
+    const assistantTurns = messages.filter(
+      (m) => m.role === "assistant",
     ).length;
 
     const raw = await callLLM({
       system: buildSystemPrompt({
         state: { storySettings: prevSettings, characters: prevCharacters },
-        questionsAsked,
+        assistantTurns,
         safetyNotice,
       }),
       messages,
@@ -1726,10 +1783,46 @@ export const chatBook = async (req, res) => {
     storySettings.language ||= DEFAULTS.language;
     storySettings.font ||= DEFAULTS.font;
 
-    // the two things we may ask about; stop asking after MAX_QUESTIONS
-    const stillMissing = !storySettings.age || characters.length === 0;
+    // ---- the two things we may ask about: age group + hero name ---------
+    // The server owns this part, not the model. Whatever the model returned,
+    // while age or hero is missing the user gets (1) a reply that ends with
+    // the right question and (2) tappable chips for it. That is what stops
+    // the "no suggestions, no question, I have to type again" dead end.
+    const lastUserText = latestText || "";
+    const lastAssistantText =
+      [...messages].reverse().find((m) => m.role === "assistant")?.content ||
+      "";
 
-    if (stillMissing && questionsAsked >= MAX_QUESTIONS) {
+    // They tapped / typed an age chip: take it even if the model missed it.
+    if (!storySettings.age) {
+      const tapped = matchAgeChip(lastUserText);
+      if (tapped) storySettings.age = tapped;
+    }
+
+    // They answered "what's the name of our hero?" with just a name.
+    if (
+      characters.length === 0 &&
+      /\b(name|hero|call)\b/i.test(lastAssistantText) &&
+      lastAssistantText.includes("?") &&
+      !matchAgeChip(lastUserText)
+    ) {
+      const words = lastUserText.trim().split(/\s+/).filter(Boolean);
+      const name = capitalizeName(lastUserText);
+      if (name && words.length <= 4 && lastUserText.length <= 40) {
+        characters.push({
+          id: `c${crypto.randomUUID().slice(0, 8)}`,
+          type: "Child",
+          name,
+          gender: "",
+          age: "",
+          hobbies: "",
+          favouriteFood: "",
+        });
+      }
+    }
+
+    const outOfQuestions = assistantTurns >= MAX_ASSISTANT_TURNS;
+    if (outOfQuestions) {
       storySettings.age ||= DEFAULTS.age;
       if (characters.length === 0) {
         characters.push({
@@ -1744,20 +1837,63 @@ export const chatBook = async (req, res) => {
       }
     }
 
-    const ready =
-      Boolean(parsed.ready) &&
-      Boolean(storySettings.age) &&
-      characters.length > 0 &&
-      Boolean(storySettings.idea);
+    const needAge = !storySettings.age;
+    const needHero = characters.length === 0;
 
-    const chips = (Array.isArray(parsed.chips) ? parsed.chips : [])
-      .map((c) => str(c, 40))
-      .filter(Boolean)
-      .slice(0, 3);
+    const complete =
+      !needAge && !needHero && Boolean(storySettings.idea);
 
     let replyText =
-      softenText(str(parsed.reply, 900), finalAge) ||
+      softenText(str(parsed.reply, 900), storySettings.age || finalAge) ||
       "Tell me more about your story!";
+
+    let chips = (Array.isArray(parsed.chips) ? parsed.chips : [])
+      .map((c) => str(c, 40))
+      .filter(Boolean)
+      .slice(0, 5);
+
+    let ready = false;
+
+    if (needAge || needHero) {
+      // Age first, then the hero's name: one question per reply.
+      const question = needAge ? AGE_QUESTION : HERO_QUESTION;
+      const wanted = needAge
+        ? /\b(who|age|old|for)\b/i
+        : /\b(name|hero|call)\b/i;
+
+      // Sentences of the model's reply, minus any "ready / press Create" talk.
+      const sentences = replyText
+        .split(/(?<=[.!?])\s+/)
+        .filter((sentence) => !/\b(create|ready)\b/i.test(sentence));
+      const lastSentence = sentences[sentences.length - 1] || "";
+      const endsWithRightQuestion =
+        lastSentence.endsWith("?") && wanted.test(lastSentence);
+
+      if (!endsWithRightQuestion) {
+        // keep the friendly part, drop stray questions, end on ours
+        const kept = sentences.filter((sentence) => !sentence.includes("?"));
+        replyText = `${kept.join(" ")} ${question}`.trim();
+      } else {
+        replyText = sentences.join(" ").trim();
+      }
+
+      if (needAge) {
+        chips = [...ALLOWED.age];
+      } else {
+        // name ideas only: drop anything that is an age chip or too long
+        chips = chips.filter(
+          (c) => !matchAgeChip(c) && c.split(/\s+/).length <= 3,
+        );
+        if (chips.length === 0) {
+          chips = [...NAME_IDEAS].sort(() => Math.random() - 0.5).slice(0, 3);
+        }
+      }
+    } else {
+      // Nothing left to ask. If the model still ended on a question but gave
+      // no suggestions, the user would be stuck with nothing to tap, so
+      // treat the brief as ready (they can still type any change).
+      ready = complete && (Boolean(parsed.ready) || chips.length === 0);
+    }
 
     // Tell the user, once, when something in their latest message was swapped out.
     if (safety.softLabels.length) {
@@ -1769,7 +1905,7 @@ export const chatBook = async (req, res) => {
       reply: replyText,
       state: { storySettings, characters },
       ready,
-      chips: ready ? [] : chips,
+      chips: ready ? [] : chips.slice(0, 5),
     });
   } catch (error) {
     console.error("Book chat error:", error);
@@ -1874,6 +2010,94 @@ export const deleteBook = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to delete the book",
+    });
+  }
+};
+
+// -------------------------------------------------------
+// Samples: finished books a super admin chose to show to everyone on the
+// "Samples" page. Open to any signed-in user, so only what a reader needs is
+// sent - no owner, story input, character names, prompts or storage keys.
+// -------------------------------------------------------
+const SAMPLE_FILTER = {
+  isSample: true,
+  status: "completed",
+  sampleCategory: { $in: SAMPLE_CATEGORIES },
+};
+
+export const getSamples = async (req, res) => {
+  try {
+    const samples = await book
+      .find(SAMPLE_FILTER)
+      .sort({ sampledAt: -1, createdAt: -1 })
+      .select("title coverImageUrl sampleCategory storyData.age")
+      .lean();
+
+    return res.json({
+      success: true,
+      samples: samples.map((s) => ({
+        _id: s._id,
+        title: s.title,
+        category: s.sampleCategory,
+        age: s.storyData?.age || null,
+        coverImageUrl: s.coverImageUrl || null,
+      })),
+    });
+  } catch (error) {
+    console.error("Get samples error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load samples",
+    });
+  }
+};
+
+export const getSampleById = async (req, res) => {
+  try {
+    const { bookId } = req.params;
+
+    if (!mongoose.isValidObjectId(bookId)) {
+      return res.status(404).json({ success: false, message: "Sample not found" });
+    }
+
+    const found = await book.findOne({ _id: bookId, ...SAMPLE_FILTER }).lean();
+
+    if (!found) {
+      return res.status(404).json({ success: false, message: "Sample not found" });
+    }
+
+    return res.json({
+      success: true,
+      sample: {
+        _id: found._id,
+        title: found.title,
+        category: found.sampleCategory,
+        coverImageUrl: found.coverImageUrl || null,
+        storyData: {
+          theme: found.storyData?.theme || null,
+          age: found.storyData?.age || null,
+          subject: found.storyData?.subject || null,
+          centralMessage: found.storyData?.centralMessage || null,
+          language: found.storyData?.language || "English",
+          font: found.storyData?.font || null,
+        },
+        pages: [...(found.pages || [])]
+          .sort((a, b) => a.position - b.position)
+          .map((p) => ({
+            _id: p._id,
+            pageNumber: p.pageNumber,
+            content: normalizePageLines(p.content),
+            imageUrl: p.imageUrl || null,
+          })),
+      },
+    });
+  } catch (error) {
+    console.error("Get sample error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load the sample",
     });
   }
 };

@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, BookOpen, Trash2 } from "lucide-react";
-import { getBooks, deleteBook, apiErrorMessage } from "../../services/adminService";
+import { Search, Filter, BookOpen, Trash2, Star } from "lucide-react";
+import { getBooks, deleteBook, setBookSample, apiErrorMessage } from "../../services/adminService";
 import { useDebounce } from "../../hooks/useDebounce";
 import { Pagination } from "../../Components/admin/Pagination";
 import { TableState } from "../../Components/admin/TableState";
 import { ConfirmAlert } from "../../Components/admin/ConfirmAlert";
+import { SampleDialog } from "../../Components/admin/SampleDialog";
 import { formatDate } from "../../utils/adminFormat";
 
 const PAGE_SIZE = 10;
@@ -48,13 +49,14 @@ export function SuperAdminBooks() {
     const search = useDebounce(searchInput);
     const [status, setStatus] = useState("");
     const [deleted, setDeleted] = useState("");
+    const [samplesOnly, setSamplesOnly] = useState("");
     const [filterOpen, setFilterOpen] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
         setError("");
         try {
-            const { data } = await getBooks({ page, limit: PAGE_SIZE, search, status, deleted });
+            const { data } = await getBooks({ page, limit: PAGE_SIZE, search, status, deleted, sample: samplesOnly });
             setBooks(data.books);
             setTotal(data.total);
             setPages(data.pages);
@@ -63,7 +65,7 @@ export function SuperAdminBooks() {
         } finally {
             setLoading(false);
         }
-    }, [page, search, status, deleted]);
+    }, [page, search, status, deleted, samplesOnly]);
 
     // Fetch-on-change; same pattern used elsewhere in the app.
     useEffect(() => {
@@ -98,8 +100,32 @@ export function SuperAdminBooks() {
         }
     };
 
+    const [sampleBook, setSampleBook] = useState(null); // book being added / re-categorised
+    const [sampleBusyId, setSampleBusyId] = useState(null);
+    const [sampleError, setSampleError] = useState("");
+
+    const handleSampleSaved = async () => {
+        setSampleBook(null);
+        await load();
+    };
+
+    const removeSample = async (book) => {
+        setSampleBusyId(book._id);
+        setSampleError("");
+        try {
+            await setBookSample(book._id, false);
+            // Taking the last row off the "Samples only" view should step back a page.
+            if (samplesOnly && books.length === 1 && page > 1) setPage(page - 1);
+            else await load();
+        } catch (err) {
+            setSampleError(apiErrorMessage(err, "We couldn't remove this sample. Please try again."));
+        } finally {
+            setSampleBusyId(null);
+        }
+    };
+
     const activeStatus = STATUS_FILTERS.find((f) => f.value === status);
-    const hasFilter = Boolean(status || deleted);
+    const hasFilter = Boolean(status || deleted || samplesOnly);
 
     return (
         <div className="px-4 py-2">
@@ -135,7 +161,7 @@ export function SuperAdminBooks() {
                             }`}
                     >
                         <Filter size={16} />
-                        {hasFilter ? [activeStatus?.value && activeStatus.label, deleted && VISIBILITY_FILTERS.find((f) => f.value === deleted)?.label].filter(Boolean).join(" · ") : "Filter"}
+                        {hasFilter ? [activeStatus?.value && activeStatus.label, deleted && VISIBILITY_FILTERS.find((f) => f.value === deleted)?.label, samplesOnly && "Samples"].filter(Boolean).join(" · ") : "Filter"}
                     </button>
                     {filterOpen && (
                         <>
@@ -170,11 +196,27 @@ export function SuperAdminBooks() {
                                         {f.label}
                                     </button>
                                 ))}
+                                <div className="border-t border-(--tint)" />
+                                <button
+                                    onClick={() => {
+                                        setSamplesOnly(samplesOnly ? "" : "true");
+                                        setPage(1);
+                                        setFilterOpen(false);
+                                    }}
+                                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium hover:bg-(--tint) ${samplesOnly ? "bg-(--tint) text-(--accent)" : ""
+                                        }`}
+                                >
+                                    <Star size={14} /> Samples only
+                                </button>
                             </div>
                         </>
                     )}
                 </div>
             </div>
+
+            {sampleError && (
+                <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-600">{sampleError}</p>
+            )}
 
             <div className="overflow-x-auto rounded-2xl border border-(--tint) bg-white">
                 <table className="w-full min-w-200 text-sm">
@@ -236,6 +278,16 @@ export function SuperAdminBooks() {
                                             )}
                                             <div className="min-w-0">
                                                 <div className="font-semibold text-(--ink)">{book.title}</div>
+                                                {book.isSample && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSampleBook(book)}
+                                                        title="On the Samples page - click to change category"
+                                                        className="mr-1 mt-0.5 inline-flex items-center gap-1 rounded-full bg-(--tint) px-2 py-0.5 text-[11px] font-semibold text-(--accent) hover:underline"
+                                                    >
+                                                        <Star size={10} fill="currentColor" /> Sample · {book.sampleCategory}
+                                                    </button>
+                                                )}
                                                 {book.isDeleted && (
                                                     <span
                                                         className="mt-0.5 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-600"
@@ -257,6 +309,29 @@ export function SuperAdminBooks() {
                                     <td className="px-4 py-3 text-(--text-muted)">{book.orderCount}</td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center justify-end gap-1">
+                                            {book.isSample ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeSample(book)}
+                                                    disabled={sampleBusyId === book._id}
+                                                    title="Take this book off the Samples page"
+                                                    aria-label={`Remove ${book.title} from Samples`}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-amber-600 transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                                >
+                                                    <Star size={14} fill="currentColor" /> {sampleBusyId === book._id ? "Removing..." : "Remove sample"}
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSampleBook(book)}
+                                                    disabled={book.status !== "completed"}
+                                                    title={book.status !== "completed" ? "Only finished books can be samples" : "Show this book on the Samples page"}
+                                                    aria-label={`Add ${book.title} to Samples`}
+                                                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-(--accent) transition-colors hover:bg-(--tint) disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                                                >
+                                                    <Star size={14} /> Add to Samples
+                                                </button>
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={() => {
@@ -279,6 +354,15 @@ export function SuperAdminBooks() {
             </div>
 
             <Pagination page={page} pages={pages} total={total} limit={PAGE_SIZE} label="books" onPage={setPage} />
+
+            {sampleBook && (
+                <SampleDialog
+                    key={sampleBook._id}
+                    book={sampleBook}
+                    onClose={() => setSampleBook(null)}
+                    onSaved={handleSampleSaved}
+                />
+            )}
 
             <ConfirmAlert
                 open={Boolean(bookToDelete)}

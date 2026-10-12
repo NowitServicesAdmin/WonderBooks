@@ -127,7 +127,7 @@ const buildReferenceManifest = (referenceImages) =>
         ? `${image.characterName}${image.characterType ? ` (${image.characterType})` : ""}`
         : `Unlabeled character ${index + 1}`;
 
-      return `Reference photo ${index + 1}: ${label}`;
+      return `Reference image ${index + 1}: ${label}`;
     })
     .join("\n");
 
@@ -144,15 +144,15 @@ Create ONE children's storybook illustration (portrait page). The SCENE below is
 
 ${prompt}
 
-REFERENCE PHOTOS (${referenceImages.length} attached, in this order):
+REFERENCE IMAGES (${referenceImages.length} attached, in this order):
 ${manifest}
 
-How to use the reference photos:
-- Each photo shows who ONE character is. Use it ONLY for that character's identity: face, hair, skin tone, body shape, clothing and colors (for a pet or object: same kind, shape, colors and markings).
-- Do NOT copy a photo's pose, framing, camera angle, background or lighting. Pose and placement come from the SCENE.
+How to use the reference images:
+- Each reference image is the FINISHED DESIGN of ONE character in this book. Keep that character IDENTICAL on every page: same face, hair, skin tone, body shape, outfit and colors (for a pet or object: same kind, shape, colors and markings). Never redesign, restyle or simplify it.
+- Do NOT copy a reference image's pose, size, framing, camera angle, background or lighting. The reference images show a plain standing pose: ignore it. What each character is DOING comes from the KEY ACTION and the SCENE and must be clearly visible. Characters are full-body figures about one third of the picture height, so the face and outfit can be recognized.
 - Draw exactly the characters listed above, each once, each clearly recognizable${multiple ? " and clearly different from the others - never blend two characters' features, never favor one over another" : ""}. Do not add any other recurring character.
 - The characters are busy doing what the SCENE says, inside the setting it describes. They are not lined up facing the viewer.
-- Keep the camera pulled back: characters are full-body and never fill the frame, so the setting around them is clearly visible and detailed.
+- Keep the camera back far enough that the setting is clearly visible and detailed, but every character stays easy to recognize: full-body, face visible, not hidden, not seen only from behind. A reference image of an OBJECT is a real prop that must appear once, LARGE and clearly visible, held in a character's hands or in the foreground: never tiny, never drawn as a detail on a person.
 - The result is a fully illustrated picture in the STYLE above, not a photo.
 `.trim();
 };

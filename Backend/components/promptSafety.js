@@ -124,6 +124,16 @@ export const inferCharacterKind = (character = {}) => {
 export const isAnimalOrObjectCharacter = (character = {}) =>
   inferCharacterKind(character).kind !== "person";
 
+
+export const stripLiteralText = (value = "") =>
+  String(value)
+    .replace(
+      /(^|[\s(:,;])(['"\u201C\u2018])([^'"\u201D\u2019]{1,40})(['"\u201D\u2019])(?=[\s.,;:)]|$)/g,
+      "$1a plain symbol with no letters",
+    )
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
 export const describeCharacterForCheck = (character = {}) => {
   const { kind, species } = inferCharacterKind(character);
 

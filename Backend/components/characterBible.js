@@ -82,7 +82,9 @@ Create a CHARACTER BIBLE for the story below.
 The Character Bible is the canonical source of truth for character
 identity and visual appearance across the entire book.
 
-STORY TITLE:
+${
+  story?.pages?.length
+    ? `STORY TITLE:
 ${story.title}
 
 STORY:
@@ -92,7 +94,13 @@ ${story.pages
       `Page ${page.pageNumber}:
 ${page.content}`,
   )
-  .join("\n\n")}
+  .join("\n\n")}`
+    : `THE STORY IS NOT WRITTEN YET. It will be written AFTER this bible, using your descriptions, so describe each character exactly as it really is (from its photo where one is attached), including what KIND of animal or object it is. Do not invent story events or story-specific items.
+STORY IDEA: ${storyData.storyIdea || "(none given)"}
+THEME: ${storyData.theme || "(none)"}
+SUBJECT: ${storyData.subject || "(none)"}
+CENTRAL MESSAGE: ${storyData.centralMessage || "(none)"}`
+}
 
 SELECTED ILLUSTRATION STYLE:
 ${storyData.imageStyle || "Classic Storybook"}
@@ -124,6 +132,10 @@ CHARACTER RULES:
        * hair length and parting, and the exact clothing colours.
      Put any such feature in "accessories" or "markings" AND in
      "signatureDetails" so it is repeated on every page.
+   - Never copy words, letters or logos from a photo into any field.
+     Describe a sticker, label, badge or printed shirt only by its
+     shape and colors, for example "a small cream sticker with a red
+     icon, no letters".
    - Only invent appearance details for characters that have NO
      attached reference photo.
 6. If there are NO user-provided characters, determine the minimum

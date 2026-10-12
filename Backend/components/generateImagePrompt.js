@@ -1,5 +1,5 @@
 import { generateContentResilient } from "./geminiCall.js";
-import { inferCharacterKind, isBlankField } from "./promptSafety.js";
+import { inferCharacterKind, isBlankField, stripLiteralText } from "./promptSafety.js";
 
 const cleanJson = (text) => {
     return text
@@ -27,7 +27,7 @@ const lookSummary = (character = {}) => {
     const add = (label, value) => {
         // "None" / "N/A" from the Character Bible is not a look detail.
         if (isBlankField(value)) return;
-        parts.push(`${label}: ${String(value).trim()}`);
+        parts.push(`${label}: ${stripLiteralText(value)}`);
     };
     const look = character.appearance || {};
     const clothes = character.clothing || {};
@@ -67,20 +67,62 @@ const findCharacter = (characters = [], lookup) => {
 // Too many people on one cover is the main reason the picture drops one.
 const COVER_MAX_CHARACTERS = Math.max(1, Number(process.env.COVER_MAX_CHARACTERS) || 3);
 
+const pickCoverCharacters = (list = []) => {
+    const living = list
+        .filter((c) => inferCharacterKind(c).kind !== "object")
+        .slice(0, COVER_MAX_CHARACTERS);
+    const prop = list.find((c) => inferCharacterKind(c).kind === "object");
+    return list.filter((c) => living.includes(c) || c === prop);
+};
+
+const PAGE_MAX_CHARACTERS = Math.max(
+    1,
+    Number(process.env.PAGE_MAX_CHARACTERS) ||
+        Number(process.env.OPENAI_MAX_REFERENCE_IMAGES) ||
+        4
+);
+
 // A different camera suggestion per page, so the pages stop looking like the
 // same group photo again and again.
 const SHOT_ROTATION = [
-    "wide establishing shot: the whole setting fills most of the frame, characters small to medium in size and in the middle of an action",
-    "wide shot from a slightly low angle, characters full-body in mid-action, the tall background (trees, towers, sky) clearly visible",
-    "wide three-quarter side view, characters walking or moving, the path and surroundings clearly visible around them",
-    "wide over-the-shoulder view looking at what the characters are looking at, the main landmark large in the background",
-    "wide eye-level shot, characters full-body and not filling the frame, the setting dominant",
-    "high angle looking down on the characters, who look small, with the place around them clearly visible",
-    "wide diagonal composition with an interesting object in the foreground and a layered background behind the characters",
-    "wide shot of the characters seen from the side or behind, looking into a detailed distance",
+    "wide establishing shot: the whole place fills most of the picture and the characters, seen from the front or three-quarter view with their faces visible, are in the middle of an action",
+    "wide shot from a slightly low angle, full-body characters in mid-action with faces visible, the tall background (trees, towers, sky) rising above them",
+    "wide three-quarter view, characters walking or moving along a path and turning toward the viewer, the surroundings clearly visible around them",
+    "wide shot where the characters look toward the main landmark but turn their faces three-quarters to the viewer, the landmark large behind them",
+    "wide eye-level shot, full-body characters with faces visible, the setting dominant and richly detailed",
+    "high angle looking down on the characters (faces still visible) with the whole place around them clearly visible",
+    "wide diagonal composition with the key object clearly in the foreground and a layered background behind the characters",
+    "wide shot with the characters at the side of the picture facing the viewer three-quarters, a detailed, far-reaching distance behind them",
 ];
 
 const shotFor = (index) => SHOT_ROTATION[index % SHOT_ROTATION.length];
+
+const mentionsAny = (text = "", characters = []) => {
+    const names = characters
+        .map((c) => String(c?.name || "").trim())
+        .filter(Boolean)
+        .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    return names.length
+        ? new RegExp(`\\b(${names.join("|")})\\b`, "i").test(String(text))
+        : false;
+};
+
+const dropSentencesAbout = (text = "", characters = []) => {
+    const names = characters
+        .map((c) => String(c?.name || "").trim())
+        .filter(Boolean)
+        .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+
+    if (!names.length) return String(text);
+
+    const mention = new RegExp(`\\b(${names.join("|")})\\b`, "i");
+    const kept = String(text)
+        .split(/(?<=[.!?])\s+/)
+        .filter((sentence) => !mention.test(sentence));
+
+    // never return an empty scene
+    return kept.length ? kept.join(" ") : String(text);
+};
 
 // One image prompt per story page, in page order. Prompts are matched to pages
 // by pageNumber; if the model left numbers out, fall back to position - but
@@ -255,15 +297,87 @@ NOT photorealistic.
 `
 };
 
+Object.assign(STYLE_BIBLE, {
+    "3d-storybook": `
+High-quality 3D animated children's storybook illustration.
+Soft rounded character design, expressive faces, smooth 3D materials.
+Soft cinematic lighting, warm family-friendly animated movie look.
+NOT photorealistic.
+`,
+    watercolour: `
+Traditional hand-painted children's watercolour storybook illustration.
+Soft watercolour washes, visible paper texture, gentle brush strokes and soft edges.
+Warm, dreamy storybook atmosphere.
+NOT photorealistic. NOT 3D rendered. NOT glossy digital art. NOT anime.
+`,
+    "classic-illustrated": `
+Timeless classic illustrated storybook look.
+Fine ink outlines with rich painted colour, traditional book-illustration detail.
+Warm, slightly muted classic palette.
+NOT photorealistic. NOT 3D rendered.
+`,
+    "picture-book-kids": `
+Simple, bright children's picture-book illustration.
+Friendly rounded shapes, bold clean outlines, flat cheerful colours, uncluttered detail.
+NOT photorealistic. NOT 3D rendered.
+`,
+    "black-white-sketch": `
+Black and white pencil and ink sketch illustration.
+Hand-drawn linework with soft graphite shading and cross-hatching, no colour at all.
+NOT photorealistic. NOT colour.
+`,
+    "minimal-modern": `
+Clean minimal modern children's illustration.
+Simple geometric shapes, flat colours, a limited harmonious palette, lots of calm space.
+NOT photorealistic. NOT 3D rendered. NOT busy.
+`,
+    "vintage-retro": `
+Vintage retro children's book illustration.
+Old-print look with slightly faded warm colours, gentle grain and mid-century storybook charm.
+NOT photorealistic. NOT 3D rendered. NOT glossy digital art.
+`,
+    "fairy-tale": `
+Enchanted fairy-tale storybook illustration.
+Richly painted magical atmosphere, glowing soft light, storybook castles, forests and sparkles.
+Warm, detailed hand-painted look.
+NOT photorealistic. NOT 3D rendered. NOT anime.
+`,
+    "night-bedtime": `
+Calm bedtime storybook illustration.
+Moonlit night colours, deep blues and purples with warm glowing lights, soft sleepy edges.
+Gentle, peaceful, hand-painted look.
+NOT photorealistic. NOT harsh or scary.
+`,
+    adventure: `
+Bold dynamic adventure storybook illustration.
+Vivid saturated colours, bright clear lighting, sweeping landscapes, sense of movement.
+Painted children's book look.
+NOT photorealistic. NOT dark or scary.
+`,
+    "line-art-colouring": `
+Clean black line-art colouring-book illustration.
+Clear, even outlines on a plain white background, no shading, no filled colour.
+NOT photorealistic. NOT colour.
+`,
+    "seasonal-autumn": `
+Warm autumn storybook illustration.
+Falling leaves, golden orange and red harvest colours, cosy soft light.
+Hand-painted children's book look.
+NOT photorealistic. NOT 3D rendered.
+`,
+});
+
 const getStyleBible = (imageStyle = "") => {
+    // "Picture Book (Kids)" -> "picture-book-kids", "Night / Bedtime" -> "night-bedtime"
     const normalizedStyle = String(imageStyle)
         .toLowerCase()
-        .trim()
-        .replace(/\s+/g, "-");
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
 
     return (
         STYLE_BIBLE[normalizedStyle] ||
         `
+${String(imageStyle || "").trim() ? `Illustration style: ${String(imageStyle).trim()}.` : ""}
 Professional children's storybook illustration.
 Hand-crafted illustrated appearance.
 Consistent artistic medium.
@@ -287,15 +401,15 @@ const characterLine = (character = {}) => {
         : ` Always shown with (exactly these colors every time): ${String(character.clothing.accessories).trim()}.`;
 
     if (kind === "object") {
-        return `- ${name} (object): drawn as an object, never as a person.${look ? ` ${look}.` : ""}${accessories} Match its reference photo.`;
+        return `- ${name} (object): drawn as an object, never as a person. KEY PROP: draw it LARGE and unmistakable, at least as big as a character's head, drawn exactly ONCE in its exact reference design, never tiny, never hidden, never behind anything.${look ? ` ${look}.` : ""}${accessories} Any sticker, label, badge or print on it is a plain blank shape with a simple symbol: NO letters or words on it. Match its reference image exactly.`;
     }
 
     if (kind === "animal") {
         const label = species ? `a ${species}` : "an animal";
-        return `- ${name} (${label}): a real friendly cartoon ${species || "animal"} - an ANIMAL, never a human child or person. Animal body and animal face, NO human features, NO clothes (only the accessories listed below).${look ? ` ${look}.` : ""}${accessories} Match its reference photo.`;
+        return `- ${name} (${label}): a real friendly cartoon ${species || "animal"} - an ANIMAL, never a human child or person. Animal body and animal face, NO human features, NO clothes (only the accessories listed below).${look ? ` ${look}.` : ""}${accessories} Same body shape and proportions in every pose, also when flying or jumping. Match its reference image exactly.`;
     }
 
-    return `- ${name}${who ? ` (${who})` : ""}:${look ? ` ${look}.` : ""}${accessories} Match the face and look of the reference photo.`;
+    return `- ${name}${who ? ` (${who})` : ""}:${look ? ` ${look}.` : ""}${accessories} Match the face and look of its reference image exactly.`;
 };
 
 const compactStyle = (imageStyle) =>
@@ -309,8 +423,27 @@ const compactStyle = (imageStyle) =>
 // Gemini) comes first because that is what the image model follows most; the
 // character looks, style and text rules are added by code so they are the same
 // in every image.
+// An object character (e.g. "Pencil") is often ALSO written into a person's
+// accessories / signature details ("pencil tucked behind his ear"). The image
+// model then draws a second, tiny, different pencil and the real one gets lost.
+// So when the object is in the picture, strip that mention from the people.
+const withoutObjectMentions = (character = {}, objectNames = []) => {
+    if (!objectNames.length) return character;
+    const mentions = (text) =>
+        objectNames.some((n) => new RegExp(`\\b${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(String(text || "")));
+    const next = { ...character };
+    if (character.clothing && mentions(character.clothing.accessories)) {
+        next.clothing = { ...character.clothing, accessories: "" };
+    }
+    if (Array.isArray(character.signatureDetails)) {
+        next.signatureDetails = character.signatureDetails.filter((d) => !mentions(d));
+    }
+    return next;
+};
+
 export const composeImagePrompt = ({
     scene,
+    action,
     mood,
     shot,
     sceneCharacters = [],
@@ -318,23 +451,43 @@ export const composeImagePrompt = ({
     isCover = false,
     hasRoster = true,
 }) => {
-    const roster = sceneCharacters.map(characterLine).join("\n");
+    const objectNames = sceneCharacters
+        .filter((c) => inferCharacterKind(c).kind === "object")
+        .map((c) => String(c.name || "").trim())
+        .filter(Boolean);
+    const people = sceneCharacters.filter((c) => inferCharacterKind(c).kind !== "object");
+    const roster = sceneCharacters
+        .map((c) =>
+            inferCharacterKind(c).kind === "object" ? c : withoutObjectMentions(c, objectNames),
+        )
+        .map(characterLine)
+        .join("\n");
+    const holder = people[0]?.name;
+    const objectPlacement = objectNames.length
+        ? `OBJECT PLACEMENT: ${objectNames.join(" and ")} must be clearly visible and large: ${holder ? `held out in ${holder}'s hands (or a character's hands) ` : "held in a character's hands "}or lying on the ground / a table right in front of the characters, in the foreground, in its exact reference design. It is the ONLY ${objectNames.join("/")} in the picture: do not draw a second one, and do not draw it as a tiny detail on a character.`
+        : "";
 
     return [
         `SCENE: ${String(scene || "").trim()}`,
+        String(action || "").trim()
+            ? `KEY ACTION (this must be clearly visible in the picture, and it decides what the characters are doing, not the pose of the reference images): ${String(action).trim()}`
+            : "",
         shot ? `CAMERA: ${shot}.` : "",
-        "FRAMING: pull the camera well back. Show every character full-body, taking up no more than about half of the picture height, with generous space around them. The background fills the rest and is richly detailed in the foreground, middle ground and far distance. No close-ups and no characters cropped by the edge of the picture.",
+        "FRAMING: the PLACE is the main subject, but every character must be easy to recognize. Painted from about eight metres back with a wide-angle view. Every character is a full-body figure about one third of the picture height (never more than 40%, never smaller than 25%), with the face clearly visible and facing the viewer or turned three-quarters, never seen only from behind, never hidden behind an object or another character, never cropped by the edge. Characters stand in the foreground or middle ground. About 60% of the picture shows the place itself (sky, trees, buildings, hills), and the main feature of the place is much taller than a character. This also applies when only one or two characters are in the picture. No close-ups and no portraits. The foreground, middle ground and far distance are all richly detailed.",
+        "LIGHT AND COLOR: bright, clear, evenly lit and cheerful, with rich, varied colors. No sepia, orange or brown overall tint, no muddy dark shadows, no heavy vignette. Interiors are bright and evenly lit with fresh, clean colors (cream walls, sky blue, leaf green) and only small warm lamp glows. Night scenes use deep blue with a few warm glowing lights and are still easy to read. Only the magical details glow.",
         mood ? `MOOD: ${mood}.` : "",
         sceneCharacters.length
             ? `CHARACTERS IN THIS IMAGE (draw exactly these ${sceneCharacters.length}, each once, each clearly visible, with exactly this look every time):\n${roster}`
             : hasRoster
                 ? "No recurring character is in this image. Do not add any."
                 : "",
+        objectPlacement,
         `STYLE: ${compactStyle(imageStyle)}`,
         isCover
             ? "COVER COMPOSITION: front cover of a children's book. Keep the upper third calm and uncluttered (sky, soft background) because the title is added later."
             : "",
-        "RULES: one single scene, no collage, no panels. The setting described in SCENE must be clearly visible. Every character keeps exactly the same clothes, accessories and colors listed above, even if the SCENE wording suggests otherwise. Absolutely no text, letters, numbers, captions, speech bubbles, logos, watermarks or readable signs in the picture.",
+        "RULES: one single scene, no collage, no panels. The setting described in SCENE must be clearly visible. Every character keeps exactly the same face, hair, clothes, accessories and colors listed above on every page of the book, even if the SCENE wording suggests otherwise. Absolutely no text, letters, numbers, captions, speech bubbles, logos, watermarks or readable signs in the picture.",
+        "CLEAN RESULT: a tidy, uncluttered, carefully finished picture. Each character is drawn exactly once with natural proportions, a clear friendly face with two eyes, correct hands and feet, and no extra, merged or missing limbs. No duplicate characters, no stray blobs or smudges, no random extra objects.",
     ]
         .filter(Boolean)
         .join("\n\n");
@@ -416,13 +569,22 @@ HOW TO WRITE EACH "prompt" (50 to 90 words)
    pointing, climbing, looking up, carrying something). They must NOT stand in a
    row facing the viewer like a group photo.
 3. Use the suggested camera for the page. Every shot is WIDE: never write a
-   close-up or a medium close-up, and never make the characters fill the
-   picture. Describe the background in layers (foreground, middle, far distance)
-   so the setting is clearly seen.
+   close-up or a medium close-up. The characters are full-body figures about
+   one third of the picture height, faces visible (front or three-quarter view,
+   never only from behind), and the PLACE is the star: make the landmark,
+   trees, buildings, water and sky big and detailed, and describe the
+   background in layers (foreground, middle, far distance) so the setting is
+   clearly seen. Never write "tiny", "small figures" or "towering" about the characters.
 4. Include ONLY the characters that the page needs. A character who is not in
-   that moment of the story is left out.
+   that moment of the story is left out. NEVER more than ${PAGE_MAX_CHARACTERS}
+   characters in one image: if the page text names more, keep the
+   ${PAGE_MAX_CHARACTERS} that matter most to what is happening on that page
+   (the others appear on other pages).
 5. Mention the one or two important objects from the story text (for example a
-   glowing sword in a stone, a rope bridge, a lantern).
+   glowing sword in a stone, a rope bridge, a lantern). If an OBJECT character
+   (see the character list) is in the image, say that a character HOLDS it or that
+   it lies in the foreground, and that it is large and clearly visible. Never
+   describe it as tucked behind an ear, in a pocket or otherwise hidden.
 6. One single scene. No collage, no panels.
 7. Use no text, signs, letters or numbers in the picture.
 8. NEVER state a color, pattern or design for a character's own clothes or
@@ -430,9 +592,57 @@ HOW TO WRITE EACH "prompt" (50 to 90 words)
    pink daisy"). Their exact colors are added separately and must not be
    overridden by the scene text.
 
+9. LIGHTING AND COLOR: every scene is bright, clear and colorful. Never write
+   "dim", "dark", "shadowy", "murky", "sepia" or "warm glow" for a whole room
+   (the word "warm" turns the picture into one orange-brown wash). Interiors are
+   "bright and evenly lit" by daylight or a clear window, with fresh colors such
+   as cream, sky blue and leaf green and only a small lamp glow. Night scenes
+   use deep blue with a few warm lights and stay easy to read. Give each scene
+   a clear palette instead of one brown wash.
+10. SCALE: never use wording that pulls the camera in ("kneeling close to",
+   "peering into", "face to face", "in front of the camera", "close-up").
+   Describe what the small figures do and the big place around them.
+    In EVERY prompt name one BIG feature of the place that THIS page's story
+   text actually mentions (or the setting it clearly implies) and say the
+   characters are small next to it. Examples of the idea, never to be copied:
+   "a huge arched window looks out on the night sky while the two children
+   kneel small on the wooden floor"; "a towering oak with a rope swing fills the
+   left side while the girl and the dog are small figures on the path". The
+   moon, a nebula or a comet may be the big feature ONLY on a page whose text
+   names it. Different pages must use different big features and different
+   wording.
+11. SAME PLACE = SAME WORDS. If a place appears in more than one image (the
+   cover counts), describe it with the SAME fixed features in exactly the same
+   words every time: window shape, frame and position, curtain color and side,
+   the main furniture and where it stands, wall and floor colors (for example
+   "an arched window with a white four-pane frame on the back wall, blue
+   curtains on its left, a wooden bed under it, honey-colored wooden floor").
+   Decide these features the first time the place appears and copy them word
+   for word afterwards.
+12. "scene" must describe EXACTLY what "prompt" shows: same characters, same
+   action, same place, and nothing the prompt does not say. A mismatch makes
+   the finished picture fail its check and be painted again.
+13. "action": ONE sentence naming the single most important thing happening in
+   the picture, taken from the story page, with exact body positions and where
+   they are, for example "the little rocket carries the girl, the boy and the
+   parrot up into the sky, their feet off the ground, held in its warm glow".
+   The "prompt" must show this same action. Characters are always drawn DOING
+   it, never just standing or walking next to it.
+14. EACH CHARACTER ONCE, IN ONE PLACE. Say exactly where each character is. If
+   characters ride inside something (a rocket, boat, wagon, house), either show
+   them inside it (only their faces at the window or opening) or on it, never
+   both, and never draw them again outside it. If the story says float, fly or
+   drift, there is NO ground in the picture: the characters and their vehicle
+   are surrounded by sky or space, feet off the ground. Never write words that
+   suggest a second copy of a character (a reflection, a shadow figure, a twin).
+
 COVER: one scene in the story's most important setting that shows the theme
-and mood of the whole story. Use only the 2 or 3 MAIN characters (never more
-than ${COVER_MAX_CHARACTERS}), in a lively, friendly pose that is not a stiff line-up.
+and mood of the whole story. Use only the 2 or 3 MAIN people or pets (never
+more than ${COVER_MAX_CHARACTERS}), in a lively, friendly pose that is not a
+stiff line-up. In addition you may list ONE object character if the cover scene
+needs it (for example the suitcase being packed). Everything the cover scene or
+action mentions must be in the cover's "characters" list or be an ordinary
+unnamed prop: never describe a listed character who is not in "characters".
 
 ==================================================
 IMAGE SAFETY RULES (very important)
@@ -471,6 +681,7 @@ Return ONLY valid JSON, no markdown, no code block, no text before or after:
 {
     "cover": {
         "scene": "",
+        "action": "",
         "mood": "",
         "characters": [],
         "prompt": ""
@@ -479,6 +690,7 @@ Return ONLY valid JSON, no markdown, no code block, no text before or after:
         {
             "pageNumber": 1,
             "scene": "",
+            "action": "",
             "mood": "",
             "characters": [],
             "prompt": ""
@@ -490,6 +702,7 @@ Rules:
 - "cover" is a single object (not an array).
 - "pageNumber" matches the story page number.
 - "scene" is ONE short sentence summarising the picture (setting + action).
+- "action" is the one-sentence key action from rule 13.
 - "mood" is two or three words.
 - "characters" lists ONLY the characters that appear in that image, using the
   exact ids from the CHARACTERS list above.
@@ -552,17 +765,21 @@ Rules:
                 };
 
                 const coverRaw = parsedResult.cover;
-                let coverCharacters = resolveSceneCharacters(coverRaw.characters, COVER_MAX_CHARACTERS);
+                const coverAll = resolveSceneCharacters(coverRaw.characters);
+                let coverCharacters = pickCoverCharacters(coverAll);
                 if (!coverCharacters.length && characters.length) {
-                    coverCharacters = characters.slice(0, COVER_MAX_CHARACTERS);
+                    coverCharacters = pickCoverCharacters(characters);
                 }
+                const coverCut = coverAll.filter((c) => !coverCharacters.includes(c));
+                const coverScenePrompt = dropSentencesAbout(coverRaw.prompt, coverCut);
 
                 const cover = {
                     ...coverRaw,
-                    scene: String(coverRaw.scene || coverRaw.prompt).slice(0, 400),
+                    scene: dropSentencesAbout(String(coverRaw.scene || coverScenePrompt), coverCut).slice(0, 400),
                     characters: coverCharacters.map((c) => c.id || c.name),
                     prompt: composeImagePrompt({
-                        scene: coverRaw.prompt,
+                        scene: coverScenePrompt,
+                        action: mentionsAny(coverRaw.action, coverCut) ? "" : coverRaw.action,
                         mood: coverRaw.mood,
                         sceneCharacters: coverCharacters,
                         imageStyle: storyData?.imageStyle,
@@ -572,18 +789,22 @@ Rules:
                 };
 
                 const finalImages = images.map((image, index) => {
-                    const sceneCharacters = resolveSceneCharacters(image.characters);
+                    const allScene = resolveSceneCharacters(image.characters);
+                    const sceneCharacters = allScene.slice(0, PAGE_MAX_CHARACTERS);
+                    const cut = allScene.filter((c) => !sceneCharacters.includes(c));
+                    const pageScenePrompt = dropSentencesAbout(image.prompt, cut);
 
                     return {
                         ...image,
-                        scene: String(image.scene || image.prompt).slice(0, 400),
+                        scene: dropSentencesAbout(String(image.scene || pageScenePrompt), cut).slice(0, 400),
                         // Keep the model's own list if none matched, so
                         // downstream lookups behave exactly as before.
                         characters: sceneCharacters.length
                             ? sceneCharacters.map((c) => c.id || c.name)
                             : image.characters || [],
                         prompt: composeImagePrompt({
-                            scene: image.prompt,
+                            scene: pageScenePrompt,
+                            action: mentionsAny(image.action, cut) ? "" : image.action,
                             mood: image.mood,
                             shot: sceneCharacters.length ? shotFor(index) : "",
                             sceneCharacters,
