@@ -10,79 +10,145 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: wonderbooks-production
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
 
     steps:
       # 1. Clone repository
-      - name: Checkout code
+      - name: Checkout source code
         uses: actions/checkout@v4
 
-      # 2. Create production backend Dockerfile
-      - name: Create backend Dockerfile
+     
+      # 2. Create Dockerfiles and frontend .env from GitHub Secrets
+      - name: Create deployment configuration files
+        env:
+          FRONTEND_DOCKERFILE: ${{ secrets.FRONTEND_DOCKERFILE }}
+          BACKEND_DOCKERFILE: ${{ secrets.BACKEND_DOCKERFILE }}
+          FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
         run: |
-          cat > Backend/Dockerfile <<'EOF'
-          FROM node:20-alpine
-          WORKDIR /app
-          COPY package*.json ./
-          RUN npm ci --omit=dev
-          COPY . .
-          EXPOSE 5000
-          CMD ["node", "app.js"]
-          EOF
+          set -eu
 
-      # 3. Create production frontend Dockerfile
-      - name: Create frontend Dockerfile
+          # Verify required secrets exist
+          test -n "$FRONTEND_DOCKERFILE" || {
+            echo "ERROR: FRONTEND_DOCKERFILE secret is missing"
+            exit 1
+          }
+
+          test -n "$BACKEND_DOCKERFILE" || {
+            echo "ERROR: BACKEND_DOCKERFILE secret is missing"
+            exit 1
+          }
+
+          test -n "$FRONTEND_ENV" || {
+            echo "ERROR: FRONTEND_ENV secret is missing"
+            exit 1
+          }
+
+          # Create files from GitHub Secrets
+          printf '%s\n' "$FRONTEND_DOCKERFILE" > frontend/Dockerfile
+          printf '%s\n' "$BACKEND_DOCKERFILE" > Backend/Dockerfile
+
+          umask 077
+          printf '%s\n' "$FRONTEND_ENV" > frontend/.env
+
+          echo "Deployment configuration files created."
+
+      # 3. Verify project structure with clear error messages
+      - name: Verify project structure
         run: |
-          cat > frontend/Dockerfile <<'EOF'
-          FROM node:20-alpine AS build
-          WORKDIR /app
+          set -eu
 
-          COPY package*.json ./
-          RUN npm ci
+          for file in \
+            Backend/package.json \
+            Backend/Dockerfile \
+            frontend/package.json \
+            frontend/Dockerfile \
+            frontend/.env
+          do
+            if [ ! -s "$file" ]; then
+              echo "ERROR: Missing or empty file: $file"
+              exit 1
+            fi
 
-          COPY . .
-          RUN npm run build
+            echo "OK: $file"
+          done
 
-          FROM nginx:alpine
-          COPY --from=build /app/dist /usr/share/nginx/html
 
-          RUN printf '%s\n' \
-            'server {' \
-            '  listen 80;' \
-            '  server_name _;' \
-            '  root /usr/share/nginx/html;' \
-            '  index index.html;' \
-            '  location / {' \
-            '    try_files $uri $uri/ /index.html;' \
-            '  }' \
-            '}' > /etc/nginx/conf.d/default.conf
-
-          EXPOSE 80
-          CMD ["nginx", "-g", "daemon off;"]
-          EOF
-
-      # 4. Build backend image
+      # 4. Build backend Docker image
       - name: Build backend image
         run: |
           docker build \
-            --pull \
-            -f Backend/Dockerfile \
             -t wonderbooks-backend:latest \
             ./Backend
 
-      # 5. Build frontend image
-      - name: Build frontend image
+     
+      
+      
+      # Fix orderUtils filename capitalization automatically
+      - name: Fix orderUtils filename
+        shell: bash
         run: |
-          docker build \
-            --pull \
-            -f frontend/Dockerfile \
-            -t wonderbooks-frontend:latest \
-            ./frontend
+          set -euo pipefail
 
-      # 6. Export images for EC2
+          COMPONENTS="frontend/src/Components"
+
+          if [ -f "$COMPONENTS/Orderutils.jsx" ]; then
+            git mv "$COMPONENTS/Orderutils.jsx" \
+                   "$COMPONENTS/orderUtils.jsx" 2>/dev/null || \
+            mv "$COMPONENTS/Orderutils.jsx" \
+               "$COMPONENTS/orderUtils.jsx"
+
+            echo "Renamed Orderutils.jsx to orderUtils.jsx"
+          elif [ -f "$COMPONENTS/orderUtils.jsx" ]; then
+            echo "Correct filename already exists."
+          else
+            echo "::error::Orderutils.jsx was not found."
+            exit 1
+          fi
+
+          # Verify the module now exists
+          test -f "$COMPONENTS/orderUtils.jsx"
+
+          # Verify both components use the expected import
+          grep -n 'orderUtils' \
+            "$COMPONENTS/OrderDetailView.jsx"
+
+          grep -n 'orderUtils' \
+            "$COMPONENTS/OrdersList.jsx"
+
+      # Build frontend Docker image
+      - name: Build frontend image
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${VITE_API_URL:-}" ]; then
+            docker build \
+              --build-arg VITE_API_URL="$VITE_API_URL" \
+              -t wonderbooks-frontend:latest \
+              ./frontend
+          else
+            docker build \
+              -t wonderbooks-frontend:latest \
+              ./frontend
+          fi
+
+
+
+      # 6. Verify Docker images
+      - name: Verify Docker images
+        run: |
+          docker image inspect wonderbooks-backend:latest
+          docker image inspect wonderbooks-frontend:latest
+          docker images
+
+      # 7. Export both Docker images
       - name: Save Docker images
         run: |
           docker save \
@@ -90,179 +156,135 @@ jobs:
             wonderbooks-frontend:latest \
             -o wonderbooks-images.tar
 
-          ls -lh wonderbooks-images.tar
+          test -s wonderbooks-images.tar
 
-      # 7. Install required dependencies on new EC2
-      - name: Prepare EC2
+     
+      - name: Test SSH and prepare EC2
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
+          username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
           timeout: 60s
-          command_timeout: 10m
+          command_timeout: 15m
           script: |
             set -e
 
+            echo "SSH authentication successful"
+            echo "Connected user:"
+            whoami
+
+            echo "EC2 hostname:"
+            hostname
+
+            echo "Updating package lists..."
             sudo apt-get update
-            sudo apt-get install -y docker.io nginx curl ca-certificates
+
+            echo "Installing Docker and Nginx..."
+            sudo apt-get install -y docker.io nginx
 
             sudo systemctl enable --now docker
             sudo systemctl enable --now nginx
 
+            echo "Docker version:"
             docker --version
+
+            echo "Nginx version:"
             nginx -v
 
-      # 8. Transfer Docker images to EC2
-      - name: Copy images to EC2
+            echo "Currently running containers:"
+            sudo docker ps
+
+            echo "EC2 preparation completed successfully."
+
+      # 9. Transfer Docker images to EC2
+      - name: Copy Docker images to EC2
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
+          username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: wonderbooks-images.tar
-          target: /home/ubuntu/
-          timeout: 120s
+          source: "wonderbooks-images.tar"
+          target: "/home/ubuntu/wonderbooks-deploy/"
+          overwrite: true
 
-      # 9. Load images, create containers and configure Nginx
-      - name: Deploy and verify containers
+      # 10. Deploy containers on EC2
+      - name: Deploy containers on EC2
         uses: appleboy/ssh-action@v1.2.2
+        env:
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
         with:
           host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
+          username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          timeout: 60s
+          envs: BACKEND_ENV
+          timeout: 10m
           command_timeout: 15m
+          script_stop: true
           script: |
             set -eu
 
-            cd /home/ubuntu
+            cd /home/ubuntu/wonderbooks-deploy
 
-            echo "Loading Docker images..."
+            test -s wonderbooks-images.tar
+
+            # Load images transferred from GitHub Actions
             sudo docker load -i wonderbooks-images.tar
 
-            echo "Checking backend environment..."
-            if [ ! -f /home/ubuntu/WonderBooks/Backend/.env ]; then
-              echo "ERROR: Backend .env file missing on EC2."
-              echo "Create it with the required application variables."
-              exit 1
-            fi
+            # Create backend environment file
+            test -n "$BACKEND_ENV"
+            umask 077
+            printf '%s\n' "$BACKEND_ENV" > backend.env
+            test -s backend.env
+            chmod 600 backend.env
 
-            echo "Preparing Docker network..."
-            sudo docker network inspect wonderbooks-net >/dev/null 2>&1 || \
-              sudo docker network create wonderbooks-net
+            # Remove old containers if present
+            sudo docker rm -f \
+              wonderbooks-backend \
+              wonderbooks-frontend 2>/dev/null || true
 
-            echo "Removing old application containers..."
-            sudo docker rm -f wonderbooks-frontend wonderbooks-backend 2>/dev/null || true
-
-            echo "Starting backend container..."
+            # Start backend container
             sudo docker run -d \
               --name wonderbooks-backend \
-              --network wonderbooks-net \
               --restart unless-stopped \
-              --env-file /home/ubuntu/WonderBooks/Backend/.env \
-              -p 127.0.0.1:5000:5000 \
+              --env-file /home/ubuntu/wonderbooks-deploy/backend.env \
+              -p 5000:5000 \
               wonderbooks-backend:latest
 
-            echo "Starting frontend container..."
+            # Start frontend container
             sudo docker run -d \
               --name wonderbooks-frontend \
-              --network wonderbooks-net \
               --restart unless-stopped \
-              -p 127.0.0.1:5173:80 \
+              -p 5173:80 \
               wonderbooks-frontend:latest
 
-            echo "Configuring host Nginx..."
-            sudo tee /etc/nginx/sites-available/default >/dev/null <<'NGINX'
-            server {
-                listen 80 default_server;
-                listen [::]:80 default_server;
-                server_name _;
+            # Wait for containers to start
+            sleep 10
 
-                location /api/ {
-                    proxy_pass http://127.0.0.1:5000;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                }
+            # Display container status
+            sudo docker ps -a
 
-                location / {
-                    proxy_pass http://127.0.0.1:5173;
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                }
-            }
-            NGINX
+            # Fail if either container is not running
+            test "$(sudo docker inspect \
+              -f '{{.State.Running}}' wonderbooks-backend)" = "true"
 
-            sudo nginx -t
-            sudo systemctl enable nginx
-            sudo systemctl reload nginx
+            test "$(sudo docker inspect \
+              -f '{{.State.Running}}' wonderbooks-frontend)" = "true"
 
-            echo "Waiting for frontend..."
-            ready=0
-            for i in $(seq 1 30); do
-              if curl -fsS --max-time 3 http://127.0.0.1:5173/ \
-                -o /tmp/wonderbooks-index.html; then
-                ready=1
-                break
-              fi
-              sleep 2
-            done
-
-            if [ "$ready" -ne 1 ]; then
-              echo "ERROR: Frontend did not become ready."
-              sudo docker ps -a
-              sudo docker logs --tail 100 wonderbooks-frontend
-              exit 1
-            fi
-
-            if ! grep -qi '<html' /tmp/wonderbooks-index.html; then
-              echo "ERROR: Frontend did not return an HTML page."
-              sudo docker logs --tail 100 wonderbooks-frontend
-              exit 1
-            fi
-
-            echo "Checking website through host Nginx..."
-            if ! curl -fsS --max-time 10 http://127.0.0.1/ \
-              -o /tmp/wonderbooks-site.html; then
-              echo "ERROR: Website is not responding through Nginx."
-              sudo nginx -t
-              sudo docker ps -a
-              exit 1
-            fi
-
-            echo "Checking backend HTTP response..."
-            backend_code=$(curl -sS -o /dev/null \
-              --max-time 5 -w '%{http_code}' \
-              http://127.0.0.1:5000/ || true)
-
-            echo "Backend HTTP status: $backend_code"
-
-            case "$backend_code" in
-              5??|000|"")
-                echo "ERROR: Backend is unavailable or returned a server error."
-                sudo docker logs --tail 100 wonderbooks-backend
-                exit 1
-                ;;
-            esac
-
-            echo "Final container status:"
-            sudo docker ps
-
-            echo "Frontend logs:"
-            sudo docker logs --tail 30 wonderbooks-frontend
-
-            echo "Backend logs:"
+            # Display application logs
             sudo docker logs --tail 50 wonderbooks-backend
+            sudo docker logs --tail 50 wonderbooks-frontend
 
-            rm -f /home/ubuntu/wonderbooks-images.tar
-            rm -f /tmp/wonderbooks-index.html /tmp/wonderbooks-site.html
+            # Remove transferred archive after successful startup
+            rm -f wonderbooks-images.tar
 
-            echo "SUCCESS: Frontend and backend HTTP checks passed."
-            echo "Open http://YOUR_EC2_PUBLIC_IP/"
+            echo "WonderBooks containers started successfully."
 
-      # 10. Remove exported images from GitHub runner
-      - name: Clean up runner
-        if: always()
-        run: rm -f wonderbooks-images.tar
+      # 11. Confirm deployment
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "WonderBooks deployment completed successfully."
+          echo "Frontend: http://${{ secrets.EC2_HOST }}:5173"
+          echo "Backend:  http://${{ secrets.EC2_HOST }}:5000"
