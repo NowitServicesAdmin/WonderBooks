@@ -87,37 +87,53 @@ jobs:
             ./Backend
 
      
-      # Check frontend imports before building Docker image
-      - name: Validate frontend source files
+      
+      # 4. Diagnose and resolve orderUtils filename differences
+      - name: Check orderUtils module
+        shell: bash
         run: |
-          set -eu
+          set -euo pipefail
 
-          echo "Checking orderUtils module..."
+          COMPONENTS="frontend/src/Components"
 
-          find frontend/src/Components \
-            -maxdepth 1 \
-            -type f \
-            -iname 'orderUtils*' \
-            -print
+          echo "Searching for orderUtils module..."
 
-          if ! find frontend/src/Components \
-            -maxdepth 1 \
-            -type f \
-            -iname 'orderUtils*' \
-            | grep -q .; then
-            echo "::error::Missing orderUtils module in frontend/src/Components."
-            echo "Restore orderUtils.js or orderUtils.jsx from your source code."
+          if [ ! -d "$COMPONENTS" ]; then
+            echo "::error::Directory not found: $COMPONENTS"
             exit 1
           fi
 
-          echo "orderUtils module found."
+          find "$COMPONENTS" -maxdepth 1 -type f -print
 
-      # Build frontend Docker image
+          # Check for exact expected filename
+          if [ -f "$COMPONENTS/orderUtils.js" ] || \
+             [ -f "$COMPONENTS/orderUtils.jsx" ] || \
+             [ -f "$COMPONENTS/orderUtils.ts" ] || \
+             [ -f "$COMPONENTS/orderUtils.tsx" ]; then
+            echo "orderUtils module found."
+            exit 0
+          fi
+
+          # Detect a differently capitalized filename
+          MATCH=$(find "$COMPONENTS" -maxdepth 1 -type f \
+            -iname 'orderUtils.*' | head -n 1 || true)
+
+          if [ -n "$MATCH" ]; then
+            echo "::warning::Found differently named module: $MATCH"
+            echo "Correct the import paths or filename in your source code."
+            exit 1
+          fi
+
+          echo "::error::orderUtils module is missing."
+          echo "Restore the real module from Git history or your source branch."
+          exit 1
+
+      # 5. Build frontend Docker image
       - name: Build frontend image
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: |
-          set -eu
+          set -euo pipefail
 
           if [ -n "${VITE_API_URL:-}" ]; then
             docker build \
