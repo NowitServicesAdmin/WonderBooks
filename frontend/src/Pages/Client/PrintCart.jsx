@@ -3,107 +3,70 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     ArrowLeft,
+    ArrowRight,
     BookOpen,
-    Check,
+    // Check,
     Loader2,
     Minus,
-    Settings2,
     Plus,
     ShieldCheck,
     ShoppingCart,
     Trash2,
     Truck,
 } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
-import { useRazorpayCheckout } from "../../hooks/useRazorpayCheckout";
-import { getShippingQuote, initiateOrder, verifyOrder } from "../../services/orderService";
+import { getShippingQuote } from "../../services/orderService";
 import { deleteAddress, getAddresses } from "../../services/addressService";
 import { AddressSection } from "../../Components/printOrder/AddressSection";
 import { AddressFormModal } from "../../Components/printOrder/AddressFormModal";
-import { e164Phone } from "../../utils/phone";
-import { PrintOptionsModal } from "../../Components/PrintOptionsModal";
+import { CheckoutSteps } from "../../Components/printOrder/CheckoutSteps";
+import { getCheckoutAddressId, setCheckoutAddressId } from "../../utils/checkoutSession";
 
 const money = (amount) => `₹${Number(amount || 0).toLocaleString("en-IN")}`;
 const copies = (n) => `${n} ${n === 1 ? "copy" : "copies"}`;
 
-// Cart -> Delivery -> Payment progress strip
-const Steps = ({ current }) => {
-    const steps = ["Cart", "Delivery", "Payment"];
-    return (
-        <ol className="flex items-center gap-2 text-xs font-bold">
-            {steps.map((label, index) => {
-                const done = index < current;
-                const active = index === current;
-                return (
-                    <li key={label} className="flex items-center gap-2">
-                        <span
-                            className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${done || active
-                                ? "bg-(--accent) text-white"
-                                : "border border-(--border) text-(--text-muted)"
-                                }`}
-                        >
-                            {done ? <Check size={13} /> : index + 1}
-                        </span>
-                        <span className={active || done ? "text-(--text-heading)" : "text-(--text-muted)"}>{label}</span>
-                        {index < steps.length - 1 && <span className="mx-1 h-px w-5 bg-(--border) sm:w-8" />}
-                    </li>
-                );
-            })}
-        </ol>
-    );
-};
-
 // One book in the cart
-const CartItem = ({ item, maxQuantity, disabled, onQuantity, onRemove, onOpen, onEditOptions }) => {
+const CartItem = ({ item, maxQuantity, disabled, onQuantity, onRemove, onOpen }) => {
     const { book, quantity } = item;
     return (
-        <section className="rounded-3xl border border-(--border) bg-(--surface) p-4 sm:p-6">
-            <div className="flex gap-4">
+        <section className="rounded-2xl border border-(--border) bg-(--surface) p-3 sm:p-4">
+            <div className="flex gap-3">
                 <button
                     type="button"
                     onClick={() => onOpen(book._id)}
                     aria-label={`Open ${book.title}`}
-                    className="h-28 w-24 shrink-0 overflow-hidden rounded-xl border border-(--border) bg-(--tint) sm:h-32 sm:w-28"
+                    className="h-20 w-16 shrink-0 overflow-hidden rounded-lg border border-(--border) bg-(--tint) sm:h-24 sm:w-20"
                 >
                     {book.coverImageUrl ? (
                         <img src={book.coverImageUrl} alt={book.title} className="h-full w-full object-cover" />
                     ) : (
                         <div className="flex h-full w-full items-center justify-center text-(--accent)">
-                            <BookOpen size={28} />
+                            <BookOpen size={22} />
                         </div>
                     )}
                 </button>
 
-                <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+                <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                            <h2 className="truncate text-base font-extrabold text-(--text-heading) sm:text-lg">
+                            <h2 className="truncate text-sm font-extrabold text-(--text-heading) sm:text-base">
                                 {book.title}
                             </h2>
                             <p className="mt-0.5 text-xs text-(--text-muted)">
                                 Printed storybook · {item.pageCount} story pages
                             </p>
-                            <p className="mt-1 text-sm font-bold text-(--accent)">{money(item.unitPrice)} each</p>
+                            <p className="mt-0.5 text-xs font-bold text-(--accent)">{money(item.unitPrice)} each</p>
 
                             {item.printOptionLabels?.length > 0 && (
-                                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                <div className="mt-1.5 flex flex-wrap items-center gap-1">
                                     {item.printOptionLabels.map((label) => (
                                         <span
                                             key={label}
-                                            className="rounded-full bg-(--tint) px-2.5 py-0.5 text-[11px] font-bold text-(--accent)"
+                                            className="rounded-full bg-(--tint) px-2 py-0.5 text-[10px] font-bold text-(--accent)"
                                         >
                                             {label}
                                         </span>
                                     ))}
-                                    <button
-                                        type="button"
-                                        onClick={() => onEditOptions(item)}
-                                        disabled={disabled}
-                                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold text-(--text-muted) underline-offset-2 transition hover:text-(--accent) hover:underline disabled:opacity-40"
-                                    >
-                                        <Settings2 size={12} /> Change
-                                    </button>
                                 </div>
                             )}
                         </div>
@@ -113,24 +76,24 @@ const CartItem = ({ item, maxQuantity, disabled, onQuantity, onRemove, onOpen, o
                             disabled={disabled}
                             aria-label={`Remove ${book.title} from cart`}
                             title="Remove"
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-(--text-muted) transition hover:bg-(--tint) hover:text-[#c0392b] disabled:opacity-40"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-(--text-muted) transition hover:bg-(--tint) hover:text-[#c0392b] disabled:opacity-40"
                         >
-                            <Trash2 size={17} />
+                            <Trash2 size={15} />
                         </button>
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="inline-flex items-center rounded-xl border border-(--border)">
+                        <div className="inline-flex items-center rounded-lg border border-(--border)">
                             <button
                                 type="button"
                                 onClick={() => onQuantity(book._id, quantity - 1)}
                                 disabled={quantity <= 1 || disabled}
                                 aria-label="Decrease quantity"
-                                className="flex h-10 w-10 items-center justify-center text-(--accent) transition hover:bg-(--tint) disabled:opacity-40"
+                                className="flex h-8 w-8 items-center justify-center text-(--accent) transition hover:bg-(--tint) disabled:opacity-40"
                             >
-                                <Minus size={16} />
+                                <Minus size={14} />
                             </button>
-                            <span className="w-10 text-center text-sm font-extrabold text-(--text-heading)">
+                            <span className="w-8 text-center text-sm font-extrabold text-(--text-heading)">
                                 {quantity}
                             </span>
                             <button
@@ -138,19 +101,19 @@ const CartItem = ({ item, maxQuantity, disabled, onQuantity, onRemove, onOpen, o
                                 onClick={() => onQuantity(book._id, quantity + 1)}
                                 disabled={quantity >= maxQuantity || disabled}
                                 aria-label="Increase quantity"
-                                className="flex h-10 w-10 items-center justify-center text-(--accent) transition hover:bg-(--tint) disabled:opacity-40"
+                                className="flex h-8 w-8 items-center justify-center text-(--accent) transition hover:bg-(--tint) disabled:opacity-40"
                             >
-                                <Plus size={16} />
+                                <Plus size={14} />
                             </button>
                         </div>
 
-                        <p className="text-base font-extrabold text-(--text-heading)">{money(item.lineTotal)}</p>
+                        <p className="text-sm font-extrabold text-(--text-heading)">{money(item.lineTotal)}</p>
                     </div>
                 </div>
             </div>
 
             {quantity >= maxQuantity && (
-                <p className="mt-3 text-xs font-semibold text-(--text-muted)">
+                <p className="mt-2 text-xs font-semibold text-(--text-muted)">
                     You can order up to {maxQuantity} copies of a book at a time.
                 </p>
             )}
@@ -160,12 +123,7 @@ const CartItem = ({ item, maxQuantity, disabled, onQuantity, onRemove, onOpen, o
 
 export const PrintCart = () => {
     const navigate = useNavigate();
-    const { user } = useAuth();
-    const { items, totals, loaded, refresh, updateQuantity, updatePrintOptions, removeItem } = useCart();
-    const { openCheckout } = useRazorpayCheckout();
-
-    // the cart item whose print options are being changed (null = modal closed)
-    const [editingItem, setEditingItem] = useState(null);
+    const { items, totals, loaded, refresh, updateQuantity, removeItem } = useCart();
 
     const [cartBusy, setCartBusy] = useState(false);
     const [cartError, setCartError] = useState("");
@@ -175,7 +133,6 @@ export const PrintCart = () => {
     const [selectedId, setSelectedId] = useState("");
     const [formState, setFormState] = useState({ open: false, address: null });
 
-    const [paying, setPaying] = useState(false);
     const [payError, setPayError] = useState("");
 
     // delivery charge + estimated days + GST for the selected address
@@ -215,7 +172,7 @@ export const PrintCart = () => {
         let cancelled = false;
         getAddresses()
             .then(({ data }) => {
-                if (!cancelled) applyAddresses(data.addresses || []);
+                if (!cancelled) applyAddresses(data.addresses || [], getCheckoutAddressId());
             })
             .catch(() => {
                 if (!cancelled) setPayError("We couldn't load your saved addresses. Please refresh the page.");
@@ -261,7 +218,7 @@ export const PrintCart = () => {
     }, [selectedId, items.length, totals.itemCount, totals.subtotal]);
 
     const runCartAction = async (action) => {
-        if (cartBusy || paying) return;
+        if (cartBusy) return;
         setCartBusy(true);
         setCartError("");
         const result = await action();
@@ -276,12 +233,6 @@ export const PrintCart = () => {
 
     const handleRemove = (bookId) => runCartAction(() => removeItem(bookId));
 
-    const handleSaveOptions = async (printOptions) => {
-        const result = await updatePrintOptions(editingItem.book._id, printOptions);
-        if (result.ok) setEditingItem(null);
-        return result;
-    };
-
     const handleDeleteAddress = async (address) => {
         try {
             await deleteAddress(address._id);
@@ -291,8 +242,9 @@ export const PrintCart = () => {
         }
     };
 
-    const handlePay = async () => {
-        if (paying || cartBusy) return;
+    // Cart + delivery are done: remember the address and go pick extras
+    const handleContinue = () => {
+        if (cartBusy) return;
         if (!selectedAddress) {
             setPayError("Please choose a delivery address first.");
             return;
@@ -301,53 +253,9 @@ export const PrintCart = () => {
             setPayError(quoteError || "Delivery charges are still loading. Please wait a moment.");
             return;
         }
-
-        setPaying(true);
         setPayError("");
-
-        try {
-            // no bookId: the server charges for whatever is in the cart
-            const { data } = await initiateOrder({ addressId: selectedAddress._id });
-
-            await openCheckout({
-                order: data.order,
-                keyId: data.keyId,
-                name: "Wonder Books",
-                description:
-                    items.length === 1
-                        ? `${copies(totals.itemCount)} of "${items[0].book.title}"`
-                        : `${totals.bookCount} printed books (${copies(totals.itemCount)})`,
-                prefill: {
-                    name: selectedAddress.fullName,
-                    email: user?.email || "",
-                    contact: e164Phone(selectedAddress),
-                },
-                onSuccess: async (response) => {
-                    try {
-                        const verifyRes = await verifyOrder({
-                            razorpay_order_id: response.razorpay_order_id,
-                            razorpay_payment_id: response.razorpay_payment_id,
-                            razorpay_signature: response.razorpay_signature,
-                            addressId: selectedAddress._id,
-                        });
-                        const placed = verifyRes.data.orders || [verifyRes.data.order];
-                        navigate("/orders/success", { replace: true, state: { orders: placed } });
-                        refresh(); // the server has emptied the paid items out of the cart
-                    } catch {
-                        setPayError("Payment succeeded, but we couldn't confirm your order. Please contact support.");
-                        setPaying(false);
-                    }
-                },
-                onDismiss: () => setPaying(false),
-                onFailure: () => {
-                    setPaying(false);
-                    setPayError("The payment didn't go through. Please try again.");
-                },
-            });
-        } catch (err) {
-            setPaying(false);
-            setPayError(err.response?.data?.message || "Couldn't start the order. Please try again.");
-        }
+        setCheckoutAddressId(selectedAddress._id);
+        navigate("/orders/extras");
     };
 
     const closeForm = () => setFormState({ open: false, address: null });
@@ -383,12 +291,10 @@ export const PrintCart = () => {
         );
     }
 
-    // Cart is done once it loads; Delivery is active until an address is chosen; then Payment
-    const step = paying || selectedAddress ? 2 : 1;
-    const locked = cartBusy || paying;
+    const locked = cartBusy;
 
     return (
-        <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+        <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 sm:py-6">
             <button
                 type="button"
                 onClick={() => navigate("/books")}
@@ -398,12 +304,12 @@ export const PrintCart = () => {
                 Continue browsing my books
             </button>
 
-            <div className="mb-6 mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="mb-4 mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <h1 className="flex items-center gap-2.5 text-2xl font-extrabold text-(--text-heading) sm:text-3xl">
-                        <ShoppingCart size={26} className="text-(--accent)" />
+                    <h1 className="flex items-center gap-2.5 text-xl font-extrabold text-(--text-heading) sm:text-2xl">
+                        <ShoppingCart size={22} className="text-(--accent)" />
                         Your cart
-                        <span className="text-base font-bold text-(--text-muted)">
+                        <span className="text-sm font-bold text-(--text-muted)">
                             ({totals.bookCount} {totals.bookCount === 1 ? "book" : "books"})
                         </span>
                     </h1>
@@ -411,11 +317,11 @@ export const PrintCart = () => {
                         Review your printed books, pick a delivery address and pay.
                     </p>
                 </div>
-                <Steps current={step} />
+                <CheckoutSteps current={1} />
             </div>
 
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-                <div className="space-y-5 lg:col-span-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <div className="space-y-3 lg:col-span-2">
                     {/* ---------------- cart items ---------------- */}
                     {items.map((item) => (
                         <CartItem
@@ -426,7 +332,6 @@ export const PrintCart = () => {
                             onQuantity={handleQuantity}
                             onRemove={handleRemove}
                             onOpen={(id) => navigate(`/books/${id}`)}
-                            onEditOptions={setEditingItem}
                         />
                     ))}
                     {cartError && <p className="text-xs font-semibold text-[#c0392b]">{cartError}</p>}
@@ -444,10 +349,10 @@ export const PrintCart = () => {
                 </div>
 
                 {/* ---------------- order summary ---------------- */}
-                <aside className="h-fit rounded-3xl border border-(--border) bg-(--surface) p-5 sm:p-6 lg:sticky lg:top-4">
-                    <h2 className="text-lg font-extrabold text-(--text-heading)">Order summary</h2>
+                <aside className="h-fit rounded-2xl border border-(--border) bg-(--surface) p-4 lg:sticky lg:top-4">
+                    <h2 className="text-base font-extrabold text-(--text-heading)">Order summary</h2>
 
-                    <dl className="mt-4 space-y-3 text-sm">
+                    <dl className="mt-3 space-y-2 text-sm">
                         {items.map((item) => (
                             <div key={item.book._id} className="flex justify-between gap-3">
                                 <dt className="min-w-0 text-(--text-muted)">
@@ -461,7 +366,7 @@ export const PrintCart = () => {
                                 <dd className="shrink-0 font-bold text-(--text-heading)">{money(item.lineTotal)}</dd>
                             </div>
                         ))}
-                        <div className="flex justify-between gap-3 border-t border-(--border) pt-3">
+                        <div className="flex justify-between gap-3 border-t border-(--border) pt-2">
                             <dt className="text-(--text-muted)">Subtotal ({copies(totals.itemCount)})</dt>
                             <dd className="font-bold text-(--text-heading)">{money(totals.subtotal)}</dd>
                         </div>
@@ -492,16 +397,16 @@ export const PrintCart = () => {
                                 <dd className="font-bold text-(--text-heading)">{money(quote.gstAmount)}</dd>
                             </div>
                         )}
-                        <div className="flex items-center justify-between gap-3 border-t border-(--border) pt-4">
-                            <dt className="text-base font-extrabold text-(--text-heading)">Total</dt>
-                            <dd className="text-xl font-extrabold text-(--accent)">
+                        <div className="flex items-center justify-between gap-3 border-t border-(--border) pt-3">
+                            <dt className="text-sm font-extrabold text-(--text-heading)">Total</dt>
+                            <dd className="text-lg font-extrabold text-(--accent)">
                                 {money(quote ? quote.total : totals.subtotal)}
                             </dd>
                         </div>
                     </dl>
 
                     {selectedAddress && (
-                        <div className="mt-4 rounded-2xl bg-(--tint) p-3 text-xs leading-relaxed text-(--text-muted)">
+                        <div className="mt-3 rounded-xl bg-(--tint) p-2.5 text-xs leading-relaxed text-(--text-muted)">
                             <p className="font-extrabold text-(--text-heading)">Delivering to {selectedAddress.fullName}</p>
                             <p>
                                 {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}
@@ -514,12 +419,12 @@ export const PrintCart = () => {
 
                     <button
                         type="button"
-                        onClick={handlePay}
-                        disabled={paying || cartBusy || addressesLoading || !selectedAddress || quoteLoading || !quote}
-                        className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-(--accent) text-sm font-bold text-white transition hover:bg-(--accent-hover) disabled:pointer-events-none disabled:opacity-50"
+                        onClick={handleContinue}
+                        disabled={cartBusy || addressesLoading || !selectedAddress || quoteLoading || !quote}
+                        className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-(--accent) text-sm font-bold text-white transition hover:bg-(--accent-hover) disabled:pointer-events-none disabled:opacity-50"
                     >
-                        {paying ? <Loader2 size={17} className="animate-spin" /> : <ShieldCheck size={17} />}
-                        {paying ? "Processing..." : quote ? `Pay ${money(quote.total)}` : "Pay"}
+                        Continue
+                        <ArrowRight size={15} />
                     </button>
 
                     {!selectedAddress && !addressesLoading && (
@@ -528,7 +433,7 @@ export const PrintCart = () => {
 
                     <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-(--text-muted)">
                         <ShieldCheck size={12} />
-                        Secure payment via Razorpay
+                        Next: personalize & add extras, then pay securely via Razorpay
                     </p>
                 </aside>
             </div>
@@ -544,17 +449,6 @@ export const PrintCart = () => {
                     }}
                 />
             )}
-
-            <PrintOptionsModal
-                isOpen={Boolean(editingItem)}
-                onClose={() => setEditingItem(null)}
-                onConfirm={handleSaveOptions}
-                bookId={editingItem?.book._id}
-                bookTitle={editingItem?.book.title}
-                initialOptions={editingItem?.printOptions}
-                title="Change print options"
-                confirmLabel="Save changes"
-            />
         </div>
     );
 };

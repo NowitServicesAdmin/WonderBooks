@@ -154,6 +154,7 @@ const toClientOrder = (order) => ({
   unitPrice: order.unitPrice ?? null,
   printOptions: order.printOptions || snapshotPrintOptions(),
   printOptionLabels: describePrintOptions(order.printOptions),
+  giftMessage: order.giftMessage || "",
   subtotal: order.subtotal ?? null,
   shippingFee: order.shippingFee || 0,
   gstPercent: order.gst || 0,
@@ -256,10 +257,10 @@ const buildCheckoutQuote = async ({ userId, bookId, quantity, printOptions, addr
   const totals = getCartTotals(loaded.lines);
 
   const { quote, error: deliveryError } = await getDeliveryQuote({
-  pincode: shipping.postalCode,
-  copies: totals.itemCount,
-  declaredValue: totals.subtotal,
-});
+    pincode: shipping.postalCode,
+    lines: totals.lines, 
+    declaredValue: totals.subtotal,
+  });
   if (deliveryError) return { status: 400, message: deliveryError };
 
   return {
@@ -495,6 +496,14 @@ export const verifyOrder = async (req, res) => {
     const breadth = Number(notes.breadth) || 10;
     const height = Number(notes.height) || 10;
 
+    const cartDoc = await Cart.findOne({ user: req.userId })
+      .select("items.book items.dedicationText giftMessage")
+      .lean();
+    const dedicationByBook = new Map(
+      (cartDoc?.items || []).map((i) => [String(i.book), i.dedicationText || ""]),
+    );
+    const giftMessage = cartDoc?.giftMessage || "";
+
     const priced = getCartTotals(
       items.map((i) => ({
         bookId: i.bookId,
@@ -524,7 +533,14 @@ export const verifyOrder = async (req, res) => {
 
         quantity: line.quantity,
         unitPrice: line.unitPrice,
-        printOptions: snapshotPrintOptions(line.printOptions),
+        printOptions: {
+          ...snapshotPrintOptions(line.printOptions),
+          dedicationText:
+            line.printOptions?.dedication === "added"
+              ? dedicationByBook.get(line.bookId) || ""
+              : "",
+        },
+        giftMessage,
         subtotal: line.lineTotal,
         shippingFee: first ? deliveryCharge : 0,
         gst: gstPercent, // existing schema field holds the GST %

@@ -88,7 +88,15 @@ const OrderSchema = new mongoose.Schema(
             sizeLabel: { type: String, default: "A5" },
             widthMm: { type: Number, default: 148 },
             heightMm: { type: Number, default: 210 },
+            giftWrap: { type: String, default: "none" },
+            dedication: { type: String, default: "none" },
+            dedicationText: { type: String, default: "" },
             extraPrice: { type: Number, default: 0 },
+        },
+
+        giftMessage: {
+            type: String,
+            default: "",
         },
 
         shippingFee: {

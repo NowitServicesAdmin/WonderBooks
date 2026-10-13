@@ -5,6 +5,7 @@ import { getFromS3 } from "./s3Service.js";
 import { uploadImage } from "./storageService.js";
 import { generateImage } from "../components/imageGenerator.js";
 import { stripLiteralText } from "../components/promptSafety.js";
+import { compactStyle } from "../components/generateImagePrompt.js";
 
 const prepareReferenceImage = async (buffer) => {
     return sharp(buffer)
@@ -23,8 +24,8 @@ const buildCharacterReferencePrompt = ({
     return `
 Create a canonical character reference illustration for a children's storybook.
 
-ILLUSTRATION STYLE:
-${imageStyle}
+ILLUSTRATION STYLE (exactly the same style as every page of this book):
+${compactStyle(imageStyle)}
 
 CHARACTER:
 
@@ -155,7 +156,8 @@ export const generateCharacterReference = async ({
                 prompt,
                 referenceImages,
                 width: 768,
-                height: 1024
+                height: 1024,
+                purpose: "reference"
             });
 
         if (

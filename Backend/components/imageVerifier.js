@@ -71,6 +71,7 @@ QUESTION 2 - for EACH expected character below, is it anywhere in the picture?
 ${names.length ? names.map((n, i) => `${i + 1}. ${n}`).join("\n") : "(none specified)"}
 
 How to answer question 2:
+- FIRST count what you can see: how many people, how many animals, how many objects. Several people may be in the picture and they look different from each other: use the "look" note in the brackets (hair, clothes, fur) only to tell which one is which. If the picture has as many people as the list has people, every person is present.
 - The words in brackets say WHAT KIND of thing each one is (a person, an animal or an object). The NAME is only a label: a name may sound like a breed, a place or an ordinary word, so ignore what the name sounds like and look for that KIND of thing.
 - An animal or object IS a valid character: never require a human child.
 - It counts as present if any part of it is visible: small, partly hidden, held in a hand, glowing, in the background or at the edge. An object may have any colour, size or pattern.
@@ -118,6 +119,7 @@ Reply with JSON only:
       ok: verdict === "ok",
       severity: verdict === "ok" ? "none" : verdict,
       reason,
+      missingCount: absent.length,
     };
   } catch (error) {
     console.warn(

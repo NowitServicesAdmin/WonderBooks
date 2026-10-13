@@ -1,5 +1,6 @@
 import { generateContentResilient } from "./geminiCall.js";
 import { inferCharacterKind, isBlankField, stripLiteralText } from "./promptSafety.js";
+import { isNamedIn, pickPageCast } from "./sceneCast.js";
 
 const cleanJson = (text) => {
     return text
@@ -75,12 +76,11 @@ const pickCoverCharacters = (list = []) => {
     return list.filter((c) => living.includes(c) || c === prop);
 };
 
-const PAGE_MAX_CHARACTERS = Math.max(
-    1,
-    Number(process.env.PAGE_MAX_CHARACTERS) ||
-        Number(process.env.OPENAI_MAX_REFERENCE_IMAGES) ||
-        4
-);
+// A book has at most 3 people + 1 pet + 1 object = 5 characters. Every character the
+// page text names must be drawn, so the default is 5 (it used to be 4, which silently
+// dropped one person on any page that named everybody). The generator merges the pet
+// and the object into one reference sheet when more than 4 files would be sent.
+const PAGE_MAX_CHARACTERS = Math.max(1, Number(process.env.PAGE_MAX_CHARACTERS) || 5);
 
 // A different camera suggestion per page, so the pages stop looking like the
 // same group photo again and again.
@@ -412,7 +412,7 @@ const characterLine = (character = {}) => {
     return `- ${name}${who ? ` (${who})` : ""}:${look ? ` ${look}.` : ""}${accessories} Match the face and look of its reference image exactly.`;
 };
 
-const compactStyle = (imageStyle) =>
+export const compactStyle = (imageStyle) =>
     `${getStyleBible(imageStyle)
         .split("\n")
         .map((line) => line.trim())
@@ -462,6 +462,15 @@ export const composeImagePrompt = ({
         )
         .map(characterLine)
         .join("\n");
+    // Characters the code added (named in the page text but missing from the
+    // model's scene) still have to be shown, so the scene text must say so.
+    const unmentioned = sceneCharacters
+        .filter((c) => !isNamedIn(scene, c) && !isNamedIn(action, c))
+        .map((c) => String(c.name || "").trim())
+        .filter(Boolean);
+    const alsoInPicture = unmentioned.length
+        ? `ALSO IN THE PICTURE: ${unmentioned.join(", ")} ${unmentioned.length > 1 ? "are" : "is"} here too, in the foreground or middle ground next to the others, taking part in the same action and clearly visible.`
+        : "";
     const holder = people[0]?.name;
     const objectPlacement = objectNames.length
         ? `OBJECT PLACEMENT: ${objectNames.join(" and ")} must be clearly visible and large: ${holder ? `held out in ${holder}'s hands (or a character's hands) ` : "held in a character's hands "}or lying on the ground / a table right in front of the characters, in the foreground, in its exact reference design. It is the ONLY ${objectNames.join("/")} in the picture: do not draw a second one, and do not draw it as a tiny detail on a character.`
@@ -472,6 +481,7 @@ export const composeImagePrompt = ({
         String(action || "").trim()
             ? `KEY ACTION (this must be clearly visible in the picture, and it decides what the characters are doing, not the pose of the reference images): ${String(action).trim()}`
             : "",
+        alsoInPicture,
         shot ? `CAMERA: ${shot}.` : "",
         "FRAMING: the PLACE is the main subject, but every character must be easy to recognize. Painted from about eight metres back with a wide-angle view. Every character is a full-body figure about one third of the picture height (never more than 40%, never smaller than 25%), with the face clearly visible and facing the viewer or turned three-quarters, never seen only from behind, never hidden behind an object or another character, never cropped by the edge. Characters stand in the foreground or middle ground. About 60% of the picture shows the place itself (sky, trees, buildings, hills), and the main feature of the place is much taller than a character. This also applies when only one or two characters are in the picture. No close-ups and no portraits. The foreground, middle ground and far distance are all richly detailed.",
         "LIGHT AND COLOR: bright, clear, evenly lit and cheerful, with rich, varied colors. No sepia, orange or brown overall tint, no muddy dark shadows, no heavy vignette. Interiors are bright and evenly lit with fresh, clean colors (cream walls, sky blue, leaf green) and only small warm lamp glows. Night scenes use deep blue with a few warm glowing lights and are still easy to read. Only the magical details glow.",
@@ -575,11 +585,13 @@ HOW TO WRITE EACH "prompt" (50 to 90 words)
    trees, buildings, water and sky big and detailed, and describe the
    background in layers (foreground, middle, far distance) so the setting is
    clearly seen. Never write "tiny", "small figures" or "towering" about the characters.
-4. Include ONLY the characters that the page needs. A character who is not in
-   that moment of the story is left out. NEVER more than ${PAGE_MAX_CHARACTERS}
-   characters in one image: if the page text names more, keep the
-   ${PAGE_MAX_CHARACTERS} that matter most to what is happening on that page
-   (the others appear on other pages).
+4. WHO IS IN THE PICTURE: every character whose NAME is written in that page's
+   text MUST be in "characters" and in the scene: never leave out a named
+   character, and never leave out the object when the text names it. Words like
+   "they", "everyone", "the friends" or "together" mean all the characters who
+   are in that moment, so list them all. Leave a character out only when the page
+   text does not mention them and they are clearly not part of that moment. Never
+   more than ${PAGE_MAX_CHARACTERS} characters in one image.
 5. Mention the one or two important objects from the story text (for example a
    glowing sword in a stone, a rope bridge, a lantern). If an OBJECT character
    (see the character list) is in the image, say that a character HOLDS it or that
@@ -789,8 +801,18 @@ Rules:
                 };
 
                 const finalImages = images.map((image, index) => {
+                    const pageText =
+                        pages.find((p) => Number(p.pageNumber) === Number(image.pageNumber))
+                            ?.content || "";
                     const allScene = resolveSceneCharacters(image.characters);
-                    const sceneCharacters = allScene.slice(0, PAGE_MAX_CHARACTERS);
+                    // The code (not only the model) decides who is drawn: every
+                    // character named in the page text is guaranteed.
+                    const sceneCharacters = pickPageCast({
+                        characters,
+                        pageText,
+                        modelList: allScene,
+                        max: PAGE_MAX_CHARACTERS,
+                    });
                     const cut = allScene.filter((c) => !sceneCharacters.includes(c));
                     const pageScenePrompt = dropSentencesAbout(image.prompt, cut);
 

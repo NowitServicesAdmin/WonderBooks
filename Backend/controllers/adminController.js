@@ -792,6 +792,16 @@ export const getOrderDetail = async (req, res) => {
 
         const bookDoc = await Book.findById(o.book).select("title status isDeleted deletedAt coverImageUrl").lean();
 
+        // One payment ships as ONE parcel, so the label lists every order that
+        // was paid together (they share the Razorpay order id).
+        const parcelOrders = o.razorpayOrderId
+            ? await Order.find({ razorpayOrderId: o.razorpayOrderId })
+                  .sort({ createdAt: 1 })
+                  .select("orderNumber bookTitle quantity printOptions giftMessage")
+                  .lean()
+            : [];
+        const inParcel = parcelOrders.length ? parcelOrders : [o];
+
         res.json({
             success: true,
             order: {
@@ -809,6 +819,32 @@ export const getOrderDetail = async (req, res) => {
                     trackingUrl: o.shipping?.trackingUrl || null,
                     status: o.shipping?.status || null,
                     courier: o.shipping?.selectedCourier || null,
+                },
+                // everything the parcel label needs
+                parcel: {
+                    items: inParcel.map((x) => ({
+                        orderNumber: x.orderNumber,
+                        title: x.bookTitle,
+                        quantity: x.quantity || 1,
+                        coverLabel: x.printOptions?.coverLabel || "",
+                        pagesLabel: x.printOptions?.pagesLabel || "",
+                        sizeLabel: x.printOptions?.sizeLabel || "",
+                        giftWrap: x.printOptions?.giftWrap === "wrapped",
+                        dedication: x.printOptions?.dedication === "added",
+                    })),
+                    copies: inParcel.reduce((sum, x) => sum + (x.quantity || 1), 0),
+                    // only whether a note is inside - the private text is never printed outside
+                    hasGiftMessage: inParcel.some((x) => Boolean(x.giftMessage)),
+                    weight: o.shipping?.weight || null,
+                    length: o.shipping?.length || null,
+                    breadth: o.shipping?.breadth || null,
+                    height: o.shipping?.height || null,
+                    paymentMode: o.shipping?.paymentMode || "Prepaid",
+                },
+                sender: {
+                    name: "Wonder Books",
+                    address: process.env.LABEL_FROM_ADDRESS || "",
+                    phone: process.env.LABEL_FROM_PHONE || "",
                 },
                 // The book can be gone (permanently deleted) or hidden (user deleted it).
                 bookInfo: bookDoc

@@ -7,6 +7,7 @@ import {
   MAX_SAFETY_LEVEL,
 } from "./promptSafety.js";
 import { MAX_REFERENCE_CHARACTERS } from "../config/characterLimits.js";
+import { orderReferencesForCall } from "./sceneCast.js";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -157,6 +158,26 @@ How to use the reference images:
 `.trim();
 };
 
+// Used ONLY when the picture being made is the character's own reference sheet
+// (one character, from the uploaded photo). It must NOT use the page wrapper above:
+// that wrapper says "ignore the reference's pose / size, draw a small figure in a
+// scene", which is the opposite of what a reference needs.
+const buildReferenceSheetPrompt = (prompt, referenceImages = []) => {
+  if (!referenceImages.length) {
+    return prompt;
+  }
+
+  return `
+Create ONE character reference illustration for a children's storybook.
+
+${prompt}
+
+The attached image is the real photo or drawing of THIS character. Redraw the character in the illustration style above and keep everything that makes it recognizable: the exact face, hair, skin tone, body shape, outfit, colors and every distinctive detail of the attachment. A pet stays the same kind of animal with the same fur and markings as in the attachment (never turned into a person or a different animal). An object stays the same object with the same shape and colors (never turned into a person or a face).
+
+Show ONE character only, drawn once, full body, centered, standing in a simple neutral pose facing the viewer, filling about 80% of the picture height, on a plain light background. No scene, no extra props, no other characters, no text.
+`.trim();
+};
+
 /**
  * Generates an image using OpenAI's gpt-image-1 / gpt-image-1-mini.
  *
@@ -166,6 +187,7 @@ How to use the reference images:
  * @param {number} [params.width=768]
  * @param {number} [params.height=1024]
  * @param {number} [params.maxRetries=4]
+ * @param {"page"|"reference"} [params.purpose="page"] - "reference" = the character's own reference sheet
  * @returns {Promise<Buffer>}
  */
 export const generateImage = async ({
@@ -174,6 +196,7 @@ export const generateImage = async ({
   width = 768,
   height = 1024,
   maxRetries = 4,
+  purpose = "page",
 }) => {
   try {
     if (!prompt?.trim()) {
@@ -186,9 +209,12 @@ export const generateImage = async ({
     // uploaded image files AND the reference manifest in the prompt, so the
     // "Reference photo N" labels always line up with the Nth file actually
     // sent to the model.
-    const validReferences = referenceImages
-      .filter((image) => image?.buffer)
-      .slice(0, MAX_REFERENCE_CHARACTERS);
+    // People first, then the pet, then the object: if more files than the model
+    // accepts are needed, the pet + object share one sheet and every person keeps
+    // a file of their own.
+    const validReferences = orderReferencesForCall(
+      referenceImages.filter((image) => image?.buffer),
+    ).slice(0, MAX_REFERENCE_CHARACTERS);
 
     // At most MAX_EDIT_IMAGES files go to OpenAI (see note above).
     let referencesForCall = await limitReferences(
@@ -212,10 +238,11 @@ export const generateImage = async ({
           safetyLevel < MAX_SAFETY_LEVEL && imageFiles.length > 0;
 
         const safePrompt = sanitizeImagePrompt(prompt, safetyLevel);
-        const finalPrompt = buildPromptWithReferenceInstruction(
-          safePrompt,
-          useReferences ? referencesForCall : [],
-        );
+        const usedRefs = useReferences ? referencesForCall : [];
+        const finalPrompt =
+          purpose === "reference"
+            ? buildReferenceSheetPrompt(safePrompt, usedRefs)
+            : buildPromptWithReferenceInstruction(safePrompt, usedRefs);
 
         let response;
 

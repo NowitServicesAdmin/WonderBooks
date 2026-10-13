@@ -6,6 +6,7 @@ import {
   removeCartItem,
   clearCart,
   getPrintOptions,
+  updateGiftMessage,
 } from "../controllers/cartController.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -16,6 +17,7 @@ router.use(requireAuth);
 router.get("/", getCart);
 router.delete("/", clearCart);
 router.get("/print-options", getPrintOptions);
+router.patch("/gift-message", updateGiftMessage);
 router.post("/items", addToCart);
 router.patch("/items/:bookId", updateCartItem);
 router.delete("/items/:bookId", removeCartItem);

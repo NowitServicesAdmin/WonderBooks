@@ -67,7 +67,52 @@ export const PRINT_OPTION_GROUPS = {
             },
         },
     },
+
+    giftWrap: {
+        label: "Gift wrap",
+        default: "none",
+        addonOnly: true,
+        choices: {
+            none: {
+                code: "N",
+                label: "No gift wrap",
+                description: "",
+                price: 0,
+                hidden: true,
+            },
+            wrapped: {
+                code: "Y",
+                label: "Gift wrap",
+                description: "Beautiful gift wrapping with premium paper and a ribbon.",
+                price: 49,
+            },
+        },
+    },
+
+    dedication: {
+        label: "Personalized dedication",
+        default: "none",
+        addonOnly: true,
+        choices: {
+            none: {
+                code: "N",
+                label: "No dedication",
+                description: "",
+                price: 0,
+                hidden: true,
+            },
+            added: {
+                code: "Y",
+                label: "Personalized dedication",
+                description: "Add a special message inside the book. Make it truly theirs with your own words.",
+                price: 29,
+            },
+        },
+    },
 };
+
+export const MAX_DEDICATION_LENGTH = 200;
+export const MAX_GIFT_MESSAGE_LENGTH = 200;
 
 const GROUP_KEYS = Object.keys(PRINT_OPTION_GROUPS);
 
@@ -117,14 +162,30 @@ export const getPrintOptionsPrice = (input) => {
     );
 };
 
-export const describePrintOptions = (input) => {
+export const getPrintOptionsBreakdown = (input) => {
     const options = normalizePrintOptions(input);
     return GROUP_KEYS.map((group) => {
         const choice = PRINT_OPTION_GROUPS[group].choices[options[group]];
-        return choice.widthMm
-            ? `${choice.label} (${choice.widthMm} × ${choice.heightMm} mm)`
-            : choice.label;
+        return {
+            group,
+            groupLabel: PRINT_OPTION_GROUPS[group].label,
+            value: options[group],
+            label: choice.label,
+            price: choice.price || 0,
+            selected: !choice.hidden,
+        };
     });
+};
+
+export const describePrintOptions = (input) => {
+    const options = normalizePrintOptions(input);
+    return GROUP_KEYS.map((group) => PRINT_OPTION_GROUPS[group].choices[options[group]])
+        .filter((choice) => !choice.hidden)
+        .map((choice) =>
+            choice.widthMm
+                ? `${choice.label} (${choice.widthMm} × ${choice.heightMm} mm)`
+                : choice.label,
+        );
 };
 
 
@@ -142,6 +203,8 @@ export const snapshotPrintOptions = (input) => {
         sizeLabel: size.label,
         widthMm: size.widthMm || 0,
         heightMm: size.heightMm || 0,
+        giftWrap: options.giftWrap,
+        dedication: options.dedication,
         extraPrice: getPrintOptionsPrice(options),
     };
 };
@@ -168,6 +231,7 @@ export const getPublicPrintOptions = () => ({
         key,
         label: PRINT_OPTION_GROUPS[key].label,
         default: PRINT_OPTION_GROUPS[key].default,
+        addonOnly: Boolean(PRINT_OPTION_GROUPS[key].addonOnly),
         choices: Object.entries(PRINT_OPTION_GROUPS[key].choices).map(([value, choice]) => ({
             value,
             label: choice.label,
@@ -175,6 +239,7 @@ export const getPublicPrintOptions = () => ({
             widthMm: choice.widthMm || null,
             heightMm: choice.heightMm || null,
             price: choice.price || 0,
+            hidden: Boolean(choice.hidden),
         })),
     })),
 });

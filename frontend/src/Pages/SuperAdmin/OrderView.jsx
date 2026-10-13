@@ -12,6 +12,7 @@ import {
     MapPin,
     Package,
     Phone,
+    Printer,
     Ruler,
     Truck,
     Wallet,
@@ -19,6 +20,7 @@ import {
 import { getOrderDetail, apiErrorMessage } from "../../services/adminService";
 import { formatDate, formatMoney } from "../../utils/adminFormat";
 import { displayPhone } from "../../utils/phone";
+import { printShippingLabel } from "../../utils/shippingLabel";
 
 const statusMeta = {
     pending_payment: { label: "Awaiting payment", cls: "bg-gray-100 text-gray-600" },
@@ -66,7 +68,7 @@ const Card = ({ icon, title, className = "", children }) => {
 const Row = ({ label, children, strong }) => (
     <div className="flex items-start justify-between gap-4 py-1.5 text-[13px]">
         <dt className="shrink-0 text-(--text-muted)">{label}</dt>
-        <dd className={`min-w-0 text-right break-words ${strong ? "font-semibold text-(--ink)" : "text-(--ink)"}`}>
+        <dd className={`min-w-0 text-right wrap-break-word ${strong ? "font-semibold text-(--ink)" : "text-(--ink)"}`}>
             {children ?? "—"}
         </dd>
     </div>
@@ -117,6 +119,17 @@ export function SuperAdminOrderView() {
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [printing, setPrinting] = useState(false);
+
+    const handlePrintLabel = async () => {
+        if (printing) return;
+        setPrinting(true);
+        try {
+            await printShippingLabel(order);
+        } finally {
+            setPrinting(false);
+        }
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -192,6 +205,18 @@ export function SuperAdminOrderView() {
                     <span className="text-xs text-(--text-muted)">Placed on {formatDate(order.createdAt)}</span>
                 </div>
 
+                {order.paymentStatus === "paid" && order.status !== "cancelled" && (
+                    <button
+                        type="button"
+                        onClick={handlePrintLabel}
+                        disabled={printing}
+                        className="inline-flex h-9 items-center gap-2 rounded-xl border border-(--accent) bg-(--surface) px-4 text-sm font-semibold text-(--accent) transition hover:bg-(--tint) disabled:opacity-60"
+                    >
+                        {printing ? <Loader2 size={15} className="animate-spin" /> : <Printer size={15} />}
+                        Print label
+                    </button>
+                )}
+
                 {info?.exists && (
                     <button
                         type="button"
@@ -212,10 +237,10 @@ export function SuperAdminOrderView() {
                             <img
                                 src={order.book.coverImageUrl}
                                 alt=""
-                                className="h-24 w-[4.25rem] rounded-lg object-cover shadow-md sm:row-span-2 sm:h-28 sm:w-20"
+                                className="h-24 w-17 rounded-lg object-cover shadow-md sm:row-span-2 sm:h-28 sm:w-20"
                             />
                         ) : (
-                            <div className="flex h-24 w-[4.25rem] items-center justify-center rounded-lg bg-(--tint) text-(--accent) sm:row-span-2 sm:h-28 sm:w-20">
+                            <div className="flex h-24 w-17 items-center justify-center rounded-lg bg-(--tint) text-(--accent) sm:row-span-2 sm:h-28 sm:w-20">
                                 <BookOpen size={22} />
                             </div>
                         )}

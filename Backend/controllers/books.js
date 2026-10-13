@@ -281,6 +281,7 @@ const generateVerifiedImage = async ({
   acceptMissing = true,
 }) => {
   let fallbackBuffer = null; // right picture, but a character is missing
+  let fallbackMissing = Infinity; // how many characters that picture is missing
   let lastReason = "";
   let currentPrompt = prompt;
 
@@ -309,8 +310,14 @@ const generateVerifiedImage = async ({
 
     lastReason = verdict.reason;
 
+    // Keep the BEST right-kind picture (fewest characters missing), not just
+    // the last one; on a tie the newer try wins (it had the correction).
     if (verdict.severity === "missing") {
-      fallbackBuffer = candidate;
+      const missingNow = Number(verdict.missingCount) || 1;
+      if (missingNow <= fallbackMissing) {
+        fallbackBuffer = candidate;
+        fallbackMissing = missingNow;
+      }
     }
 
     console.warn(

@@ -9,6 +9,7 @@ import {CreateBook} from './Pages/Client/CreateBook'
 import { Books } from './Pages/Client/books'
 import { BookReader } from './Pages/Client/BookReader'
 import { PrintCart } from './Pages/Client/PrintCart'
+import { PrintExtras } from './Pages/Client/PrintExtras'
 import { PrintOrderSuccess } from './Pages/Client/PrintOrderSuccess'
 import {Settings} from './Pages/Client/Settings'
 import {Help} from './Pages/Client/Help'
@@ -97,6 +98,10 @@ export const Router=createBrowserRouter([
                             {
                                 path:'/orders/cart',
                                 element:<PrintCart />
+                            },
+                            {
+                                path:'/orders/extras',
+                                element:<PrintExtras />
                             },
                             {
                                 // old per-book cart links

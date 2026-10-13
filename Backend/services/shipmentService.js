@@ -9,11 +9,7 @@ import {
     isTestMode,
 } from "./shiprocketService.js";
 import { getDeliveryExtraCharge } from "../config/printPricing.js";
-
-const readNumber = (name, fallback) => {
-    const value = Number(process.env[name]);
-    return Number.isFinite(value) && value > 0 ? value : fallback;
-};
+import { getParcelSpecForLines } from "../config/shippingWeight.js";
 
 const errorText = (error) =>
     String(
@@ -25,37 +21,17 @@ const errorText = (error) =>
 
 /*
 |--------------------------------------------------------------------------
-| Parcel size from the number of copies (all tunable in .env)
-|--------------------------------------------------------------------------
-*/
-export const getParcelSpec = (copies = 1) => {
-    const qty = Math.max(1, Number(copies) || 1);
-    return {
-        weight: Math.round(qty * readNumber("SHIPPING_WEIGHT_PER_COPY_KG", 0.5) * 100) / 100,
-        //     weight:
-        //   Math.round(
-        //     (qty * readNumber("SHIPPING_WEIGHT_PER_COPY_KG", 0.5) +
-        //       readNumber("SHIPPING_PACKAGING_WEIGHT_KG", 0)) * 100
-        //   ) / 100,
-        length: readNumber("SHIPPING_BOX_LENGTH_CM", 28),
-        breadth: readNumber("SHIPPING_BOX_BREADTH_CM", 22),
-        height: Math.max(3, Math.ceil(qty * readNumber("SHIPPING_BOX_HEIGHT_PER_COPY_CM", 2))),
-    };
-};
-
-/*
-|--------------------------------------------------------------------------
 | Delivery quote = Shiprocket rate + SHIPROCKET_EXTRA_CHARGE (Rs 50)
 |--------------------------------------------------------------------------
 | SHIPROCKET_COURIER_ID set   -> always that courier (the "fixed partner")
 | SHIPROCKET_COURIER_ID blank -> cheapest serviceable courier
 */
-export const getDeliveryQuote = async ({ pincode, copies, declaredValue }) => {
+export const getDeliveryQuote = async ({ pincode, lines, declaredValue }) => {
     if (!/^\d{6}$/.test(String(pincode || "").trim())) {
         return { error: "Please choose an address with a valid 6-digit pincode" };
     }
 
-    const parcel = getParcelSpec(copies);
+    const parcel = getParcelSpecForLines(lines);
 
     const result = await getShippingRates({
         pickupPostcode: process.env.SHIPROCKET_PICKUP_PINCODE,
