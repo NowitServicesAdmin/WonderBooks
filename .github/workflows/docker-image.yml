@@ -86,15 +86,39 @@ jobs:
             -t wonderbooks-backend:latest \
             ./Backend
 
-      # 5. Build frontend Docker image
+     
+      # Check frontend imports before building Docker image
+      - name: Validate frontend source files
+        run: |
+          set -eu
+
+          echo "Checking orderUtils module..."
+
+          find frontend/src/Components \
+            -maxdepth 1 \
+            -type f \
+            -iname 'orderUtils*' \
+            -print
+
+          if ! find frontend/src/Components \
+            -maxdepth 1 \
+            -type f \
+            -iname 'orderUtils*' \
+            | grep -q .; then
+            echo "::error::Missing orderUtils module in frontend/src/Components."
+            echo "Restore orderUtils.js or orderUtils.jsx from your source code."
+            exit 1
+          fi
+
+          echo "orderUtils module found."
+
+      # Build frontend Docker image
       - name: Build frontend image
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: |
           set -eu
 
-          # FRONTEND_ENV supplies the frontend .env file.
-          # Set VITE_API_URL only if this secret is configured.
           if [ -n "${VITE_API_URL:-}" ]; then
             docker build \
               --build-arg VITE_API_URL="$VITE_API_URL" \
@@ -105,6 +129,7 @@ jobs:
               -t wonderbooks-frontend:latest \
               ./frontend
           fi
+
 
       # 6. Verify Docker images
       - name: Verify Docker images
