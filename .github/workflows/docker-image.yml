@@ -23,31 +23,61 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # 2. Create frontend .env from GitHub Secrets
-      - name: Create frontend environment file
+     
+      # 2. Create Dockerfiles and frontend .env from GitHub Secrets
+      - name: Create deployment configuration files
         env:
+          FRONTEND_DOCKERFILE: ${{ secrets.FRONTEND_DOCKERFILE }}
+          BACKEND_DOCKERFILE: ${{ secrets.BACKEND_DOCKERFILE }}
           FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
         run: |
           set -eu
 
-          test -n "$FRONTEND_ENV"
+          # Verify required secrets exist
+          test -n "$FRONTEND_DOCKERFILE" || {
+            echo "ERROR: FRONTEND_DOCKERFILE secret is missing"
+            exit 1
+          }
+
+          test -n "$BACKEND_DOCKERFILE" || {
+            echo "ERROR: BACKEND_DOCKERFILE secret is missing"
+            exit 1
+          }
+
+          test -n "$FRONTEND_ENV" || {
+            echo "ERROR: FRONTEND_ENV secret is missing"
+            exit 1
+          }
+
+          # Create files from GitHub Secrets
+          printf '%s\n' "$FRONTEND_DOCKERFILE" > frontend/Dockerfile
+          printf '%s\n' "$BACKEND_DOCKERFILE" > Backend/Dockerfile
 
           umask 077
           printf '%s\n' "$FRONTEND_ENV" > frontend/.env
 
-          test -s frontend/.env
-          echo "Frontend environment file created."
+          echo "Deployment configuration files created."
 
-      # 3. Verify application files
+      # 3. Verify project structure with clear error messages
       - name: Verify project structure
         run: |
           set -eu
 
-          test -f Backend/package.json
-          test -f Backend/Dockerfile
-          test -f frontend/package.json
-          test -f frontend/Dockerfile
-          test -s frontend/.env
+          for file in \
+            Backend/package.json \
+            Backend/Dockerfile \
+            frontend/package.json \
+            frontend/Dockerfile \
+            frontend/.env
+          do
+            if [ ! -s "$file" ]; then
+              echo "ERROR: Missing or empty file: $file"
+              exit 1
+            fi
+
+            echo "OK: $file"
+          done
+
 
       # 4. Build backend Docker image
       - name: Build backend image
