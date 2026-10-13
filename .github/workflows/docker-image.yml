@@ -88,47 +88,40 @@ jobs:
 
      
       
-      # 4. Diagnose and resolve orderUtils filename differences
-      - name: Check orderUtils module
+      
+      # Fix orderUtils filename capitalization automatically
+      - name: Fix orderUtils filename
         shell: bash
         run: |
           set -euo pipefail
 
           COMPONENTS="frontend/src/Components"
 
-          echo "Searching for orderUtils module..."
+          if [ -f "$COMPONENTS/Orderutils.jsx" ]; then
+            git mv "$COMPONENTS/Orderutils.jsx" \
+                   "$COMPONENTS/orderUtils.jsx" 2>/dev/null || \
+            mv "$COMPONENTS/Orderutils.jsx" \
+               "$COMPONENTS/orderUtils.jsx"
 
-          if [ ! -d "$COMPONENTS" ]; then
-            echo "::error::Directory not found: $COMPONENTS"
+            echo "Renamed Orderutils.jsx to orderUtils.jsx"
+          elif [ -f "$COMPONENTS/orderUtils.jsx" ]; then
+            echo "Correct filename already exists."
+          else
+            echo "::error::Orderutils.jsx was not found."
             exit 1
           fi
 
-          find "$COMPONENTS" -maxdepth 1 -type f -print
+          # Verify the module now exists
+          test -f "$COMPONENTS/orderUtils.jsx"
 
-          # Check for exact expected filename
-          if [ -f "$COMPONENTS/orderUtils.js" ] || \
-             [ -f "$COMPONENTS/orderUtils.jsx" ] || \
-             [ -f "$COMPONENTS/orderUtils.ts" ] || \
-             [ -f "$COMPONENTS/orderUtils.tsx" ]; then
-            echo "orderUtils module found."
-            exit 0
-          fi
+          # Verify both components use the expected import
+          grep -n 'orderUtils' \
+            "$COMPONENTS/OrderDetailView.jsx"
 
-          # Detect a differently capitalized filename
-          MATCH=$(find "$COMPONENTS" -maxdepth 1 -type f \
-            -iname 'orderUtils.*' | head -n 1 || true)
+          grep -n 'orderUtils' \
+            "$COMPONENTS/OrdersList.jsx"
 
-          if [ -n "$MATCH" ]; then
-            echo "::warning::Found differently named module: $MATCH"
-            echo "Correct the import paths or filename in your source code."
-            exit 1
-          fi
-
-          echo "::error::orderUtils module is missing."
-          echo "Restore the real module from Git history or your source branch."
-          exit 1
-
-      # 5. Build frontend Docker image
+      # Build frontend Docker image
       - name: Build frontend image
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
@@ -145,6 +138,7 @@ jobs:
               -t wonderbooks-frontend:latest \
               ./frontend
           fi
+
 
 
       # 6. Verify Docker images
