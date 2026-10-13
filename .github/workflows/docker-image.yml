@@ -159,7 +159,7 @@ jobs:
           test -s wonderbooks-images.tar
 
      
-      - name: Prepare EC2
+       - name: Test SSH and prepare EC2
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -167,18 +167,36 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           timeout: 60s
-          command_timeout: 10m
+          command_timeout: 15m
           script: |
             set -e
-            echo "SSH connection successful"
+
+            echo "SSH authentication successful"
+            echo "Connected user:"
             whoami
+
+            echo "EC2 hostname:"
             hostname
+
+            echo "Updating package lists..."
             sudo apt-get update
+
+            echo "Installing Docker and Nginx..."
             sudo apt-get install -y docker.io nginx
+
             sudo systemctl enable --now docker
             sudo systemctl enable --now nginx
+
+            echo "Docker version:"
             docker --version
+
+            echo "Nginx version:"
             nginx -v
+
+            echo "Currently running containers:"
+            sudo docker ps
+
+            echo "EC2 preparation completed successfully."
 
       # 9. Transfer Docker images to EC2
       - name: Copy Docker images to EC2
