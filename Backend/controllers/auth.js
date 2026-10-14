@@ -36,6 +36,10 @@ const sanitizeUser = (user) => ({
     subscriptionPlan: user.subscriptionPlan || "",
     subscriptionStatus: user.subscriptionStatus || null,
     createdAt: user.createdAt,
+    childMode: {
+    enabled: Boolean(user.childMode?.enabled),
+    hasPin: Boolean(user.childMode?.hasPin),
+},
 });
 
 const normalizeEmail = (email) => email?.trim().toLowerCase();
@@ -512,4 +516,137 @@ export const getMe = async (req, res) => {
             message: "Something went wrong while loading your account",
         });
     }
+};
+
+//Permission Controllers
+
+
+// Notification Preference Controllers
+// Add these to your existing auth controller file.
+
+const TOGGLE_KEYS = [
+  "email",
+  "push",
+  "reminders",
+  "orders",
+  "recommendations",
+  "offers",
+];
+
+const FREQUENCIES = ["Instant", "Daily digest", "Weekly"];
+
+const DEFAULT_PREFERENCES = {
+  email: true,
+  push: false,
+  reminders: true,
+  orders: true,
+  recommendations: true,
+  offers: false,
+  frequency: "Instant",
+};
+
+// GET /auth/notification-preferences
+export const getNotificationPreferences = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId)
+      .select("notificationPreferences")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const preferences = {
+      ...DEFAULT_PREFERENCES,
+      ...(user.notificationPreferences || {}),
+    };
+
+    return res.status(200).json({
+      success: true,
+      preferences,
+    });
+  } catch (error) {
+    console.error("Get notification preferences error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load notification preferences",
+    });
+  }
+};
+
+// PUT /auth/notification-preferences
+export const updateNotificationPreferences = async (req, res) => {
+  try {
+    const body = req.body || {};
+    const updates = {};
+
+    for (const key of TOGGLE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(body, key)) {
+        if (typeof body[key] !== "boolean") {
+          return res.status(400).json({
+            success: false,
+            message: `${key} must be a boolean`,
+          });
+        }
+
+        updates[`notificationPreferences.${key}`] = body[key];
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "frequency")) {
+      if (!FREQUENCIES.includes(body.frequency)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid notification frequency",
+        });
+      }
+
+      updates["notificationPreferences.frequency"] = body.frequency;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid notification preferences provided",
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { $set: updates },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select("notificationPreferences");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Notification preferences updated successfully",
+      preferences: {
+        ...DEFAULT_PREFERENCES,
+        ...(user.notificationPreferences?.toObject?.() ||
+          user.notificationPreferences ||
+          {}),
+      },
+    });
+  } catch (error) {
+    console.error("Update notification preferences error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update notification preferences",
+    });
+  }
 };

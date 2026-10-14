@@ -24,7 +24,7 @@ import AlertRoutes from "./routes/alertRoutes.js";
 import { ContactMessage } from "./models/ContactUs.js";
 import { sendContactEnquiryEmail } from "./services/otpService.js";
 import shiprocketWebhookRoutes from "./routes/shiprocketWebhookRoutes.js";
-
+import ChildModeRoutes from "./routes/childmoderoutes.js";
 const app = express();
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -393,6 +393,7 @@ app.use("/api/addresses", addressRoutes);
 app.use("/api/location", locationRoutes);
 app.use("/api/alerts", AlertRoutes);
 app.use("/api/webhooks", shiprocketWebhookRoutes);
+app.use("/api/profile/child-mode", ChildModeRoutes); // match your existing prefix
 const startServer = async () => {
   try {
     await connectDB();

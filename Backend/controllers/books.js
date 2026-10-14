@@ -45,23 +45,13 @@ import {
 } from "../components/contentSafety.js";
 import { generateCharacterReferences } from "../services/characterReferenceService.js";
 
-// Pages per book comes from BOOK_PAGE_COUNT in .env (see config/bookConfig.js).
 
-// ---------------------------------------------------------------------------
-// PATIENT RETRIES. When an image can't be made (model busy / overloaded, rate
-// limit, or the picture failed the accuracy check on every try), we do NOT give
-// up or save a worse picture: we wait and run the whole attempt again, as many
-// times as needed, until the image is made or BOOK_MAX_GENERATION_MINUTES runs
-// out. The book stays "generating" meanwhile, so the user only sees it once
-// every image is done. The accuracy check itself (imageVerifier.js) is unchanged.
-// ---------------------------------------------------------------------------
 const IMAGE_RETRY_WAIT_MS =
   (Number(process.env.IMAGE_RETRY_WAIT_MINUTES) || 5) * 60 * 1000;
 const GEMINI_BUSY_RETRY_WAIT_MS =
   (Number(process.env.GEMINI_BUSY_RETRY_WAIT_SECONDS) || 60) * 1000;
 const GEMINI_BUSY_MAX_ROUNDS = Number(process.env.GEMINI_BUSY_MAX_ROUNDS) || 5;
-// Total time one book may take before it is declared failed (also used for the
-// "stuck on generating" checks, so a long wait is never cut off by them).
+
 const BOOK_MAX_GENERATION_MS =
   (Number(process.env.BOOK_MAX_GENERATION_MINUTES) || 180) * 60 * 1000;
 // Users whose create-book request is being validated right now. The DB check
@@ -130,14 +120,7 @@ const findSceneCharacter = (characters = [], lookup) => {
   );
 };
 
-// The reference images for ONE image (cover or page), for exactly the
-// recurring characters that appear in it - in scene order.
-//   - the character's canonical (stylised) reference when it exists,
-//   - otherwise that character's own uploaded photo, so a character whose
-//     canonical reference is missing is no longer silently dropped.
-// Every image carries the character's name/type so the generator can label
-// "Reference photo N = <who>". Characters NOT in the scene are not sent, so
-// they can't leak into it. An image with no recurring characters gets none.
+
 const getCharacterReferenceImages = async (
   characters = [],
   characterReferences = [],
@@ -216,23 +199,18 @@ const getCharacterReferenceImages = async (
   return references.slice(0, MAX_REFERENCE_CHARACTERS);
 };
 
-// How many times one picture may be regenerated when it doesn't match its page.
+
 const IMAGE_VERIFY_TRIES = Math.max(
   1,
   Number(process.env.IMAGE_VERIFY_TRIES) || 3,
 );
 
-// One failed round = IMAGE_VERIFY_TRIES generations. A picture that doesn't match
-// is not fixed by waiting (that only helps when the model is busy), so mismatches
-// get at most this many rounds in total. Worst case = rounds x tries generations.
+
 const IMAGE_MISMATCH_MAX_ROUNDS = Math.max(
   1,
   Number(process.env.IMAGE_MISMATCH_MAX_ROUNDS) || 2,
 );
 
-// The cover used to be strict (a missing character failed it and restarted the
-// whole cover). Like the pages, a proper cover that only misses a character is
-// now used after the tries run out. Set COVER_ACCEPT_MISSING=off for the old rule.
 const COVER_ACCEPT_MISSING =
   String(process.env.COVER_ACCEPT_MISSING || "on").toLowerCase() !== "off";
 

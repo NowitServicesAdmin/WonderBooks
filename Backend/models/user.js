@@ -103,6 +103,64 @@ const userSchema = new mongoose.Schema(
             type: Date,
             select: false,
         },
+        notificationPreferences: {
+            email: { type: Boolean, default: true },
+            push: { type: Boolean, default: true },
+            reminders: { type: Boolean, default: true },
+            orders: { type: Boolean, default: true },
+            recommendations: { type: Boolean, default: true },
+            offers: { type: Boolean, default: false },
+            frequency: {
+                type: String,
+                enum: ["Instant", "Daily digest", "Weekly"],
+                default: "Daily digest",
+            },
+        },
+
+        // ---- Child mode ----
+
+        childModePin: {
+            type: String, // "salt:scryptHash"
+            select: false,
+        },
+        childModePendingPin: {
+            type: String, // hashed PIN waiting for email OTP confirmation
+            select: false,
+        },
+        childModeOtpHash: {
+            type: String,
+            select: false,
+        },
+        childModeOtpExpiresAt: {
+            type: Date,
+            select: false,
+        },
+        childModeOtpAttempts: {
+            type: Number,
+            default: 0,
+            select: false,
+        },
+        childModeOtpSentAt: {
+            type: Date,
+            select: false,
+        },
+        childModePinAttempts: {
+            type: Number,
+            default: 0,
+            select: false,
+        },
+        childModeLockedUntil: {
+            type: Date,
+            select: false,
+        },
+        childModeRecoveryVerifiedUntil: {
+            type: Date,
+            select: false,
+        },
+        childMode: {
+            enabled: { type: Boolean, default: false },
+            hasPin: { type: Boolean, default: false },
+        },
     },
     { timestamps: true }
 );
