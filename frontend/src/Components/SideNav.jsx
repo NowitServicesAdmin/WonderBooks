@@ -597,7 +597,10 @@ export function SideNav({
                                 }}
                                 className="group relative flex items-center justify-center"
                             >
-                                <img src={Logo} alt="Wonder Books" className="h-15 w-15 rounded-xl transition-transform duration-300 group-hover:scale-105" />
+                                {/* <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-(--tint) text-xl transition-transform duration-300 group-hover:scale-105">
+                                ⭐
+                            </div> */}
+                                <img src={Logo} alt="Wonder Books" className="h-10 w-10 rounded-xl transition-transform duration-300 group-hover:scale-105" />
 
                                 {!expanded && (
                                     <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-(--tint) text-(--accent) opacity-0 transition-opacity duration-200 group-hover:opacity-100">

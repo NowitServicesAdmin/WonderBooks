@@ -1,9 +1,10 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search,} from "lucide-react";
-import { templates, categories, categoryThemes } from './../../Data/Templatesdata';
+import { Search, } from "lucide-react";
+import { categories, categoryThemes } from './../../Data/Templatesdata';
 import { useEffect } from "react";
+import { useSamples } from "../../hooks/useSamples";
 
 // Moved to module scope (was previously declared inside Templates()),
 // which meant a brand-new component function was created on every
@@ -12,25 +13,27 @@ import { useEffect } from "react";
 const AnimatedSearch = ({ search, setSearch, placeholder }) => {
   return (
     <div className="flex h-11 w-full items-center gap-2 rounded-xl border border-(--border) bg-(--tint) px-3.5 transition focus-within:border-[#b9b0f2] focus-within:bg-white focus-within:shadow-[0_0_0_4px_rgba(148,120,235,0.12)] sm:w-105">
-    <Search
-      size={18}
-      strokeWidth={2}
-      className="shrink-0 text-(--text-muted)"
-    />
+      <Search
+        size={18}
+        strokeWidth={2}
+        className="shrink-0 text-(--text-muted)"
+      />
 
-    <input
-      type="text"
-      value={search}
-      onChange={(e) => setSearch(e.target.value)}
-      placeholder={placeholder}
-      className="w-full bg-transparent text-sm text-[#403b61] outline-none placeholder:text-[#aaa7b8]"
-    />
-  </div>
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder={placeholder}
+        className="w-full bg-transparent text-sm text-[#403b61] outline-none placeholder:text-[#aaa7b8]"
+      />
+    </div>
   );
 };
 
 export const Templates = () => {
   const navigate = useNavigate();
+  // Books the super admin chose; falls back to the built-in ones when none.
+  const { items, loading, fromDatabase } = useSamples();
 
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
@@ -41,7 +44,7 @@ export const Templates = () => {
   const filteredTemplates = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return templates.filter((template) => {
+    return items.filter((template) => {
       const categoryMatch =
         activeCategory === "All" || template.category === activeCategory;
 
@@ -52,7 +55,20 @@ export const Templates = () => {
 
       return categoryMatch && searchMatch;
     });
-  }, [activeCategory, search]);
+  }, [items, activeCategory, search]);
+
+  // Database samples only show tabs for categories that actually have a book.
+  const categoryTabs = useMemo(
+    () =>
+      fromDatabase
+        ? categories.filter(
+          (category) =>
+            category === "All" ||
+            items.some((item) => item.category === category)
+        )
+        : categories,
+    [fromDatabase, items]
+  );
 
   useEffect(() => {
     // Stop animation while user is typing
@@ -98,7 +114,7 @@ export const Templates = () => {
     return () => {
       clearTimeout(timeoutId);
     };
-      }, [search]);
+  }, [search]);
 
   const handleTemplateClick = (id) => {
     navigate(`/templates/${id}`);
@@ -131,35 +147,49 @@ export const Templates = () => {
         </div>
 
         {/* Categories */}
-        <div className="scrollbar-none mb-7 flex gap-2.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
-          {categories.map((category) => {
-            const active = activeCategory === category;
+        {!loading && (
+          <div className="scrollbar-none mb-7 flex gap-2.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
+            {categoryTabs.map((category) => {
+              const active = activeCategory === category;
 
-            return (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setActiveCategory(category)}
-                className={`
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => setActiveCategory(category)}
+                  className={`
                   shrink-0 rounded-xl border px-4.5 py-2.5
                   text-[13px] font-bold
                   transition-all
                   ${active
-                    ? "border-[#c8c0f6] bg-[#f0edff] text-[#624fc1] shadow-[0_2px_8px_rgba(93,43,197,0.10)]"
-                    : "border-[#e5e2ed] bg-white text-[#77738d] hover:border-[#cec8e8] hover:bg-(--tint)"
-                  }
+                      ? "border-[#c8c0f6] bg-[#f0edff] text-[#624fc1] shadow-[0_2px_8px_rgba(93,43,197,0.10)]"
+                      : "border-[#e5e2ed] bg-white text-[#77738d] hover:border-[#cec8e8] hover:bg-(--tint)"
+                    }
                 `}
-              >
-                {category}
-              </button>
-            );
-          })}
-        </div>
+                >
+                  {category}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Loading placeholders */}
+        {loading && (
+          <div className="mt-13 grid grid-cols-2 gap-x-6 gap-y-9 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="aspect-3/4 animate-pulse rounded-r-[18px] rounded-l-lg bg-(--tint)"
+              />
+            ))}
+          </div>
+        )}
 
         {/* Grid */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-9 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-          {filteredTemplates.map((template) => {
-            const theme = categoryThemes[template.category];
+          {(loading ? [] : filteredTemplates).map((template) => {
+            const theme = categoryThemes[template.category] || categoryThemes.Adventure;
             const isPremium = template.type === "premium";
 
             return (
@@ -216,7 +246,7 @@ export const Templates = () => {
 
                   {/* COVER IMAGE */}
                   <img
-                    src={template.image}
+                    src={template.image || undefined}
                     alt={template.title}
                     className="
               absolute inset-0
@@ -441,7 +471,7 @@ export const Templates = () => {
           })}
         </div>
 
-        {filteredTemplates.length === 0 && (
+        {!loading && filteredTemplates.length === 0 && (
           <div className="flex min-h-75 items-center justify-center">
             <div className="text-center">
               <p className="text-base font-semibold text-[#4a4665]">

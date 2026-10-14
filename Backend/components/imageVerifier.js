@@ -6,6 +6,12 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 // Set IMAGE_VERIFY=off in .env to switch the check off.
 const ENABLED =
   String(process.env.IMAGE_VERIFY || "on").toLowerCase() !== "off";
+// Big enough that a small prop (a pencil, a key) is still findable. 768 was
+// too small: the checker kept "not seeing" objects that were in the picture.
+const VERIFY_SIZE = Math.max(
+  512,
+  Number(process.env.IMAGE_VERIFY_SIZE) || 1024,
+);
 const VERIFY_MODEL =
   process.env.IMAGE_VERIFY_MODEL || process.env.CHAT_MODEL || "gpt-4.1-mini";
 
@@ -34,8 +40,8 @@ export const verifyIllustration = async ({
   try {
     const small = await sharp(buffer)
       .resize({
-        width: 768,
-        height: 768,
+        width: VERIFY_SIZE,
+        height: VERIFY_SIZE,
         fit: "inside",
         withoutEnlargement: true,
       })
@@ -47,7 +53,7 @@ export const verifyIllustration = async ({
     const response = await client.chat.completions.create({
       model: VERIFY_MODEL,
       temperature: 0,
-      max_tokens: 120,
+      max_tokens: 300,
       response_format: { type: "json_object" },
       messages: [
         {
@@ -55,18 +61,25 @@ export const verifyIllustration = async ({
           content: [
             {
               type: "text",
-              text: `You are checking one illustration for a children's picture book.
+              text: `You are checking one illustration for a children's picture book. Answer only two questions.
 
-Expected scene: ${String(scene).slice(0, 450) || "(not given)"}
-Expected characters: ${names.length ? names.join(", ") : "(none specified)"}
-(Each expected character is a person, an animal or an object, exactly as described in its brackets. An animal or object character IS a valid character: judge whether it is present by that description and never require a human child. Do NOT judge hair color, fur color, clothes, age or exact likeness: those can differ slightly and are fine. Only check that each character is there.)
+QUESTION 1 - is it a storybook-style illustration at all?
+"unrelated" = true ONLY if it is a photo, a sign, an icon, a logo, a poster, a diagram, food, an object on its own, or a subject that has nothing to do with the expected place. Otherwise false.
+Expected place (context only, never a reason to reject): ${String(scene).slice(0, 300) || "(not given)"}
 
-Choose ONE verdict:
-- "unrelated": it is not a storybook-style illustration (a photo, a sign, an icon, a logo, a poster, a diagram, food, an object on its own) OR it shows a subject that has nothing to do with the expected scene.
-- "missing": it is a fine storybook illustration of roughly the right scene, but one or more of the expected characters is clearly not in the picture at all. Choose this ONLY if you cannot find a named character anywhere in the picture. Where a character stands (inside or outside, left or right, next to whom) never matters.
-- "ok": everything else. Be lenient: do NOT reject for exact pose, glow, lighting, expression, clothes, small details, or art style. Only the presence of each expected character matters.
+QUESTION 2 - for EACH expected character below, is it anywhere in the picture?
+${names.length ? names.map((n, i) => `${i + 1}. ${n}`).join("\n") : "(none specified)"}
 
-Reply with JSON only: {"verdict": "ok" | "missing" | "unrelated", "reason": "short reason"}`,
+How to answer question 2:
+- FIRST count what you can see: how many people, how many animals, how many objects. Several people may be in the picture and they look different from each other: use the "look" note in the brackets (hair, clothes, fur) only to tell which one is which. If the picture has as many people as the list has people, every person is present.
+- The words in brackets say WHAT KIND of thing each one is (a person, an animal or an object). The NAME is only a label: a name may sound like a breed, a place or an ordinary word, so ignore what the name sounds like and look for that KIND of thing.
+- An animal or object IS a valid character: never require a human child.
+- It counts as present if any part of it is visible: small, partly hidden, held in a hand, glowing, in the background or at the edge. An object may have any colour, size or pattern.
+- Mark "present": false ONLY if you truly cannot find it anywhere.
+- NEVER judge breed, colours, size, clothes, age, likeness, pose, expression, setting, weather, camera distance, art style, extra objects or story events. None of those matter.
+
+Reply with JSON only:
+{"unrelated": false, "reason": "short reason if unrelated", "characters": [{"name": "<name>", "present": true}]}`,
             },
             {
               type: "image_url",
@@ -81,14 +94,32 @@ Reply with JSON only: {"verdict": "ok" | "missing" | "unrelated", "reason": "sho
     });
 
     const parsed = JSON.parse(response?.choices?.[0]?.message?.content || "{}");
-    const verdict = ["ok", "missing", "unrelated"].includes(parsed.verdict)
-      ? parsed.verdict
-      : "ok";
+
+    // The CODE decides the verdict from the per-character answers, so a
+    // comment about the setting, a breed or the camera can never reject a
+    // picture by itself. A character is only "missing" if the checker says
+    // present === false for it.
+    const absent = (Array.isArray(parsed.characters) ? parsed.characters : [])
+      .filter((c) => c && c.present === false)
+      .map((c) => String(c.name || "").trim())
+      .filter(Boolean);
+
+    let verdict = "ok";
+    let reason = "";
+
+    if (parsed.unrelated === true) {
+      verdict = "unrelated";
+      reason = String(parsed.reason || "not a storybook illustration of the scene");
+    } else if (absent.length) {
+      verdict = "missing";
+      reason = `${absent.join(", ")} not found in the picture`;
+    }
 
     return {
       ok: verdict === "ok",
       severity: verdict === "ok" ? "none" : verdict,
-      reason: String(parsed.reason || ""),
+      reason,
+      missingCount: absent.length,
     };
   } catch (error) {
     console.warn(

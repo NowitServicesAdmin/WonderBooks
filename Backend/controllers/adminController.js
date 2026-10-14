@@ -6,6 +6,7 @@ import Cart from "../models/cart.js";
 import { deleteFromR2 } from "../services/r2Service.js";
 import { schedulePickupForOrder, cancelShipmentIfUnused } from "../services/shipmentService.js";
 import Subscription from "../models/subscription.js";
+import { SAMPLE_CATEGORIES } from "../config/sampleCategories.js";
 import { deleteFromS3, normalizeS3Url } from "../services/s3Service.js";
 
 const ORDER_STATUSES = ["pending_payment", "confirmed", "printing", "shipped", "delivered", "cancelled"];
@@ -526,6 +527,8 @@ export const getBookDetail = async (req, res) => {
                 status: found.status,
                 isDeleted: Boolean(found.isDeleted),
                 deletedAt: found.deletedAt || null,
+                isSample: Boolean(found.isSample),
+                sampleCategory: found.sampleCategory || null,
                 coverImageUrl: normalizeS3Url(found.coverImageUrl) || null,
                 storyData: {
                     theme: sd.theme || null,
@@ -569,6 +572,60 @@ export const getBookDetail = async (req, res) => {
     }
 };
 
+// Add a finished book to (or remove it from) the client "Samples" page.
+// Body: { isSample: boolean, category?: one of SAMPLE_CATEGORIES }
+export const setBookSample = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!mongoose.isValidObjectId(id)) {
+            return res.status(404).json({ success: false, message: "Book not found" });
+        }
+
+        if (typeof req.body?.isSample !== "boolean") {
+            return res.status(400).json({ success: false, message: "isSample must be true or false." });
+        }
+
+        const makeSample = req.body.isSample;
+        const update = makeSample
+            ? { isSample: true, sampledAt: new Date() }
+            : { isSample: false, sampleCategory: null, sampledAt: null };
+
+        if (makeSample) {
+            const category = String(req.body?.category || "");
+            if (!SAMPLE_CATEGORIES.includes(category)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Choose a category: ${SAMPLE_CATEGORIES.join(", ")}.`,
+                });
+            }
+            update.sampleCategory = category;
+
+            const target = await Book.findById(id).select("status coverImageUrl pages.imageUrl").lean();
+            if (!target) return res.status(404).json({ success: false, message: "Book not found" });
+            if (target.status !== "completed" || !target.pages?.length) {
+                return res.status(409).json({
+                    success: false,
+                    message: "Only finished books can be shown as samples.",
+                });
+            }
+        }
+
+        const updated = await Book.findByIdAndUpdate(id, { $set: update }, { new: true })
+            .select("isSample sampleCategory")
+            .lean();
+        if (!updated) return res.status(404).json({ success: false, message: "Book not found" });
+
+        res.json({
+            success: true,
+            message: makeSample ? "Added to Samples" : "Removed from Samples",
+            book: { _id: updated._id, isSample: Boolean(updated.isSample), sampleCategory: updated.sampleCategory || null },
+        });
+    } catch (err) {
+        console.error("setBookSample error:", err);
+        res.status(500).json({ success: false, message: "Failed to update the sample" });
+    }
+};
+
 export const listBooks = async (req, res) => {
     try {
         const { page, limit, skip } = parsePaging(req.query);
@@ -580,6 +637,7 @@ export const listBooks = async (req, res) => {
         if (["ai", "manual"].includes(req.query.mode)) filter.mode = req.query.mode;
         if (req.query.deleted === "true") filter.isDeleted = true;
         else if (req.query.deleted === "false") filter.isDeleted = { $ne: true };
+        if (req.query.sample === "true") filter.isSample = true;
 
         const search = String(req.query.search || "").trim();
         if (search) {
@@ -613,7 +671,7 @@ export const listBooks = async (req, res) => {
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit)
-                .select("title mode status coverImageUrl user createdAt completedAt isDeleted deletedAt pages.status")
+                .select("title mode status coverImageUrl user createdAt completedAt isDeleted deletedAt isSample sampleCategory pages.status")
                 .populate("user", "name email")
                 .lean(),
             Book.countDocuments(filter),
@@ -640,6 +698,8 @@ export const listBooks = async (req, res) => {
                 completedAt: b.completedAt,
                 isDeleted: Boolean(b.isDeleted),
                 deletedAt: b.deletedAt || null,
+                isSample: Boolean(b.isSample),
+                sampleCategory: b.sampleCategory || null,
                 orderCount: orderCountByBook.get(String(b._id)) || 0,
             })),
             total,
@@ -732,6 +792,16 @@ export const getOrderDetail = async (req, res) => {
 
         const bookDoc = await Book.findById(o.book).select("title status isDeleted deletedAt coverImageUrl").lean();
 
+        // One payment ships as ONE parcel, so the label lists every order that
+        // was paid together (they share the Razorpay order id).
+        const parcelOrders = o.razorpayOrderId
+            ? await Order.find({ razorpayOrderId: o.razorpayOrderId })
+                  .sort({ createdAt: 1 })
+                  .select("orderNumber bookTitle quantity printOptions giftMessage")
+                  .lean()
+            : [];
+        const inParcel = parcelOrders.length ? parcelOrders : [o];
+
         res.json({
             success: true,
             order: {
@@ -749,6 +819,32 @@ export const getOrderDetail = async (req, res) => {
                     trackingUrl: o.shipping?.trackingUrl || null,
                     status: o.shipping?.status || null,
                     courier: o.shipping?.selectedCourier || null,
+                },
+                // everything the parcel label needs
+                parcel: {
+                    items: inParcel.map((x) => ({
+                        orderNumber: x.orderNumber,
+                        title: x.bookTitle,
+                        quantity: x.quantity || 1,
+                        coverLabel: x.printOptions?.coverLabel || "",
+                        pagesLabel: x.printOptions?.pagesLabel || "",
+                        sizeLabel: x.printOptions?.sizeLabel || "",
+                        giftWrap: x.printOptions?.giftWrap === "wrapped",
+                        dedication: x.printOptions?.dedication === "added",
+                    })),
+                    copies: inParcel.reduce((sum, x) => sum + (x.quantity || 1), 0),
+                    // only whether a note is inside - the private text is never printed outside
+                    hasGiftMessage: inParcel.some((x) => Boolean(x.giftMessage)),
+                    weight: o.shipping?.weight || null,
+                    length: o.shipping?.length || null,
+                    breadth: o.shipping?.breadth || null,
+                    height: o.shipping?.height || null,
+                    paymentMode: o.shipping?.paymentMode || "Prepaid",
+                },
+                sender: {
+                    name: "Wonder Books",
+                    address: process.env.LABEL_FROM_ADDRESS || "",
+                    phone: process.env.LABEL_FROM_PHONE || "",
                 },
                 // The book can be gone (permanently deleted) or hidden (user deleted it).
                 bookInfo: bookDoc

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { SAMPLE_CATEGORIES } from "../config/sampleCategories.js";
 
 const CharacterSchema = new mongoose.Schema(
     {
@@ -148,6 +149,23 @@ const BookSchema = new mongoose.Schema(
         failureAcknowledged: {
             type: Boolean,
             default: false
+        },
+
+        isSample: {
+            type: Boolean,
+            default: false,
+            index: true
+        },
+
+        sampleCategory: {
+            type: String,
+            enum: [...SAMPLE_CATEGORIES, null],
+            default: null
+        },
+
+        sampledAt: {
+            type: Date,
+            default: null
         },
 
         isFavorite: {

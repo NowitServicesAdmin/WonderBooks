@@ -124,6 +124,36 @@ export const inferCharacterKind = (character = {}) => {
 export const isAnimalOrObjectCharacter = (character = {}) =>
   inferCharacterKind(character).kind !== "person";
 
+
+export const stripLiteralText = (value = "") =>
+  String(value)
+    .replace(
+      /(^|[\s(:,;])(['"\u201C\u2018])([^'"\u201D\u2019]{1,40})(['"\u201D\u2019])(?=[\s.,;:)]|$)/g,
+      "$1a plain symbol with no letters",
+    )
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+// A few words about how each character looks, so the picture checker can tell
+// the characters apart (three people look alike to it otherwise and it says one
+// is "missing" when it is not). Used only to FIND the character, never to judge it.
+const lookCue = (character = {}, kind) => {
+  const look = character.appearance || {};
+  const clothes = character.clothing || {};
+  const pick = (...values) =>
+    values
+      .filter((v) => !isBlankField(v))
+      .map((v) => String(v).trim().replace(/\.$/, ""))
+      .join(", ");
+  const cue =
+    kind === "person"
+      ? pick(look.hair, clothes.top)
+      : kind === "animal"
+        ? pick(look.fur, look.body)
+        : pick(look.body, character.colors?.primary);
+  return cue.slice(0, 140);
+};
+
 export const describeCharacterForCheck = (character = {}) => {
   const { kind, species } = inferCharacterKind(character);
 
@@ -133,6 +163,7 @@ export const describeCharacterForCheck = (character = {}) => {
       : kind === "object"
         ? "an object, not a person"
         : "a person";
+  const cue = lookCue(character, kind);
 
-  return `${character.name || "character"} (${what})`;
+  return `${character.name || "character"} (${what}${cue ? `; look: ${cue}` : ""})`;
 };

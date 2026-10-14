@@ -27,16 +27,19 @@ export const CartProvider = ({ children }) => {
 
     const [rawItems, setItems] = useState([]);
     const [rawTotals, setTotals] = useState(EMPTY_TOTALS);
+    const [rawGiftMessage, setGiftMessage] = useState("");
     const [rawLoaded, setLoaded] = useState(false);
 
     // Logged out / super admin: always look empty, whatever was cached
     const items = hasCart ? rawItems : EMPTY_ITEMS;
     const totals = hasCart ? rawTotals : EMPTY_TOTALS;
     const loaded = hasCart && rawLoaded;
+    const giftMessage = hasCart ? rawGiftMessage : "";
 
     const apply = useCallback((data) => {
         setItems(data.items || []);
         setTotals(data.totals || EMPTY_TOTALS);
+        setGiftMessage(data.giftMessage || "");
         setLoaded(true);
     }, []);
 
@@ -96,13 +99,26 @@ export const CartProvider = ({ children }) => {
     );
 
     const updatePrintOptions = useCallback(
-        async (bookId, printOptions) => {
+        async (bookId, printOptions, dedicationText) => {
             try {
-                const { data } = await cartApi.updateCartPrintOptions(bookId, printOptions);
+                const { data } = await cartApi.updateCartPrintOptions(bookId, printOptions, dedicationText);
                 apply(data);
                 return { ok: true };
             } catch (err) {
                 return { ok: false, message: errorMessage(err, "Couldn't update the print options.") };
+            }
+        },
+        [apply],
+    );
+
+    const updateGiftMessage = useCallback(
+        async (text) => {
+            try {
+                const { data } = await cartApi.updateCartGiftMessage(text);
+                apply(data);
+                return { ok: true };
+            } catch (err) {
+                return { ok: false, message: errorMessage(err, "Couldn't save your gift message.") };
             }
         },
         [apply],
@@ -127,15 +143,29 @@ export const CartProvider = ({ children }) => {
             items,
             totals,
             loaded,
+            giftMessage,
             count: totals.itemCount, // total copies, shown on the header badge
             isInCart: (bookId) => items.some((item) => item.book._id === bookId),
             refresh,
             addToCart,
             updateQuantity,
             updatePrintOptions,
+            updateGiftMessage,
             removeItem,
         }),
-        [hasCart, items, totals, loaded, refresh, addToCart, updateQuantity, updatePrintOptions, removeItem],
+        [
+            hasCart,
+            items,
+            totals,
+            loaded,
+            giftMessage,
+            refresh,
+            addToCart,
+            updateQuantity,
+            updatePrintOptions,
+            updateGiftMessage,
+            removeItem,
+        ],
     );
 
     return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

@@ -215,6 +215,8 @@ const CustomizePanel = ({ storySettings, onChange }) => {
     const subjectOption = findOptionByLabel(subjectOptions, storySettings.subject);
     const centralmsgOption = findOptionByLabel(centralmsgOptions, storySettings.centralmsg);
     const styleOption = findOptionByLabel(STORY_OPTIONS.imageStyle, storySettings.imageStyle);
+    const languageOption = findOptionByLabel(STORY_OPTIONS.language, storySettings.language);
+    const fontOption = findOptionByLabel(STORY_OPTIONS.font, storySettings.font);
 
     const rows = [
         {
@@ -245,6 +247,22 @@ const CustomizePanel = ({ storySettings, onChange }) => {
             selected: styleOption,
             onSelect: (option) => onChange("imageStyle", option),
         },
+        {
+            key: "language",
+            label: "Language",
+            pills: true,
+            options: STORY_OPTIONS.language,
+            selected: languageOption,
+            onSelect: (option) => onChange("language", option),
+        },
+        {
+            key: "font",
+            label: "Font style",
+            pills: true,
+            options: STORY_OPTIONS.font,
+            selected: fontOption,
+            onSelect: (option) => onChange("font", option),
+        },
     ].filter(Boolean);
 
     return (
@@ -268,6 +286,19 @@ const CustomizePanel = ({ storySettings, onChange }) => {
                                     {row.selected?.image && (
                                         <img src={row.selected.image} alt="" className="h-8 w-8 rounded-full object-cover" />
                                     )}
+                                    {row.key === "language" && (
+                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[18px] leading-none">
+                                            {row.selected?.emoji || "🌐"}
+                                        </span>
+                                    )}
+                                    {row.key === "font" && (
+                                        <span
+                                            style={{ fontFamily: row.selected?.fontFamily }}
+                                            className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[15px] font-bold leading-none text-[#5A39C7]"
+                                        >
+                                            Aa
+                                        </span>
+                                    )}
                                     <span>
                                         <span className="block text-[11px] font-medium text-[#9693A8]">{row.label}</span>
                                         <span className="block text-[13px] font-semibold text-[#38345F]">
@@ -281,7 +312,39 @@ const CustomizePanel = ({ storySettings, onChange }) => {
                                 />
                             </button>
 
-                            {isOpen && (
+                            {isOpen && row.pills && (
+                                <div className="mt-2 flex flex-wrap gap-2 px-1 pb-1">
+                                    {row.options.map((option) => {
+                                        const isSelected = row.selected?.id === option.id;
+                                        return (
+                                            <button
+                                                key={option.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    row.onSelect(option);
+                                                    setExpanded(null);
+                                                }}
+                                                className={`flex items-center gap-2 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-all ${isSelected
+                                                    ? "border-[#7252dc] bg-[#f3efff] text-[#4d36a5] shadow-[0_4px_12px_rgba(105,71,215,0.18)]"
+                                                    : "border-[#DED9EE] bg-white text-[#6b6880] hover:border-[#B9A7E8]"
+                                                    }`}
+                                            >
+                                                {option.emoji && <span className="text-[16px] leading-none">{option.emoji}</span>}
+                                                {option.fontFamily ? (
+                                                    <span style={{ fontFamily: option.fontFamily }} className="text-[15px] leading-none">
+                                                        {option.label}
+                                                    </span>
+                                                ) : (
+                                                    option.label
+                                                )}
+                                                {isSelected && <Check size={12} strokeWidth={3} className="text-[#7252dc]" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {isOpen && !row.pills && (
                                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-3 px-1 pb-1">
                                     {row.options.map((option) => (
                                         <CircleOptionChip

@@ -1,0 +1,290 @@
+
+name: WonderBooks CI-CD Docker Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wonderbooks-production
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Clone repository
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+     
+      # 2. Create Dockerfiles and frontend .env from GitHub Secrets
+      - name: Create deployment configuration files
+        env:
+          FRONTEND_DOCKERFILE: ${{ secrets.FRONTEND_DOCKERFILE }}
+          BACKEND_DOCKERFILE: ${{ secrets.BACKEND_DOCKERFILE }}
+          FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
+        run: |
+          set -eu
+
+          # Verify required secrets exist
+          test -n "$FRONTEND_DOCKERFILE" || {
+            echo "ERROR: FRONTEND_DOCKERFILE secret is missing"
+            exit 1
+          }
+
+          test -n "$BACKEND_DOCKERFILE" || {
+            echo "ERROR: BACKEND_DOCKERFILE secret is missing"
+            exit 1
+          }
+
+          test -n "$FRONTEND_ENV" || {
+            echo "ERROR: FRONTEND_ENV secret is missing"
+            exit 1
+          }
+
+          # Create files from GitHub Secrets
+          printf '%s\n' "$FRONTEND_DOCKERFILE" > frontend/Dockerfile
+          printf '%s\n' "$BACKEND_DOCKERFILE" > Backend/Dockerfile
+
+          umask 077
+          printf '%s\n' "$FRONTEND_ENV" > frontend/.env
+
+          echo "Deployment configuration files created."
+
+      # 3. Verify project structure with clear error messages
+      - name: Verify project structure
+        run: |
+          set -eu
+
+          for file in \
+            Backend/package.json \
+            Backend/Dockerfile \
+            frontend/package.json \
+            frontend/Dockerfile \
+            frontend/.env
+          do
+            if [ ! -s "$file" ]; then
+              echo "ERROR: Missing or empty file: $file"
+              exit 1
+            fi
+
+            echo "OK: $file"
+          done
+
+
+      # 4. Build backend Docker image
+      - name: Build backend image
+        run: |
+          docker build \
+            -t wonderbooks-backend:latest \
+            ./Backend
+
+     
+      
+      
+      # Fix orderUtils filename capitalization automatically
+      - name: Fix orderUtils filename
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          COMPONENTS="frontend/src/Components"
+
+          if [ -f "$COMPONENTS/Orderutils.jsx" ]; then
+            git mv "$COMPONENTS/Orderutils.jsx" \
+                   "$COMPONENTS/orderUtils.jsx" 2>/dev/null || \
+            mv "$COMPONENTS/Orderutils.jsx" \
+               "$COMPONENTS/orderUtils.jsx"
+
+            echo "Renamed Orderutils.jsx to orderUtils.jsx"
+          elif [ -f "$COMPONENTS/orderUtils.jsx" ]; then
+            echo "Correct filename already exists."
+          else
+            echo "::error::Orderutils.jsx was not found."
+            exit 1
+          fi
+
+          # Verify the module now exists
+          test -f "$COMPONENTS/orderUtils.jsx"
+
+          # Verify both components use the expected import
+          grep -n 'orderUtils' \
+            "$COMPONENTS/OrderDetailView.jsx"
+
+          grep -n 'orderUtils' \
+            "$COMPONENTS/OrdersList.jsx"
+
+      # Build frontend Docker image
+      - name: Build frontend image
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${VITE_API_URL:-}" ]; then
+            docker build \
+              --build-arg VITE_API_URL="$VITE_API_URL" \
+              -t wonderbooks-frontend:latest \
+              ./frontend
+          else
+            docker build \
+              -t wonderbooks-frontend:latest \
+              ./frontend
+          fi
+
+
+
+      # 6. Verify Docker images
+      - name: Verify Docker images
+        run: |
+          docker image inspect wonderbooks-backend:latest
+          docker image inspect wonderbooks-frontend:latest
+          docker images
+
+      # 7. Export both Docker images
+      - name: Save Docker images
+        run: |
+          docker save \
+            wonderbooks-backend:latest \
+            wonderbooks-frontend:latest \
+            -o wonderbooks-images.tar
+
+          test -s wonderbooks-images.tar
+
+     
+      - name: Test SSH and prepare EC2
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 15m
+          script: |
+            set -e
+
+            echo "SSH authentication successful"
+            echo "Connected user:"
+            whoami
+
+            echo "EC2 hostname:"
+            hostname
+
+            echo "Updating package lists..."
+            sudo apt-get update
+
+            echo "Installing Docker and Nginx..."
+            sudo apt-get install -y docker.io nginx
+
+            sudo systemctl enable --now docker
+            sudo systemctl enable --now nginx
+
+            echo "Docker version:"
+            docker --version
+
+            echo "Nginx version:"
+            nginx -v
+
+            echo "Currently running containers:"
+            sudo docker ps
+
+            echo "EC2 preparation completed successfully."
+
+      # 9. Transfer Docker images to EC2
+      - name: Copy Docker images to EC2
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "wonderbooks-images.tar"
+          target: "/home/ubuntu/wonderbooks-deploy/"
+          overwrite: true
+
+      # 10. Deploy containers on EC2
+      - name: Deploy containers on EC2
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: BACKEND_ENV
+          timeout: 10m
+          command_timeout: 15m
+          script_stop: true
+          script: |
+            set -eu
+
+            cd /home/ubuntu/wonderbooks-deploy
+
+            test -s wonderbooks-images.tar
+
+            # Load images transferred from GitHub Actions
+            sudo docker load -i wonderbooks-images.tar
+
+            # Create backend environment file
+            test -n "$BACKEND_ENV"
+            umask 077
+            printf '%s\n' "$BACKEND_ENV" > backend.env
+            test -s backend.env
+            chmod 600 backend.env
+
+            # Remove old containers if present
+            sudo docker rm -f \
+              wonderbooks-backend \
+              wonderbooks-frontend 2>/dev/null || true
+
+            # Start backend container
+            sudo docker run -d \
+              --name wonderbooks-backend \
+              --restart unless-stopped \
+              --env-file /home/ubuntu/wonderbooks-deploy/backend.env \
+              -p 5000:5000 \
+              wonderbooks-backend:latest
+
+            # Start frontend container
+            sudo docker run -d \
+              --name wonderbooks-frontend \
+              --restart unless-stopped \
+              -p 5173:80 \
+              wonderbooks-frontend:latest
+
+            # Wait for containers to start
+            sleep 10
+
+            # Display container status
+            sudo docker ps -a
+
+            # Fail if either container is not running
+            test "$(sudo docker inspect \
+              -f '{{.State.Running}}' wonderbooks-backend)" = "true"
+
+            test "$(sudo docker inspect \
+              -f '{{.State.Running}}' wonderbooks-frontend)" = "true"
+
+            # Display application logs
+            sudo docker logs --tail 50 wonderbooks-backend
+            sudo docker logs --tail 50 wonderbooks-frontend
+
+            # Remove transferred archive after successful startup
+            rm -f wonderbooks-images.tar
+
+            echo "WonderBooks containers started successfully."
+
+      # 11. Confirm deployment
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "WonderBooks deployment completed successfully."
+          echo "Frontend: http://${{ secrets.EC2_HOST }}:5173"
+          echo "Backend:  http://${{ secrets.EC2_HOST }}:5000"

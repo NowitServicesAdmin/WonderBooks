@@ -1,8 +1,12 @@
 import mongoose from "mongoose";
 import Cart from "../models/cart.js";
 import Book from "../models/book.js";
-import { getCartTotals } from "../config/printPricing.js";
-import { normalizePrintOptions, describePrintOptions } from "../config/printOptions.js";
+import { getCartTotals, getPrintPriceForPageCount } from "../config/printPricing.js";
+import {
+    normalizePrintOptions,
+    describePrintOptions,
+    getPrintOptionsBreakdown,
+} from "../config/printOptions.js";
 
 const toObjectIds = (ids) => ids.map((id) => new mongoose.Types.ObjectId(String(id)));
 
@@ -50,6 +54,7 @@ export const loadCartLines = async (userId) => {
             pageCount: book.pageCount,
             quantity: item.quantity,
             printOptions: normalizePrintOptions(item.printOptions),
+            dedicationText: item.dedicationText || "",
         });
     }
 
@@ -63,8 +68,10 @@ export const loadCartLines = async (userId) => {
 export const buildCartView = async (userId) => {
     const lines = await loadCartLines(userId);
     const totals = getCartTotals(lines);
+    const cartDoc = await Cart.findOne({ user: userId }).select("giftMessage").lean();
 
     return {
+        giftMessage: cartDoc?.giftMessage || "",
         items: totals.lines.map((line) => ({
             book: {
                 _id: line.bookId,
@@ -75,6 +82,10 @@ export const buildCartView = async (userId) => {
             quantity: line.quantity,
             printOptions: line.printOptions,
             printOptionLabels: describePrintOptions(line.printOptions),
+            dedicationText: line.printOptions?.dedication === "added" ? line.dedicationText || "" : "",
+            // price of one copy split into its parts: base + cover + paper + size + gift wrap + dedication
+            basePrice: getPrintPriceForPageCount(line.pageCount),
+            breakdown: getPrintOptionsBreakdown(line.printOptions),
             unitPrice: line.unitPrice,
             lineTotal: line.lineTotal,
         })),

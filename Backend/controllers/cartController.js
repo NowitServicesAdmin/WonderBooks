@@ -4,7 +4,15 @@ import Book from "../models/book.js";
 import { MAX_CART_ITEMS, normalizeQuantity } from "../config/printPricing.js";
 import { buildCartView, loadBookSummaries } from "../services/cartService.js";
 import { getPrintPriceForPageCount } from "../config/printPricing.js";
-import { getPublicPrintOptions, parsePrintOptions } from "../config/printOptions.js";
+import {
+  MAX_DEDICATION_LENGTH,
+  MAX_GIFT_MESSAGE_LENGTH,
+  getPublicPrintOptions,
+  parsePrintOptions,
+} from "../config/printOptions.js";
+
+const cleanText = (value, max) =>
+  typeof value === "string" ? value.replace(/\r\n/g, "\n").trim().slice(0, max) : "";
 
 const fail = (res, status, message) =>
   res.status(status).json({ success: false, message });
@@ -102,23 +110,55 @@ export const updateCartItem = async (req, res) => {
     const item = cart?.items.find((i) => String(i.book) === String(bookId));
     if (!item) return fail(res, 404, "That book isn't in your cart");
 
-    // Either field can be sent on its own: { quantity } and/or { printOptions }
-    const { quantity, printOptions } = req.body;
+    // Any field can be sent on its own: { quantity }, { printOptions }, { dedicationText }
+    const { quantity, printOptions, dedicationText } = req.body;
+
+    // Atomic $set (not cart.save()) so quick back-to-back updates can't clash
+    const set = {};
+    let dedicationOn = item.printOptions?.dedication === "added";
 
     if (printOptions !== undefined) {
       const parsed = parsePrintOptions(printOptions);
       if (parsed.error) return fail(res, 400, parsed.error);
-      item.printOptions = parsed.options;
+      set["items.$.printOptions"] = parsed.options;
+      dedicationOn = parsed.options.dedication === "added";
     }
     if (quantity !== undefined) {
-      item.quantity = normalizeQuantity(quantity);
+      set["items.$.quantity"] = normalizeQuantity(quantity);
     }
-    await cart.save();
+    // the text only makes sense while the dedication add-on is on
+    if (!dedicationOn) {
+      set["items.$.dedicationText"] = "";
+    } else if (dedicationText !== undefined) {
+      set["items.$.dedicationText"] = cleanText(dedicationText, MAX_DEDICATION_LENGTH);
+    }
+
+    if (Object.keys(set).length) {
+      await Cart.updateOne(
+        { user: req.userId, "items.book": bookId },
+        { $set: set },
+      );
+    }
 
     return await sendCart(res, req.userId);
   } catch (error) {
     console.error("updateCartItem error:", error);
     return fail(res, 500, "Unable to update your cart");
+  }
+};
+
+export const updateGiftMessage = async (req, res) => {
+  try {
+    const giftMessage = cleanText(req.body.giftMessage, MAX_GIFT_MESSAGE_LENGTH);
+    await Cart.findOneAndUpdate(
+      { user: req.userId },
+      { $set: { giftMessage } },
+      { upsert: true },
+    );
+    return await sendCart(res, req.userId);
+  } catch (error) {
+    console.error("updateGiftMessage error:", error);
+    return fail(res, 500, "Unable to save your gift message");
   }
 };
 
