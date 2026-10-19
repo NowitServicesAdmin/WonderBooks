@@ -522,7 +522,7 @@ export const Auth = () => {
     const fieldClass = (channel) =>
         `${FIELD} ${ch[channel].verified ? "!border-emerald-300 bg-emerald-50/50" : ""}`;
 
-    const canCreate = ch.email.verified && ch.phone.verified && name.trim() && !submitting;
+    const canCreate = ch.email.verified &&  name.trim() && !submitting;
 
     return (
         <div className="wb-keep-light relative flex h-dvh w-full items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top_left,#ffffff_0%,#f4f1ff_45%,#e9e0ff_100%)] p-0">
@@ -680,7 +680,7 @@ export const Auth = () => {
                                             </div>
                                             {renderChannelFooter("email")}
                                         </div>
-
+{/* 
                                         <div>
                                             <label className={LABEL}>Mobile number</label>
                                             <div className={fieldClass("phone")}>
@@ -701,7 +701,7 @@ export const Auth = () => {
                                                 {renderVerifyAction("phone")}
                                             </div>
                                             {renderChannelFooter("phone")}
-                                        </div>
+                                        </div> */}
 
                                         {error && (
                                             <p className="text-[13px] font-medium leading-snug text-[#e94b4b]">
@@ -720,7 +720,7 @@ export const Auth = () => {
                                         className="mt-[clamp(0.75rem,2.2vh,1.5rem)] flex flex-col gap-[clamp(0.5rem,1.6vh,1rem)]"
                                     >
                                         <div>
-                                            <label className={LABEL}>Email or mobile number</label>
+                                            <label className={LABEL}>Email </label>
                                             <div className={FIELD}>
                                                 <Mail size={18} className="shrink-0 text-[#918aa5]" />
                                                 <input
@@ -729,7 +729,7 @@ export const Auth = () => {
                                                     autoComplete="username"
                                                     value={identifier}
                                                     onChange={(e) => setIdentifier(e.target.value)}
-                                                    placeholder="Email or mobile number"
+                                                    placeholder="Email"
                                                     className={INPUT}
                                                 />
                                             </div>

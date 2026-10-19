@@ -763,16 +763,24 @@ export default function HomePage() {
                     </div>
 
                     {/* Badge / certification slot (optional, desktop only while empty) */}
-                    <div className="hidden items-start justify-start lg:flex lg:justify-center">
-                        {/* <img src={certBadge} alt="Certified" className="h-36 w-36 object-contain" /> */}
+
+                    {/* Badge / certification */}
+                    <div className="hidden items-center justify-center lg:flex">
+                        <img
+                            src="https://res.cloudinary.com/djdct0pxu/image/upload/v1792394452/Golden_ISO_Certified_Badge-removebg-preview_aqeuck.png"
+                            alt="ISO 20000-1:2018 Certified"
+                            className="h-54 w-54 object-contain drop-shadow-md"
+                            loading="lazy"
+                        />
                     </div>
+
                 </div>
 
                 {/* Divider + copyright */}
                 <div className="mx-auto mt-10 max-w-350 border-t border-white/10 pt-6 text-center text-[14px] text-[#aaa2cb]">
                     &copy; 2026 <span translate="no" className="notranslate font-bold text-white">NOWIT SERVICES Pvt Ltd</span> . All rights reserved.
                 </div>
-            </footer>           
+            </footer>
         </div>
     );
 }

@@ -890,7 +890,7 @@ export default function ChildModeModal({
                   Confirm setup
                 </h3>
 
-                <p className="mt-1 text-sm leading-5 text-slate-600">
+                <p className="mt-1 text-sm leading-5 text-slateac-600">
                   Enter the 6-digit code we sent to{" "}
                   <span className="font-semibold text-slate-800">
                     {maskedEmail}

@@ -29,3 +29,8 @@ export const fetchCurrentUser = async () => {
     const response = await api.get("/auth/me");
     return response.data;
 };
+
+export const deleteAccount = async () => {
+    const response = await api.delete("/auth/delete-account");
+    return response.data;
+}
