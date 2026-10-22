@@ -1,4 +1,5 @@
 import gemini, { geminiBackup } from "../config/gemini.js";
+import { recordTokenUsage } from "../services/tokenUsage.js";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -50,7 +51,9 @@ export const generateContentResilient = async ({
         for (const model of list) {
             for (let attempt = 1; attempt <= attemptsPerModel; attempt += 1) {
                 try {
-                    return await client.models.generateContent({ model, contents, config });
+                    const result = await client.models.generateContent({ model, contents, config });
+                    recordTokenUsage(label, result?.usageMetadata);
+                    return result;
                 } catch (error) {
                     lastError = error;
                     const kind = classifyGeminiError(error);

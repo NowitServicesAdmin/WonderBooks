@@ -649,7 +649,7 @@ export const BookViewer = ({
                                                                 }
                                                             />
                                                         ) : (
-                                                            <div className="h-full w-full bg-white px-14 py-16">
+                                                            <div className="h-full w-full bg-white px-14 py-16 sm:pr-19">
                                                                 <FitText
                                                                     text={
                                                                         leaf.page.text
@@ -702,7 +702,7 @@ export const BookViewer = ({
                                     onClick={goPrevPage}
                                     disabled={isFirstPage || editing}
                                     aria-label="Previous page"
-                                    className="absolute left-2 top-1/2 z-100 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20 sm:left-5 sm:h-12 sm:w-12"
+                                    className="absolute left-[1.2%] top-1/2 z-50 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/80 bg-white/75 text-[#5d2bc5] shadow-[0_4px_14px_rgba(45,30,90,0.18)] backdrop-blur-xl transition-all duration-200 hover:bg-white/95 hover:scale-105 disabled:pointer-events-none disabled:opacity-30 sm:h-11 sm:w-11"
                                 >
                                     <ChevronLeft size={25} />
                                 </button>
@@ -712,7 +712,7 @@ export const BookViewer = ({
                                     onClick={goNextPage}
                                     disabled={isLastPage || editing}
                                     aria-label="Next page"
-                                    className="absolute right-2 top-1/2 z-100 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#5d2bc5] shadow-[0_7px_22px_rgba(50,40,100,0.20)] transition-all hover:scale-105 hover:bg-[#f7f3ff] disabled:pointer-events-none disabled:opacity-20 sm:right-5 sm:h-12 sm:w-12"
+                                    className="absolute right-[1.2%] top-1/2 z-50 flex h-10 w-10 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/80 bg-white/75 text-[#5d2bc5] shadow-[0_4px_14px_rgba(45,30,90,0.18)] backdrop-blur-xl transition-all duration-200 hover:bg-white/95 hover:scale-105 disabled:pointer-events-none disabled:opacity-30 sm:h-11 sm:w-11"
                                 >
                                     <ChevronRight size={25} />
                                 </button>

@@ -57,7 +57,17 @@ const CharacterSchema = new mongoose.Schema(
         photoStorageKey: {
             type: String,
             default: null
-        }
+        },
+
+        // Character Bible look + canonical reference image. Saved so an
+        // interrupted book can resume without redoing this (paid) step.
+        appearance: { type: mongoose.Schema.Types.Mixed, default: undefined },
+        clothing: { type: mongoose.Schema.Types.Mixed, default: undefined },
+        colors: { type: mongoose.Schema.Types.Mixed, default: undefined },
+        signatureDetails: { type: [String], default: undefined },
+        referenceImageUrl: { type: String, default: null },
+        referenceStorageProvider: { type: String, default: null },
+        referenceStorageKey: { type: String, default: null }
     },
     {
         _id: false
@@ -143,6 +153,30 @@ const BookSchema = new mongoose.Schema(
 
         failureReason: {
             type: String,
+            default: null
+        },
+
+        stage: {
+            type: String,
+            default: "starting"
+        },
+
+        lastProgressAt: {
+            type: Date,
+            default: null
+        },
+
+        workerId: {
+            type: String,
+            default: null
+        },
+
+        resumeCount: {
+            type: Number,
+            default: 0
+        },
+        imagePlan: {
+            type: mongoose.Schema.Types.Mixed,
             default: null
         },
 

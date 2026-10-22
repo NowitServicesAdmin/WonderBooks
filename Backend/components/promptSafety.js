@@ -35,8 +35,8 @@ const SOFTEN_RULES = [
 
 export const SAFETY_SUFFIX = {
   0: "Non-graphic, no blood, no gore, no wounds, no nudity. Suitable for a published storybook.",
-  1: "Wholesome, family-friendly, all-ages children's picture-book illustration. Animal characters look like real animals with fur and animal proportions (no human features). Any human child is fully dressed in ordinary everyday clothes. Friendly, calm, cheerful mood.",
-  2: "Wholesome, family-friendly, all-ages children's picture-book illustration. Cute cartoon animals or simple friendly characters only, seen at a distance in a calm outdoor scene, standing or walking side by side, smiling. Everyone is fully dressed. Nothing scary, nothing physical, nothing realistic.",
+  1: "Wholesome, family-friendly, all-ages children's picture-book illustration. A character described as an animal looks like a real animal with fur and animal proportions (no human features); every person stays a human person with a human face and human ears. Any human child is fully dressed in ordinary everyday clothes. Friendly, calm, cheerful mood.",
+  2: "Wholesome, family-friendly, all-ages children's picture-book illustration. Friendly storybook characters exactly as described above (a person stays a human person with a human face and human ears, never an animal or a mix of person and animal; only a character described as an animal is drawn as an animal), seen at a distance in a calm outdoor scene, standing or walking side by side, smiling. Everyone is fully dressed. Nothing scary, nothing physical, nothing realistic.",
 };
 
 export const MAX_SAFETY_LEVEL = 2;
@@ -79,7 +79,35 @@ const ANIMAL_BODY_WORDS =
  *
  * @returns {{ kind: "person" | "animal" | "object", species: string }}
  */
+// A crown with horns, a horned helmet, a fur-trimmed cloak or a tail-coat is
+// something a PERSON WEARS, not a sign the character is an animal. (This
+// misread a person in a horned crown as an animal in three test books: the
+// story called her "his animal friend" and she was drawn as a cat / fox.)
+// So any clause that talks about something worn is ignored for the animal check.
+const WORN_WORDS =
+  "crown|crowns|tiara|circlet|diadem|headpiece|head piece|headband|helmet|hat|cap|hood|cloak|cape|coat|jacket|armou?r|costume|outfit|clothes|clothing|collar|belt|boots?|gloves?|scarf|mask|headdress|ornament|accessor(?:y|ies)|jewel(?:s|ry|lery)|worn|wearing|wears";
+
+const withoutWornClauses = (text = "") =>
+  String(text)
+    .split(/[.;,]|\band\b/i)
+    .filter((part) => !new RegExp(`\\b(${WORN_WORDS})\\b`, "i").test(part))
+    .join(" ");
+
+const loggedKinds = new Set();
+
 export const inferCharacterKind = (character = {}) => {
+  const result = inferCharacterKindUnlogged(character);
+  const key = `${character.id || character.name}:${result.kind}`;
+  if (!loggedKinds.has(key)) {
+    loggedKinds.add(key);
+    console.log(
+      `Character kind: ${character.name || character.id} (saved type "${character.type || ""}") is treated as ${result.kind}${result.species ? ` (${result.species})` : ""}.`,
+    );
+  }
+  return result;
+};
+
+const inferCharacterKindUnlogged = (character = {}) => {
   const type = String(character.type || "");
 
   if (/object/i.test(type)) {
@@ -90,23 +118,24 @@ export const inferCharacterKind = (character = {}) => {
   const details = Array.isArray(character.signatureDetails)
     ? character.signatureDetails
     : [];
-  const bodyText = [
-    look.body,
-    look.fur,
-    look.markings,
-    look.skinTone,
-    ...details,
-  ]
-    .filter((value) => !isBlankField(value))
-    .join(" ");
+  const bodyText = withoutWornClauses(
+    [look.body, look.fur, look.markings, look.skinTone, ...details]
+      .filter((value) => !isBlankField(value))
+      .join(". "),
+  );
   const speciesText = [character.name, bodyText].filter(Boolean).join(" ");
 
   const speciesMatch = speciesText.match(
     new RegExp(`\\b(${ANIMAL_WORDS})\\b`, "i"),
   );
-  const bodyHint = new RegExp(`\\b(${ANIMAL_BODY_WORDS})\\b`, "i").test(
-    bodyText,
+  // One animal-body word alone ("a horn", "a tail") is not enough: people
+  // wear horned crowns and tailcoats. Two different ones (horns + hooves) are.
+  const bodyHits = new Set(
+    (
+      bodyText.match(new RegExp(`\\b(${ANIMAL_BODY_WORDS})\\b`, "gi")) || []
+    ).map((word) => word.toLowerCase().replace(/s$/, "")),
   );
+  const bodyHint = bodyHits.size >= 2;
   const hasFur = !isBlankField(look.fur);
 
   const animal =

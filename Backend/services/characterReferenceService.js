@@ -4,8 +4,9 @@ import crypto from "crypto";
 import { getFromS3 } from "./s3Service.js";
 import { uploadImage } from "./storageService.js";
 import { generateImage } from "../components/imageGenerator.js";
-import { stripLiteralText } from "../components/promptSafety.js";
+import { stripLiteralText, inferCharacterKind } from "../components/promptSafety.js";
 import { compactStyle } from "../components/generateImagePrompt.js";
+import { briefError } from "../components/logError.js";
 
 const prepareReferenceImage = async (buffer) => {
     return sharp(buffer)
@@ -64,7 +65,7 @@ ${(character.personality || []).join(", ")}
 Signature Details:
 ${stripLiteralText((character.signatureDetails || []).join(", "))}
 
-CHARACTER CONSISTENCY:
+${inferCharacterKind(character).kind === "person" ? "KIND: a HUMAN person. Draw a human face with human ears, human skin and human hair. NEVER an animal, never animal ears, snout, fur, tail or a creature mix. A crown, horns or a headpiece listed above is a decorative accessory worn on the human head.\n\n" : ""}CHARACTER CONSISTENCY:
 
 This is the canonical visual reference for this character.
 
@@ -192,8 +193,7 @@ export const generateCharacterReference = async ({
         };
     } catch (error) {
         console.error(
-            `Character reference generation failed for ${character.name}:`,
-            error
+            `Character reference generation failed for ${character.name}: ${briefError(error)}`
         );
 
         throw error;

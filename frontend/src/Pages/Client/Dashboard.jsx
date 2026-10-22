@@ -72,9 +72,7 @@ const toDashboardBook = (b) => {
         ? 100
         : b.status === "failed"
           ? 0
-          : pageCount > 0
-            ? Math.max(5, Math.round((completedPages / pageCount) * 100))
-            : 5,
+          : Math.min(99, Math.max(3, Math.round(Number(b.progress) || 0))),
     status:
       b.status === "completed"
         ? "Completed"
@@ -142,6 +140,7 @@ export const Dashboard = () => {
     [allBooks]
   );
 
+  // eslint-disable-next-line no-unused-vars
   const templateCards = useMemo(
     () => templates.slice(0, 6),
     []

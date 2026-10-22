@@ -136,14 +136,12 @@ export const Books = () => {
       createdFor: b.createdFor ?? "",
       genre: b.theme ?? undefined,
       pages: b.pageCount ?? 0,
-      // Same maths as the dashboard: share of pages finished (kept under 100
-      // until the server marks the book completed).
+      // Whole-book progress calculated by the server (characters, story,
+      // prompts, cover and pages). Never 100 until the book is completed.
       progress:
         b.status === "completed"
           ? 100
-          : (b.pageCount ?? 0) > 0
-            ? Math.min(99, Math.max(5, Math.round(((b.completedPages ?? 0) / b.pageCount) * 100)))
-            : 5,
+          : Math.min(99, Math.max(3, Math.round(Number(b.progress) || 0))),
       updatedAt: formatUpdated(b.updatedAt ?? b.createdAt),
       status:
         b.status === "completed"

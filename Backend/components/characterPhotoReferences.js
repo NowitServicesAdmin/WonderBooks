@@ -113,7 +113,8 @@ export const getCharacterPhotoReferenceImages = async (characters = [], { only =
                 contentType: "image/png",
                 characterId: character.id,
                 characterName: character.name || "Unnamed character",
-                characterType: character.type || "Character"
+                characterType: character.type || "Character",
+                isPhoto: true
             });
 
             console.log(`Photo loaded for ${character.name}`);

@@ -146,6 +146,7 @@ IMPORTANT CHARACTER REQUIREMENTS:
 8. If a character is an animal, treat the character naturally as an animal while preserving the provided name and characteristics.
 9. If a character is an object or toy, make it meaningful to the story without changing its identity.
 10. If a character's "Real look" line says what animal it is (cat, dog, rabbit...), use exactly that animal and never a different one. If no species is given, NEVER guess one: do not write "dog", "cat", "puppy", "kitten" or any species word, just use its name or "the little pet" / "their furry friend". When an object has a "Real look" line, describe it the way that line does (its material and colours), never with different colours. The illustrator draws the real photo, so the story must not contradict it.
+11. NEVER describe what a character looks like in the story text: no hair colour or style, no clothes, no eye colour, no height or exact age (for example never \"he had wavy brown hair and wore a dark blue coat\"). The illustrations show how everyone looks, so the words only tell what they do, say and feel.
 
 AGE-APPROPRIATE WRITING:
 

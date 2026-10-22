@@ -1,6 +1,8 @@
 import { openai } from "../config/openai.js";
 import { generateStoryPrompt } from "./generatestoryPrompt.js";
 import { getBookPageCount } from "../config/bookConfig.js";
+import { isEnglish, translateStory } from "./translateStory.js";
+import { recordTokenUsage } from "../services/tokenUsage.js";
 
 const MAX_OUTPUT_TOKENS = 12000;
 const MAX_ATTEMPTS = 2;
@@ -15,6 +17,8 @@ const requestStory = async (prompt) => {
     // Forces the API to only return syntactically valid JSON.
     text: { format: { type: "json_object" } },
   });
+
+  recordTokenUsage("Story text", response.usage); // counted even if cut off
 
   // status can be "completed" or "incomplete" (hit max_output_tokens, was
   if (response.status === "incomplete") {
@@ -38,6 +42,19 @@ const normalizeStory = (story) => {
 };
 
 export const generateStory = async (storyData) => {
+  if (isEnglish(storyData.language)) return generateEnglishStory(storyData);
+
+  const english = await generateEnglishStory({
+    ...storyData,
+    language: "English",
+  });
+  const translated = await translateStory(english, storyData);
+
+  if (translated === english) return english; // translation failed: keep English
+  return { ...translated, imageSource: english };
+};
+
+const generateEnglishStory = async (storyData) => {
   const prompt = generateStoryPrompt(storyData);
   const expectedPages = Number(storyData.pageCount) || getBookPageCount();
 

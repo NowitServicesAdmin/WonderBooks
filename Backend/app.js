@@ -8,6 +8,7 @@ import express from "express";
 import cors from "cors";
 import connectDB from "./config.db.js";
 import bookRoutes from "./routes/books.js";
+import { startBookRecovery } from "./controllers/books.js";
 import authRoutes from "./routes/auth.js";
 import subscriptionRoutes from "./routes/subscriptions.js";
 import adminPlanRoutes from "./routes/adminPlans.js";
@@ -403,6 +404,7 @@ const startServer = async () => {
         .catch((e) => console.error("Subscription expiry job failed:", e.message));
     runExpiry();
     setInterval(runExpiry, 60 * 60 * 1000).unref();
+    startBookRecovery(); 
     
     app.listen(PORT, () => {
       console.log(`WonderBook backend running on http://localhost:${PORT}`);

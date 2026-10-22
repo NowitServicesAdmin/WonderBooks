@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import sharp from "sharp";
+import { recordTokenUsage } from "../services/tokenUsage.js";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -92,6 +93,8 @@ Reply with JSON only:
         },
       ],
     });
+
+    recordTokenUsage("Image verification", response?.usage);
 
     const parsed = JSON.parse(response?.choices?.[0]?.message?.content || "{}");
 

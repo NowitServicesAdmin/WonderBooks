@@ -6,6 +6,7 @@ import {
   limitCharacters,
   MAX_REFERENCE_CHARACTERS,
 } from "../config/characterLimits.js";
+import { briefError } from "./logError.js";
 
 // Configurable so you can drop to a less-loaded model (e.g. "gemini-2.5-flash")
 // via env var without touching code, if 3.5 keeps 503ing.
@@ -306,8 +307,6 @@ JSON FORMAT:
       },
     });
 
-    console.log("Character Bible Gemini response:", response);
-    console.log("Character Bible response text:", response?.text);
 
     const text =
       typeof response?.text === "string"
@@ -344,7 +343,7 @@ JSON FORMAT:
 
     return parsed;
   } catch (error) {
-    console.error("Character Bible generation error:", error);
+    console.error("Character Bible generation error:", briefError(error));
 
     throw error;
   }

@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "async_hooks";
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
 import sharp from "sharp";
@@ -8,6 +9,8 @@ import {
 } from "./promptSafety.js";
 import { MAX_REFERENCE_CHARACTERS } from "../config/characterLimits.js";
 import { orderReferencesForCall } from "./sceneCast.js";
+import { briefError } from "./logError.js";
+import { recordTokenUsage } from "../services/tokenUsage.js";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -15,6 +18,16 @@ const MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1-mini";
 const QUALITY = process.env.OPENAI_IMAGE_QUALITY || "medium"; // low | medium | high
 // "low" = less restrictive automatic filtering (supported by images.generate).
 const MODERATION = process.env.OPENAI_IMAGE_MODERATION || "low"; // auto | low
+
+// Remembers, for ONE book, the lowest safety level that OpenAI accepted, so the
+// next image of the same book starts there instead of being blocked at level 0
+// first (every blocked call is a wasted round trip). Level 2 is never
+// remembered because it drops the reference photos.
+const safetyMemory = new AsyncLocalStorage();
+
+export const startSafetyMemory = () => {
+  safetyMemory.enterWith({ level: 0 });
+};
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -128,7 +141,11 @@ const buildReferenceManifest = (referenceImages) =>
         ? `${image.characterName}${image.characterType ? ` (${image.characterType})` : ""}`
         : `Unlabeled character ${index + 1}`;
 
-      return `Reference image ${index + 1}: ${label}`;
+      const photoNote = image.isPhoto
+        ? " - this is a real PHOTO: copy the person's face, hair and look, but redraw them fully in the book's illustration style (never photographic)"
+        : "";
+
+      return `Reference image ${index + 1}: ${label}${photoNote}`;
     })
     .join("\n");
 
@@ -150,6 +167,10 @@ ${manifest}
 
 How to use the reference images:
 - Each reference image is the FINISHED DESIGN of ONE character in this book. Keep that character IDENTICAL on every page: same face, hair, skin tone, body shape, outfit and colors (for a pet or object: same kind, shape, colors and markings). Never redesign, restyle or simplify it.
+- A reference labelled "Earlier picture of this same book" is a whole earlier page, not one character: copy the look of the characters and the art style from it (same faces, ages, hair, outfits, crown), but NOT its scene, place or pose.
+- STYLE MATCH: draw every picture in exactly the same rendering style as the drawn reference images: same line work, shading, texture, level of detail and color treatment, the same kind of face and eyes and the same proportions. Do not switch to a more realistic, more painterly or differently rendered look for this page, even for a night scene or a different place.
+- NOTHING MISSING: every item a character wears in its reference image (crown, horns, hat, glasses, jewellery, scarf, belt, cape) and its eye color must be present on this page too, unless the SCENE explicitly says it was taken off. Do not leave out or change them.
+- AGE: each character must look the same age as in its own reference image. Never make a character look older or younger than its reference.
 - Do NOT copy a reference image's pose, size, framing, camera angle, background or lighting. The reference images show a plain standing pose: ignore it. What each character is DOING comes from the KEY ACTION and the SCENE and must be clearly visible. Characters are full-body figures about one third of the picture height, so the face and outfit can be recognized.
 - Draw exactly the characters listed above, each once, each clearly recognizable${multiple ? " and clearly different from the others - never blend two characters' features, never favor one over another" : ""}. Do not add any other recurring character.
 - The characters are busy doing what the SCENE says, inside the setting it describes. They are not lined up facing the viewer.
@@ -197,6 +218,7 @@ export const generateImage = async ({
   height = 1024,
   maxRetries = 4,
   purpose = "page",
+  usageCategory = null, // label used in the whole-book token total
 }) => {
   try {
     if (!prompt?.trim()) {
@@ -227,18 +249,45 @@ export const generateImage = async ({
       `Generating OpenAI image (${MODEL}, quality: ${QUALITY}) with ${referencesForCall.length} reference file(s) (${validReferences.length} character(s)), size ${size}...`,
     );
 
+    const memoryForAnchor = safetyMemory.getStore();
+    let fallbackRefs = validReferences.filter((image) => !image.isPhoto);
+    if (purpose === "page" && memoryForAnchor?.anchor) {
+      fallbackRefs = [
+        ...fallbackRefs.slice(0, Math.max(0, MAX_EDIT_IMAGES - 1)),
+        memoryForAnchor.anchor,
+      ];
+    } else {
+      fallbackRefs = purpose === "page" ? fallbackRefs.slice(0, MAX_EDIT_IMAGES) : [];
+    }
+    const fallbackFiles = fallbackRefs.length
+      ? await toUploadFiles(fallbackRefs)
+      : [];
+    const lastLevel = fallbackFiles.length
+      ? MAX_SAFETY_LEVEL + 1
+      : MAX_SAFETY_LEVEL;
+
     let lastError;
-    let safetyLevel = 0; // raised each time the output moderation blocks us
+    const memory = safetyMemory.getStore();
+    let safetyLevel = Math.min(memory?.level || 0, 1); // raised each time the output moderation blocks us
     let attempt = 0;
 
     while (attempt <= maxRetries) {
       try {
-        // Level 2 = last resort: drop the reference photos as well.
-        const useReferences =
-          safetyLevel < MAX_SAFETY_LEVEL && imageFiles.length > 0;
+        let usedRefs = [];
+        let usedFiles = [];
+        if (safetyLevel < MAX_SAFETY_LEVEL) {
+          usedRefs = referencesForCall;
+          usedFiles = imageFiles;
+        } else if (safetyLevel === MAX_SAFETY_LEVEL && fallbackFiles.length) {
+          usedRefs = fallbackRefs;
+          usedFiles = fallbackFiles;
+        }
+        const useReferences = usedFiles.length > 0;
 
-        const safePrompt = sanitizeImagePrompt(prompt, safetyLevel);
-        const usedRefs = useReferences ? referencesForCall : [];
+        const safePrompt = sanitizeImagePrompt(
+          prompt,
+          Math.min(safetyLevel, MAX_SAFETY_LEVEL),
+        );
         const finalPrompt =
           purpose === "reference"
             ? buildReferenceSheetPrompt(safePrompt, usedRefs)
@@ -249,7 +298,7 @@ export const generateImage = async ({
         if (useReferences) {
           response = await client.images.edit({
             model: MODEL,
-            image: imageFiles,
+            image: usedFiles,
             prompt: finalPrompt,
             size,
             quality: QUALITY,
@@ -264,11 +313,19 @@ export const generateImage = async ({
           });
         }
 
+        // Counted even if the picture is rejected below: the tokens were spent.
+        recordTokenUsage(
+          usageCategory ||
+            (purpose === "reference" ? "Character reference images" : "Page images"),
+          response?.usage,
+        );
+
         // The request was effectively ignored (prompt + photos never seen), so
         // the picture is random. Merge ALL references into one sheet and retry.
         const inputTokens = response?.usage?.input_tokens;
         if (
           useReferences &&
+          safetyLevel < MAX_SAFETY_LEVEL &&
           typeof inputTokens === "number" &&
           inputTokens < MIN_PLAUSIBLE_INPUT_TOKENS
         ) {
@@ -305,12 +362,25 @@ export const generateImage = async ({
           response?.usage,
         );
 
+        if (memory && safetyLevel === 1) memory.level = 1;
+        // The newest picture drawn WITH the full references becomes the anchor
+        // used if a later page has to fall back to level 2.
+        if (memory && purpose === "page" && safetyLevel < MAX_SAFETY_LEVEL) {
+          memory.anchor = {
+            buffer: imageBuffer,
+            contentType: "image/png",
+            characterName: "Earlier picture of this same book",
+            characterType:
+              "the same characters in the same art style: copy exactly how each character looks here (face, age, hair, outfit, crown)",
+          };
+        }
+
         return imageBuffer;
       } catch (error) {
         lastError = error;
 
         // Output moderation block: retry with safer wording (no wait needed).
-        if (isModerationBlock(error) && safetyLevel < MAX_SAFETY_LEVEL) {
+        if (isModerationBlock(error) && safetyLevel < lastLevel) {
           safetyLevel += 1;
           console.warn(
             `OpenAI moderation blocked the image (request ${error?.requestID}). Retrying with safety level ${safetyLevel}...`,
@@ -336,7 +406,7 @@ export const generateImage = async ({
 
     throw lastError;
   } catch (error) {
-    console.error("generateImage (OpenAI) error:", error);
+    console.error("generateImage (OpenAI) error:", briefError(error));
     throw error;
   }
 };

@@ -409,7 +409,7 @@ const characterLine = (character = {}) => {
         return `- ${name} (${label}): a real friendly cartoon ${species || "animal"} - an ANIMAL, never a human child or person. Animal body and animal face, NO human features, NO clothes (only the accessories listed below).${look ? ` ${look}.` : ""}${accessories} Same body shape and proportions in every pose, also when flying or jumping. Match its reference image exactly.`;
     }
 
-    return `- ${name}${who ? ` (${who})` : ""}:${look ? ` ${look}.` : ""}${accessories} Match the face and look of its reference image exactly.`;
+    return `- ${name}${who ? ` (${who})` : ""}: a HUMAN person (human face and human ears, never an animal, no animal ears, snout, fur or tail).${look ? ` ${look}.` : ""}${accessories} Match the face and look of its reference image exactly.`;
 };
 
 export const compactStyle = (imageStyle) =>
@@ -441,6 +441,45 @@ const withoutObjectMentions = (character = {}, objectNames = []) => {
     return next;
 };
 
+// Age words in the scene ("both children") fight with the reference images
+// (an adult photo drawn as a child, or the other way round), so they are
+// replaced by neutral wording before the prompt is sent.
+const neutralizeAgeWords = (text = "") =>
+    String(text)
+        .replace(
+            /\b(?:(?:both|the|two|three|four|little|young|small)\s+)*(?:children|kids)\b/gi,
+            (match, offset, whole) =>
+                offset === 0 || /[.!?]\s$/.test(whole.slice(Math.max(0, offset - 2), offset))
+                    ? "The characters"
+                    : "the characters",
+        );
+
+// Headwear and glasses are what the image model forgets most (a crown missing
+// on one page of three), so they get their own "must show" line.
+const HEAD_ITEM = /\b(crown|circlet|tiara|headband|horns?|hat|helmet|glasses|hood|headpiece|bow)\b/i;
+
+const mustShowLine = (people = []) => {
+    const parts = [];
+    for (const character of people) {
+        const items = [
+            ...(Array.isArray(character.signatureDetails) ? character.signatureDetails : []),
+            character.clothing?.accessories,
+        ]
+            .filter((item) => !isBlankField(item))
+            .flatMap((item) => stripLiteralText(String(item)).split(/,|\band\b|;/i))
+            .map((item) => item.trim())
+            .filter((item) => HEAD_ITEM.test(item));
+        // The first (signature) item is enough: a second near-copy only adds noise.
+        const unique = [...new Set(items.map((item) => item.replace(/[.]+$/, "")))].slice(0, 1);
+        if (unique.length) parts.push(`${character.name || "The character"}: ${unique.join("; ")}`);
+    }
+    return parts.length
+        ? `MUST SHOW (draw it clearly on the head in this picture, and keep the whole head inside the frame, never cropped by the edge): ${parts.join(" | ")}.`
+        : "";
+};
+
+const loggedRosters = new Set();
+
 export const composeImagePrompt = ({
     scene,
     action,
@@ -462,6 +501,12 @@ export const composeImagePrompt = ({
         )
         .map(characterLine)
         .join("\n");
+    // One-time log per distinct look, so a missing crown / wrong hair can be
+    // traced to the Character Bible text instead of guessed.
+    if (roster && !loggedRosters.has(roster)) {
+        loggedRosters.add(roster);
+        console.log(`Character looks sent to the image model:\n${roster}`);
+    }
     // Characters the code added (named in the page text but missing from the
     // model's scene) still have to be shown, so the scene text must say so.
     const unmentioned = sceneCharacters
@@ -477,9 +522,9 @@ export const composeImagePrompt = ({
         : "";
 
     return [
-        `SCENE: ${String(scene || "").trim()}`,
+        `SCENE: ${neutralizeAgeWords(scene).trim()}`,
         String(action || "").trim()
-            ? `KEY ACTION (this must be clearly visible in the picture, and it decides what the characters are doing, not the pose of the reference images): ${String(action).trim()}`
+            ? `KEY ACTION (this must be clearly visible in the picture, and it decides what the characters are doing, not the pose of the reference images): ${neutralizeAgeWords(action).trim()}`
             : "",
         alsoInPicture,
         shot ? `CAMERA: ${shot}.` : "",
@@ -492,6 +537,7 @@ export const composeImagePrompt = ({
                 ? "No recurring character is in this image. Do not add any."
                 : "",
         objectPlacement,
+        mustShowLine(people),
         `STYLE: ${compactStyle(imageStyle)}`,
         isCover
             ? "COVER COMPOSITION: front cover of a children's book. Keep the upper third calm and uncluttered (sky, soft background) because the title is added later."
@@ -598,6 +644,7 @@ HOW TO WRITE EACH "prompt" (50 to 90 words)
    it lies in the foreground, and that it is large and clearly visible. Never
    describe it as tucked behind an ear, in a pocket or otherwise hidden.
 6. One single scene. No collage, no panels.
+6b. Refer to characters ONLY by their names (or "they"). NEVER write "child", "children", "kids", "boy", "girl", "man", "woman", "adult" or any age, because the reference images already show how old each character looks and a different age word makes the picture disagree with them.
 7. Use no text, signs, letters or numbers in the picture.
 8. NEVER state a color, pattern or design for a character's own clothes or
    accessories (write "his scarf", not "a colorful scarf"; "her daisy", not "a
