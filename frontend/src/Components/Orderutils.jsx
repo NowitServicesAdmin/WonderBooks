@@ -1,9 +1,6 @@
 import { Clock, Truck, Ban } from "lucide-react";
 
-/* ---------------------------------------------------------------------------
-   Shared Tailwind class sets (light + dark:) used by the list and detail view.
-   Dark colours are tuned to the app's dark theme (deep navy-purple).
---------------------------------------------------------------------------- */
+
 export const ui = {
   text: "text-[#1e2140] dark:text-[#f3f1ff]",
   muted: "text-[#5f6783] dark:text-[#b0acd0]",
