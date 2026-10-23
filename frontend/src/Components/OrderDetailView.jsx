@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, CalendarDays, Check, Printer, Truck, PackageCheck, CircleCheck, MapPin, FileText, Trash2, Loader2 } from "lucide-react";
-import { StatusBadge, OrderTags, BookCover, ui } from "./orderUtils";
+import { StatusBadge, OrderTags, BookCover, ui } from "./Orderutils";
 import { getOrderTracking } from "../services/orderService";
 import { displayPhone } from "../utils/phone";
 
