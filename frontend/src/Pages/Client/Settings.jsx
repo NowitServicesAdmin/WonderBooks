@@ -397,8 +397,8 @@ function ProfilePanel() {
                 name: form.name,
                 language: form.language,
                 ageGroup: form.ageGroup,
-                favoriteCharacters: form.characters,
-                about: form.about,
+                chid_fav_chars: form.characters,
+                about_child: form.about,
                 phone: form.phone,
             });
             const next = buildInitial(profile);

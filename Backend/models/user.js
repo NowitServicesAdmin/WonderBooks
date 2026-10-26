@@ -161,6 +161,11 @@ const userSchema = new mongoose.Schema(
             enabled: { type: Boolean, default: false },
             hasPin: { type: Boolean, default: false },
         },
+
+        chid_fav_chars: [{
+            type: String
+        }],
+        about_child: { type: String }
     },
     { timestamps: true }
 );

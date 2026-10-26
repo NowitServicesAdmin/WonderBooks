@@ -62,6 +62,94 @@ export const getProfile = async (req, res) => {
     }
 };
 
+// export const updateProfile = async (req, res) => {
+//     try {
+//         const user = await User.findById(req.userId);
+
+//         if (!user) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: "User account not found",
+//             });
+//         }
+
+//         const { name, language, ageGroup, favoriteCharacters, about } = req.body;
+
+//         if (name !== undefined) {
+//             const trimmedName = String(name).trim();
+
+//             if (!trimmedName) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     message: "Name cannot be empty",
+//                 });
+//             }
+
+//             user.name = trimmedName.slice(0, MAX_NAME_LENGTH);
+//         }
+
+//         if (language !== undefined) {
+//             if (!ALLOWED_LANGUAGES.includes(language)) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     message: "Please choose a valid language",
+//                 });
+//             }
+
+//             user.language = language;
+//         }
+
+//         if (ageGroup !== undefined) {
+//             if (!ALLOWED_AGE_GROUPS.includes(ageGroup)) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     message: "Please choose a valid age group",
+//                 });
+//             }
+
+//             user.ageGroup = ageGroup;
+//         }
+
+//         if (favoriteCharacters !== undefined) {
+//             const isValidSelection =
+//                 Array.isArray(favoriteCharacters) &&
+//                 favoriteCharacters.every((character) =>
+//                     ALLOWED_CHARACTERS.includes(character)
+//                 );
+
+//             if (!isValidSelection) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     message: "Invalid favorite characters selection",
+//                 });
+//             }
+
+//             user.favoriteCharacters = favoriteCharacters;
+//         }
+
+//         if (about !== undefined) {
+//             user.about = String(about).slice(0, ABOUT_LIMIT);
+//         }
+
+//         await user.save();
+
+//         await notify.profileUpdated(user._id); // ALERTS
+
+//         return res.status(200).json({
+//             success: true,
+//             message: "Profile updated",
+//             profile: sanitizeProfile(user),
+//         });
+//     } catch (error) {
+//         console.error("Update profile error:", error);
+
+//         return res.status(500).json({
+//             success: false,
+//             message: "Something went wrong while saving your profile",
+//         });
+//     }
+// };
+
 export const updateProfile = async (req, res) => {
     try {
         const user = await User.findById(req.userId);
@@ -73,7 +161,15 @@ export const updateProfile = async (req, res) => {
             });
         }
 
-        const { name, language, ageGroup, favoriteCharacters, about } = req.body;
+        const {
+            name,
+            language,
+            ageGroup,
+            favoriteCharacters,
+            about,
+            chid_fav_chars,
+            about_child,
+        } = req.body;
 
         if (name !== undefined) {
             const trimmedName = String(name).trim();
@@ -131,6 +227,29 @@ export const updateProfile = async (req, res) => {
             user.about = String(about).slice(0, ABOUT_LIMIT);
         }
 
+        // Child's favorite characters
+        if (chid_fav_chars !== undefined) {
+            const isValidSelection =
+                Array.isArray(chid_fav_chars) &&
+                chid_fav_chars.every((character) =>
+                    ALLOWED_CHARACTERS.includes(character)
+                );
+
+            if (!isValidSelection) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid favorite characters selection",
+                });
+            }
+
+            user.chid_fav_chars = chid_fav_chars;
+        }
+
+        // About the child
+        if (about_child !== undefined) {
+            user.about_child = String(about_child).trim().slice(0, ABOUT_LIMIT);
+        }
+
         await user.save();
 
         await notify.profileUpdated(user._id); // ALERTS
@@ -149,6 +268,7 @@ export const updateProfile = async (req, res) => {
         });
     }
 };
+
 
 export const uploadAvatar = async (req, res) => {
     try {
@@ -274,10 +394,10 @@ export const requestDataExport = async (req, res) => {
                         <p>Hi ${user.name || "there"},</p>
                         <p>We've received your request for a copy of your WonderBooks data. Here it is:</p>
                         <pre style="background:#f6f3ff;padding:16px;border-radius:8px;font-size:12px;overflow:auto;">${JSON.stringify(
-                            exportPayload,
-                            null,
-                            2
-                        )}</pre>
+                    exportPayload,
+                    null,
+                    2
+                )}</pre>
                         <p style="color:#918aa5;font-size:13px;">If you didn't request this, please contact support.</p>
                     </div>
                 `,
