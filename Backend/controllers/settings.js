@@ -34,6 +34,9 @@ const sanitizeProfile = (user) => ({
     isVerified: Boolean(user.isVerified),
     createdAt: user.createdAt,
     phone: user.phone || null,
+    about_child: user.about_child,
+    chid_fav_chars: user.chid_fav_chars
+
 
 });
 

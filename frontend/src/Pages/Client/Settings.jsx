@@ -314,10 +314,11 @@ function ProfilePanel() {
         phone: profile?.phone || user?.phone || null,
         language: profile?.language || "English",
         ageGroup: profile?.ageGroup || "6 – 8 years",
-        characters: profile?.favoriteCharacters || [],
-        about: profile?.about || "",
+        characters: profile?.chid_fav_chars || [],
+        about: profile?.about_child || "",
         avatarUrl: profile?.avatarUrl || user?.avatarUrl || null,
-    });
+
+            });
 
     const [saved, setSaved] = useState(buildInitial());
     const [form, setForm] = useState(saved);

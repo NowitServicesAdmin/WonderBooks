@@ -50,7 +50,7 @@ import {
 } from "../components/contentSafety.js";
 import { generateCharacterReferences } from "../services/characterReferenceService.js";
 import { briefError } from "../components/logError.js";
-
+import { getChildProfile } from "../components/includechild.js";
 
 const IMAGE_RETRY_WAIT_MS =
   (Number(process.env.IMAGE_RETRY_WAIT_MINUTES) || 5) * 60 * 1000;
@@ -537,6 +537,9 @@ const shouldRetryImage = (error, round) => {
   if (error?.imageMismatch) return round < IMAGE_MISMATCH_MAX_ROUNDS;
   return true;
 };
+
+// child information 
+
 
 // Runs the whole (slow) generation pipeline AFTER the HTTP response has already
 // been sent. The book document (status: "generating") exists before this starts,
@@ -1060,6 +1063,194 @@ const generateBookRun = async ({
     activeJobs.delete(String(bookId));
   }
 };
+//  commented and added child too 
+// export const createBook = async (req, res) => {
+//   let bookId;
+//   let lockKey = null;
+//   try {
+//     // Same user already has a create request in flight -> reject right away.
+//     const userKey = String(req.userId);
+//     // const getchild_information here get the child information from the  userId ,, if the user has child features include those features too   include their fav_cahracters too 
+//     if (createBookLocks.has(userKey)) {
+//       return res.status(409).json({
+//         success: false,
+//         code: "BOOK_IN_PROGRESS",
+//         message: BOOK_IN_PROGRESS_MESSAGE,
+//       });
+//     }
+//     createBookLocks.add(userKey);
+//     lockKey = userKey;
+
+//     const inProgress = await book.exists({
+//       user: req.userId,
+//       status: "generating",
+//       createdAt: { $gte: new Date(Date.now() - BOOK_MAX_GENERATION_MS) },
+//     });
+
+//     if (inProgress) {
+//       return res.status(409).json({
+//         success: false,
+//         code: "BOOK_IN_PROGRESS",
+//         message: BOOK_IN_PROGRESS_MESSAGE,
+//       });
+//     }
+
+//     // Plan limit (basic 1 / gold 5 / premium 10 books). Checked before
+//     // anything is created so a blocked request costs nothing.
+//     const access = await canAccessFeature({
+//       userId: req.userId,
+//       component: "book",
+//     });
+//     if (!access.allowed) {
+//       await notify.planLimitReached(req.userId, access); // ALERTS
+//       return res.status(403).json({
+//         success: false,
+//         code: access.reason,
+//         message: access.message,
+//         limit: access.limit,
+//         currentUsage: access.currentUsage,
+//         remaining: access.remaining,
+//       });
+//     }
+
+//     const mode = req.body.mode;
+//     const message = req.body.message;
+
+//     if (mode !== "manual" && mode !== "ai") {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'Mode must be "manual" or "ai"',
+//       });
+//     }
+
+//     const storySettings =
+//       typeof req.body.storySettings === "string"
+//         ? JSON.parse(req.body.storySettings)
+//         : req.body.storySettings;
+
+//     const characters =
+//       typeof req.body.characters === "string"
+//         ? JSON.parse(req.body.characters)
+//         : req.body.characters || [];
+
+//     if (!storySettings || Object.keys(storySettings).length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `Story settings are required for ${mode} mode`,
+//       });
+//     }
+
+//     // 3 people + 1 pet + 1 object max (checked before a placeholder
+//     // book exists, so a rejected request never costs a plan book).
+//     if (exceedsCharacterLimits(characters)) {
+//       return res.status(400).json({
+//         success: false,
+//         code: "CHARACTER_LIMIT",
+//         message: CHARACTER_LIMIT_MESSAGE,
+//       });
+//     }
+
+//     // AI mode: the chat has already produced the full settings; the story
+//     // idea lives in storySettings.idea (a bare `message` isn't enough).
+//     if (mode === "ai") {
+//       const idea = storySettings.idea?.label ?? storySettings.idea;
+
+//       if (typeof idea !== "string" || !idea.trim()) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Story idea is required",
+//         });
+//       }
+//     }
+
+//     // Content safety net (the AI chat already checks every message).
+//     // Runs BEFORE the placeholder exists, so a blocked request never
+//     // uses up one of the user's plan books.
+//     const createAge = storySettings?.age?.label || storySettings?.age || null;
+//     const createSafety = await checkStoryText(
+//       collectUserText({ message, storySettings, characters }),
+//       { age: createAge },
+//     );
+
+//     if (createSafety.verdict === "block") {
+//       await notify.contentBlocked(req.userId, createSafety.message); // ALERTS
+//       return res.status(422).json({
+//         success: false,
+//         code: "CONTENT_NOT_ALLOWED",
+//         message: createSafety.message,
+//       });
+//     }
+
+//     // Create the book right away as a placeholder so it shows up in
+//     // "My Books" (as a loading skeleton) while the story + images are made.
+//     const placeholder = await book.create({
+//       user: req.userId,
+//       title: "Untitled Story",
+//       mode,
+//       status: "generating",
+//       stage: "starting",
+//       lastProgressAt: new Date(),
+//       workerId: INSTANCE_ID,
+//       pages: [],
+//     });
+
+//     const usageNow = await getBookUsage(req.userId, access.startDate);
+//     if (usageNow > access.limit) {
+//       await book.deleteOne({ _id: placeholder._id });
+//       await notify.planLimitReached(req.userId, {
+//         message: `You've used all ${access.limit} book${access.limit === 1 ? "" : "s"} in your plan. Upgrade to create more.`,
+//         limit: access.limit,
+//         currentUsage: access.limit,
+//       }); // ALERTS
+//       return res.status(403).json({
+//         success: false,
+//         code: "LIMIT_REACHED",
+//         message: `You've used all ${access.limit} book${access.limit === 1 ? "" : "s"} in your plan. Upgrade to create more.`,
+//         limit: access.limit,
+//         currentUsage: access.limit,
+//         remaining: 0,
+//       });
+//     }
+
+//     bookId = placeholder._id.toString();
+
+//     // Respond immediately - the client navigates to /books and polls.
+//     res.status(202).json({
+//       success: true,
+//       bookId,
+//       status: "generating",
+//     });
+
+//     // ALERTS: generation started (never throws, safe after response).
+//     notify.bookStarted(req.userId, bookId);
+
+//     // Fire and forget. Errors are handled inside the worker.
+//     generateBookInBackground({
+//       bookId,
+//       userId: req.userId, // ALERTS
+//       mode,
+//       message:
+//         typeof message === "string" ? softenText(message, createAge) : message,
+//       storySettings: softenSelections(storySettings, createAge),
+//       characters: (characters || []).map((c) => softenStrings(c, createAge)),
+//       files: req.files || [],
+//     });
+//   } catch (error) {
+//     console.error("Create book error:", error);
+
+//     if (!res.headersSent) {
+//       return res.status(500).json({
+//         success: false,
+//         message: error.message || "Something went wrong",
+//       });
+//     }
+//   } finally {
+//     // By now the "generating" placeholder exists (or the request failed),
+//     // so the DB check above takes over from the in-memory lock.
+//     if (lockKey) createBookLocks.delete(lockKey);
+//   }
+// };
+
 
 export const createBook = async (req, res) => {
   let bookId;
@@ -1159,12 +1350,28 @@ export const createBook = async (req, res) => {
       }
     }
 
+    // CHILD: the child's saved info (null unless Child Mode is on).
+    // A failed lookup must never stop the book from being created.
+    let childProfile = null;
+    try {
+      childProfile = await getChildProfile(req.userId);
+    } catch (childError) {
+      console.log("Could not load child profile:", childError.message);
+    }
+
     // Content safety net (the AI chat already checks every message).
     // Runs BEFORE the placeholder exists, so a blocked request never
     // uses up one of the user's plan books.
     const createAge = storySettings?.age?.label || storySettings?.age || null;
     const createSafety = await checkStoryText(
-      collectUserText({ message, storySettings, characters }),
+      collectUserText({
+        // CHILD: the free-text "about my child" is checked like any user text.
+        message: [typeof message === "string" ? message : "", childProfile?.about]
+          .filter(Boolean)
+          .join("\n"),
+        storySettings,
+        characters,
+      }),
       { age: createAge },
     );
 
@@ -1230,6 +1437,13 @@ export const createBook = async (req, res) => {
       storySettings: softenSelections(storySettings, createAge),
       characters: (characters || []).map((c) => softenStrings(c, createAge)),
       files: req.files || [],
+      // CHILD: same softening as every other user text.
+      childProfile: childProfile
+        ? {
+            ...childProfile,
+            about: softenText(childProfile.about, createAge),
+          }
+        : null,
     });
   } catch (error) {
     console.error("Create book error:", error);
@@ -1246,7 +1460,6 @@ export const createBook = async (req, res) => {
     if (lockKey) createBookLocks.delete(lockKey);
   }
 };
-
 export const getMyBooks = async (req, res) => {
   try {
     // If the server restarted mid-generation the book would stay on
