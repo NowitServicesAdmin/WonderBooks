@@ -174,19 +174,19 @@ export const sendOtp = async (req, res) => {
             { upsert: true, setDefaultsOnInsert: true }
         );
 
-        try {
-            await sendChannelOtp(channel, target, otp);
-        } catch (sendError) {
-            console.error(`OTP ${channel} error:`, sendError);
-            await Otp.deleteOne({ channel, target });
-            return fail(
-                res,
-                502,
-                channel === "email"
-                    ? "We couldn't send the code to your email. Please check it and try again"
-                    : "We couldn't send the code to your mobile number. Please check it and try again"
-            );
-        }
+        // try {
+        //     await sendChannelOtp(channel, target, otp);
+        // } catch (sendError) {
+        //     console.error(`OTP ${channel} error:`, sendError);
+        //     await Otp.deleteOne({ channel, target });
+        //     return fail(
+        //         res,
+        //         502,
+        //         channel === "email"
+        //             ? "We couldn't send the code to your email. Please check it and try again"
+        //             : "We couldn't send the code to your mobile number. Please check it and try again"
+        //     );
+        // }
 
         return res.status(200).json({
             success: true,
@@ -676,3 +676,20 @@ export const deleteAccount = async (req, res) => {
         });
     }
 };
+
+export const googleAuthBounce = async (req, res) => {
+     res.type("html").send(`<!doctype html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<p style="font-family:sans-serif">Returning to the app…</p>
+<script>
+  var h = new URLSearchParams(location.hash.slice(1));
+  var back = h.get("state") || "";
+  var ok = ["exp://", "exps://", "wonderbooks://"].some(function (p) { return back.indexOf(p) === 0; });
+  if (!ok) {
+    document.body.textContent = "Invalid return address.";
+  } else {
+    h.delete("state");  
+    location.replace(back + (back.indexOf("?") > -1 ? "&" : "?") + h.toString());
+  }
+</script>`);
+}

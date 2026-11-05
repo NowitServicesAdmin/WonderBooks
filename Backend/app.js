@@ -32,7 +32,7 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// app.use(cors());
 app.use(express.json());
 
 app.use("/audio", express.static(path.join(process.cwd(), "uploads", "audio")));
