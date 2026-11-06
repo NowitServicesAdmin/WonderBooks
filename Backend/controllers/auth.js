@@ -174,19 +174,19 @@ export const sendOtp = async (req, res) => {
             { upsert: true, setDefaultsOnInsert: true }
         );
 
-        // try {
-        //     await sendChannelOtp(channel, target, otp);
-        // } catch (sendError) {
-        //     console.error(`OTP ${channel} error:`, sendError);
-        //     await Otp.deleteOne({ channel, target });
-        //     return fail(
-        //         res,
-        //         502,
-        //         channel === "email"
-        //             ? "We couldn't send the code to your email. Please check it and try again"
-        //             : "We couldn't send the code to your mobile number. Please check it and try again"
-        //     );
-        // }
+        try {
+            await sendChannelOtp(channel, target, otp);
+        } catch (sendError) {
+            console.error(`OTP ${channel} error:`, sendError);
+            await Otp.deleteOne({ channel, target });
+            return fail(
+                res,
+                502,
+                channel === "email"
+                    ? "We couldn't send the code to your email. Please check it and try again"
+                    : "We couldn't send the code to your mobile number. Please check it and try again"
+            );
+        }
 
         return res.status(200).json({
             success: true,
