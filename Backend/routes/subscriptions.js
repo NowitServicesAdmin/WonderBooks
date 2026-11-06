@@ -42,7 +42,7 @@ import {
     cancelSubscription,
     restoreSubscription,
 } from "../controllers/subscriptionController.js";
-import { revenueCatWebhook, syncStoreSubscription } from "../controllers/revenuecatController.js";
+import { revenueCatWebhook, syncStoreSubscription } from "../controllers/Revenuecatcontroller.js";
 import { requireAuth, attachUser } from "../middleware/auth.js";
 
 const router = Router();

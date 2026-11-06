@@ -27,7 +27,6 @@ export const CreateBook = () => {
   };
 
 
-
   return (
     <div className="w-full px-4 pb-10 sm:px-6">
       <main className="mx-auto flex w-full max-w-280 flex-col items-center justify-start">
