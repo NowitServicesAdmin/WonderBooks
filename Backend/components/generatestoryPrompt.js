@@ -158,7 +158,8 @@ Adapt the entire story to this age group.
 For younger children:
 
 - Use simple and familiar vocabulary.
-- Use short and clear sentences.
+- Use short and clear sentences, but join them with natural linking words (then, so, but, because, suddenly) so they read as one flowing story and not as a list of separate statements.
+- When two characters of the same gender are in a scene (for example a boy and his dad), use their names or "Dad" / "Mom" instead of "he" / "him", so it is always clear who is doing what. Show WHY a character acts (for example, Dad sees Kiran is sad, so he shares his sandwich).
 - Keep paragraphs short.
 - Use simple dialogue.
 - Keep emotions easy to understand.

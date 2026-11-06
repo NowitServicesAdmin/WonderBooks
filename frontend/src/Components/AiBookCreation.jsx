@@ -252,7 +252,7 @@ const CustomizePanel = ({ storySettings, onChange }) => {
             label: "Language",
             pills: true,
             options: STORY_OPTIONS.language,
-            selected: languageOption,
+            selected: languageOption || (storySettings.language ? { label: storySettings.language } : null),
             onSelect: (option) => onChange("language", option),
         },
         {
@@ -720,6 +720,10 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
 
     const characters = store.current.state.characters;
     const hasChat = messages.length > 0;
+    // The add character / pet / object form lives in the conversation area, so that
+    // area must also show while the form is open on the very first screen (no
+    // messages yet). Otherwise the input and + button lock with no form to fill in.
+    const showChat = hasChat || Boolean(companionPrompt);
     const heroName = characters[0]?.name;
 
     return (
@@ -729,8 +733,8 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
 
             <div className="relative z-10 mx-auto flex min-h-0 w-full max-w-315 flex-1 flex-col">
                 {/* ================= ROBOT + MESSAGE ================= */}
-                <div className={`flex shrink-0 items-center justify-center gap-8 ${hasChat ? "mt-1" : "mt-12"}`}>
-                    <div className={`relative flex shrink-0 items-center justify-center transition-all duration-300 ${hasChat ? "h-24 w-32" : "h-57.5 w-75 sm:h-75 sm:w-97.5"}`}>
+                <div className={`flex shrink-0 items-center justify-center gap-8 ${showChat ? "mt-1" : "mt-12"}`}>
+                    <div className={`relative flex shrink-0 items-center justify-center transition-all duration-300 ${showChat ? "h-24 w-32" : "h-57.5 w-75 sm:h-75 sm:w-97.5"}`}>
                         <Sparkles size={22} className={`absolute left-1.25 top-15 text-[#c29aff] ${isLoading || busy ? "animate-pulse" : ""}`} fill="currentColor" />
                         <Sparkles size={28} className={`absolute right-3.75 top-13.75 text-[#ffc34e] ${isLoading || busy ? "animate-pulse" : ""}`} fill="currentColor" />
                         <Sparkles size={18} className={`absolute bottom-13.75 left-6.25 text-[#f3b13b] ${isLoading || busy ? "animate-pulse" : ""}`} fill="currentColor" />
@@ -738,7 +742,7 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                     </div>
                 </div>
 
-                {!hasChat && (
+                {!showChat && (
                     <p className="mx-auto -mt-4 shrink-0 max-w-140 text-center text-[15px] leading-6 text-[#777A9B]">
                         Hi, I'm Bookie! Tell me what your story is about — a few rough words are enough,
                         like <span className="font-semibold text-[#5A39C7]">&ldquo;we&rsquo;re going on a road trip&rdquo;</span>.
@@ -747,7 +751,7 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                 )}
 
                 {/* Story Ideas — only before the conversation starts */}
-                {!hasChat && (
+                {!showChat && (
                     <div className="scrollbar-hide mt-6 flex min-h-0 w-full flex-1 justify-center overflow-y-auto pb-2">
                         <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
                             {storyIdeas.map((idea, index) => {
@@ -797,7 +801,7 @@ export const AiBookCreation = ({ initialIdea = "" }) => {
                 )}
 
                 {/* ================= CONVERSATION ================= */}
-                {hasChat && (
+                {showChat && (
                     <div className="mx-auto mt-2 flex min-h-0 w-full max-w-275 flex-1 flex-col gap-2">
                         <div className="flex shrink-0 justify-end">
                             <button

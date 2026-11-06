@@ -1850,8 +1850,28 @@ const ageKey = (v) =>
     .replace(/\s+/g, "")
     .replace(/to/g, "-");
 
-const matchAgeChip = (text) =>
-  ALLOWED.age.find((a) => ageKey(a) === ageKey(text)) || null;
+const DASHES = /[\u2010-\u2015\u2212]/g;
+const matchAgeChip = (text) => {
+  const exact = ALLOWED.age.find((a) => ageKey(a) === ageKey(text));
+  if (exact) return exact;
+  // A translated chip ("4–7 años", "4–7 సంవత్సరాలు") keeps its numbers.
+  const t = String(text || "").replace(DASHES, "-");
+  if (t.length > 40) return null;
+  const range = t.match(/(\d{1,2})\s*(?:-|to)\s*(\d{1,2})/i);
+  if (range) {
+    return (
+      ALLOWED.age.find((a) => {
+        const m = a.replace(DASHES, "-").match(/(\d+)\D+(\d+)/);
+        return m && m[1] === range[1] && m[2] === range[2];
+      }) || null
+    );
+  }
+  const plus = t.match(/(\d{1,2})\s*\+/);
+  if (plus) return ALLOWED.age.find((a) => a.startsWith(`${plus[1]}+`)) || null;
+  return null;
+};
+
+const isEnglishLanguage = (l) => !String(l || "").trim() || /^english\b/i.test(String(l).trim());
 
 const AGE_QUESTION = "Who is this story for?";
 const HERO_QUESTION = "What's the name of our hero?";
@@ -1873,13 +1893,17 @@ WHAT TO DO
    - theme: EXACTLY one of the allowed themes below (pick the closest fit, e.g. a road trip -> "Family").
    - subject: EXACTLY one of the subjects listed under the chosen theme. centralmsg: EXACTLY one of the central
      messages listed under the chosen theme. Pick the closest fit to the user's idea.
-   - language, font, age must be EXACTLY one of the allowed values below, or null if unknown.
+   - font and age must be EXACTLY one of the allowed values below, or null if unknown.
    - imageStyle: EXACTLY one of the 12 allowed image styles. If the user names a drawing look ("watercolour",
      "3D", "sketch", "bedtime", "colouring book"...), use it. Otherwise choose the style that best fits the premise,
      mood and reader age using the STYLE GUIDE below. Use the WHOLE list, do not fall back to the same style
      every time. Once a style is in the current brief, keep it unless the user asks for a different look.
-   - language: the language the user writes in if supported, else "English".
-   - If the user names a language or a lettering style, use it.
+   - language: the language the story must be written in, as its plain English name (for example "Telugu",
+     "Tamil", "Spanish", "Hindi"). ANY language is allowed, not only the examples below. If the user asks for a
+     language anywhere in the chat ("in Telugu", "I need it in French", "make it Hindi"), or writes their
+     messages in a language other than English, set it, even if the current brief says English. Keep it until
+     they ask for another one. Only use "English" when they write in English and name no other language.
+   - If the user names a lettering style, use it.
    - Extra people or pets they mention (mom, dog, grandma) become characters.
    - LIMITS: a story has at most 3 people (the hero counts as one), 1 pet and 1 object. A pet or an object never
      uses up a people slot. Never return more than that. If the user asks for more, keep what is already there
@@ -1896,9 +1920,13 @@ WHAT TO DO
 6. If the user asks for a change, update the brief, keep "ready": true, and briefly confirm what changed.
 7. Keep everything already in the current brief unless the user changes it.
 8. Reply style: 1-3 short sentences, warm, no lists, no headings. Never mention fields, settings, JSON or forms.
-   Reply in the user's language.
+   LANGUAGE OF YOUR REPLY: write "reply", every question and every chip in the language the user wants the
+   story in, or, if they named none, the language they write in. Once they ask for a language, ALL of your
+   following replies stay in that language, never English. Put that language's English name in "replyLanguage".
 9. "chips": short tappable suggestions whenever you ask a question. ALWAYS fill them, never leave chips empty
-   when your reply ends with a question. When you ask for the age group, return the allowed age values as chips.
+   when your reply ends with a question. When you ask for the age group, return the allowed age values as chips (in "chips"),
+   and also in "ageChips" translated into your reply language but keeping the numbers exactly
+   ("4–7 years" -> "4–7 años"), in the same order.
    When you ask for the hero's name, return 3 friendly first names (just the names, e.g. "Leo", "Mia", "Max").
    If the user just chose an age group and there is no hero yet, your reply MUST ask for the hero's name with
    name chips. Otherwise [].
@@ -1933,7 +1961,7 @@ STYLE GUIDE (pick the best fit for imageStyle):
 - "Adventure": bold, dynamic, outdoors. Expeditions, treasure hunts, explorers.
 - "Line Art (Colouring)": outlines a child can colour in. Use when they want a colouring book.
 - "Seasonal (Autumn)": warm falling leaves, harvest, cosy autumn days.
-language: ${JSON.stringify(ALLOWED.language)}
+language: any language, by its English name. Common ones: ${JSON.stringify(ALLOWED.language)}
 font: ${JSON.stringify(ALLOWED.font)}
 character type: ${JSON.stringify(ALLOWED.characterType)}
 
@@ -1943,6 +1971,9 @@ ${JSON.stringify(state)}
 OUTPUT: return ONLY a JSON object, no markdown, in exactly this shape:
 {
   "reply": string,
+  "replyLanguage": string,
+  "questions": { "age": string, "hero": string },
+  "ageChips": string[],
   "storySettings": {
     "idea": string, "theme": string, "subject": string, "centralmsg": string,
     "imageStyle": string|null, "language": string|null, "font": string|null, "age": string|null
@@ -1954,6 +1985,8 @@ OUTPUT: return ONLY a JSON object, no markdown, in exactly this shape:
   "chips": string[]
 }
 Use "" for unknown character details. The first character is the hero.
+"questions" are the two standard questions ("Who is this story for?" and "What's the name of our hero?")
+written in your reply language. "ageChips" is [] unless you are asking for the age group.
 `.trim();
 
 /* ------------------------------------------------------------------ */
@@ -2068,6 +2101,17 @@ const sanitizeCharacters = (list, previous = []) => {
   return limitCharacters(cleaned);
 };
 
+// Any language is allowed (Telugu, Tamil, ...), not just the 12 presets.
+// Preset names keep their exact spelling; anything else is tidied up.
+const cleanLanguage = (v) => {
+  const raw = str(v, 40);
+  if (!raw || /^(null|none|unknown|n\/a)$/i.test(raw)) return null;
+  const preset = oneOf(raw, ALLOWED.language);
+  if (preset) return preset;
+  if (!/^[\p{L}\p{M}\s().'’-]+$/u.test(raw)) return null;
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+};
+
 const sanitizeSettings = (s = {}, lenient = false) => {
   const theme = oneOf(s.theme, ALLOWED.theme);
   return {
@@ -2076,9 +2120,7 @@ const sanitizeSettings = (s = {}, lenient = false) => {
     subject: oneOf(s.subject, subjectsFor(theme)),
     centralmsg: oneOf(s.centralmsg, messagesFor(theme)),
     imageStyle: matchImageStyle(s.imageStyle),
-    language:
-      oneOf(s.language, ALLOWED.language) ||
-      (lenient ? str(s.language, 40) || null : null),
+    language: cleanLanguage(s.language),
     font:
       oneOf(s.font, ALLOWED.font) ||
       (lenient ? str(s.font, 40) || null : null),
@@ -2220,8 +2262,9 @@ export const chatBook = async (req, res) => {
     // They answered "what's the name of our hero?" with just a name.
     if (
       characters.length === 0 &&
-      /\b(name|hero|call)\b/i.test(lastAssistantText) &&
-      lastAssistantText.includes("?") &&
+      // the age is already known, so the last question was the hero's name
+      Boolean(prevSettings.age) &&
+      /[?？؟]/.test(lastAssistantText) &&
       !matchAgeChip(lastUserText)
     ) {
       const words = lastUserText.trim().split(/\s+/).filter(Boolean);
@@ -2274,29 +2317,50 @@ export const chatBook = async (req, res) => {
 
     if (needAge || needHero) {
       // Age first, then the hero's name: one question per reply.
-      const question = needAge ? AGE_QUESTION : HERO_QUESTION;
+      const replyLanguage = str(parsed.replyLanguage, 40) || storySettings.language;
+      const englishReply = isEnglishLanguage(replyLanguage);
+      const translatedQuestion = str(
+        needAge ? parsed.questions?.age : parsed.questions?.hero,
+        200,
+      );
+      const question =
+        !englishReply && translatedQuestion
+          ? translatedQuestion
+          : needAge
+            ? AGE_QUESTION
+            : HERO_QUESTION;
       const wanted = needAge
         ? /\b(who|age|old|for)\b/i
         : /\b(name|hero|call)\b/i;
 
       // Sentences of the model's reply, minus any "ready / press Create" talk.
       const sentences = replyText
-        .split(/(?<=[.!?])\s+/)
+        .split(/(?<=[.!?])\s+|(?<=[。！？।۔؟])\s*/)
         .filter((sentence) => !/\b(create|ready)\b/i.test(sentence));
       const lastSentence = sentences[sentences.length - 1] || "";
-      const endsWithRightQuestion =
-        lastSentence.endsWith("?") && wanted.test(lastSentence);
+      const endsWithRightQuestion = englishReply
+        ? lastSentence.endsWith("?") && wanted.test(lastSentence)
+        : // other languages: we can't read the question, so always end on the
+          // translated standard one unless the model gave none
+          !translatedQuestion && /[?？؟]$/.test(lastSentence);
 
       if (!endsWithRightQuestion) {
         // keep the friendly part, drop stray questions, end on ours
-        const kept = sentences.filter((sentence) => !sentence.includes("?"));
+        const kept = sentences.filter((sentence) => !/[?？؟]/.test(sentence));
         replyText = `${kept.join(" ")} ${question}`.trim();
       } else {
         replyText = sentences.join(" ").trim();
       }
 
       if (needAge) {
-        chips = [...ALLOWED.age];
+        // translated age chips are used only if each one still maps to the right age
+        const translated = Array.isArray(parsed.ageChips)
+          ? parsed.ageChips.map((c) => str(c, 40))
+          : [];
+        const valid =
+          translated.length === ALLOWED.age.length &&
+          translated.every((c, i) => matchAgeChip(c) === ALLOWED.age[i]);
+        chips = valid ? translated : [...ALLOWED.age];
       } else {
         // name ideas only: drop anything that is an age chip or too long
         chips = chips.filter(

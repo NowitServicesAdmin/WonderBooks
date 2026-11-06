@@ -5,6 +5,9 @@ const TRANSLATE_MODEL = process.env.OPENAI_TRANSLATE_MODEL || "gpt-5";
 const FALLBACK_MODEL =
   process.env.OPENAI_TRANSLATE_FALLBACK_MODEL || "gpt-5-mini";
 const TRANSLATE_EFFORT = process.env.OPENAI_TRANSLATE_EFFORT || "low";
+// Telugu, Hindi etc. need more thinking to get smooth, well-formed sentences.
+const TRANSLATE_EFFORT_NON_LATIN =
+  process.env.OPENAI_TRANSLATE_EFFORT_NON_LATIN || "medium";
 const PROOFREAD_EFFORT = process.env.OPENAI_PROOFREAD_EFFORT || "low";
 // Scripts such as Telugu or Hindi are where wrong-but-real-looking words slip
 // through, so the checking passes think harder for them.
@@ -144,6 +147,46 @@ const pinNames = async ({ language, names }) => {
   }
 };
 
+// Shared rules for how sentences are formed and how pages continue each other.
+const flowRules = (language) => `
+FLOW AND SENTENCE FORMATION (mandatory):
+- Read the story as ONE continuous story, not as separate pages. Every page after
+  the first must begin by picking up what just happened on the page before (the
+  result, the feeling, the object), using a natural ${language} linking word or
+  phrase (for example "then", "after that", "but", "so", "suddenly"). Every page
+  except the last must end in a way that leads into the next page.
+- Write full, natural, well-formed ${language} sentences. Join related actions in
+  ONE sentence the normal ${language} way instead of writing a string of very short,
+  disconnected statements. Never write more than two very short sentences (under
+  6 words) one after another.
+- One clear idea per sentence, roughly 8 to 18 words. Split only a sentence that
+  is truly tangled; never chop a good sentence into pieces.
+- Always make clear WHO does WHAT and WHY. When two characters of the same gender
+  are in a scene, use the name or the relationship word (Dad, Mom, friend) instead
+  of a pronoun, so the reader never has to guess who "he" or "she" is. Do not
+  repeat "his / her / own" more than needed.
+- Use one consistent narrative tense, and the same word for the same person or
+  thing everywhere (for example always the same word for Dad).
+- Keep cause and effect logical: if a character comforts, thanks or surprises
+  someone, the sentence before must show the reason.
+${languageExtras(language)}`;
+
+// Extra guidance for languages where the model is known to slip.
+const languageExtras = (language) =>
+  /^telugu\b/i.test(String(language || "").trim())
+    ? `
+TELUGU STYLE (mandatory):
+- Write simple, natural Telugu in the past tense (-ాడు / -ింది / -ారు) with correct
+  case endings (for example కిరణ్‌ని, కిరణ్‌కు, కిరణ్‌తో) and correct agreement.
+- NEVER use the words దినం or దినము for "day". Always use రోజు (for example
+  "కుటుంబ రోజు", "పుట్టినరోజు", "ఈ రోజు"). Phrase it naturally, for example write
+  "ఈ రోజు కిరణ్ కుటుంబానికి ప్రత్యేకమైన రోజు", not a stiff word-for-word line.
+- Connect sentences with everyday linking words such as అప్పుడు, ఆ తర్వాత, కానీ,
+  అందుకే, అంతలో, ఇంతలో, అలా. Use "..చేసి.." / "..చూస్తూ.." to join actions in one sentence.
+- Use నాన్న for Dad and అమ్మ for Mom everywhere (never mix తండ్రి / డాడీ).
+`
+    : "";
+
 const buildTranslatePrompt = ({ story, language, age, names, pinned }) => `
 You are a professional children's-book translator and a native ${language} writer.
 
@@ -166,12 +209,13 @@ QUALITY RULES (all mandatory):
 5. ${nameRule(language, names, pinned)}
 6. Keep the sentence flow smooth, with proper full stops (use the normal
    sentence-ending mark of ${language}). Do not turn the text into fragments or
-   separate lines.
+   separate lines. Follow the FLOW AND SENTENCE FORMATION rules below.
 7. Keep the same number of pages and the same paragraph structure. Paragraphs
    inside a page are separated by a blank line ("\\n\\n"). The length of each
    translated page should stay close to the English page so it fits the page.
 8. The title must be a natural, attractive ${language} title that matches the story.
 
+${flowRules(language)}
 ENGLISH STORY (JSON):
 ${JSON.stringify(toPayload(story))}
 
@@ -194,14 +238,14 @@ Check the ${language} text page by page against the English original and FIX:
 This is the LAST check, and an earlier editor may have changed words and
 introduced new mistakes (for example a look-alike word that is a different
 noun). Compare every word with the meaning of the English page again.
-Every sentence must be short and clear (about 15 words or fewer): split any
-long or tangled sentence into two or three short sentences, and fix
-agreement of every word (for example "అందరు" must be "అందరూ" in Telugu).
+Fix agreement of every word (for example "అందరు" must be "అందరూ" in Telugu).
+Keep the story smoothly connected: do NOT chop a good sentence into short
+pieces, and keep the linking words between sentences and between pages.
 
 Do NOT change what happens in the story, do not shorten or lengthen pages
 noticeably, keep the same number of pages, and keep paragraph breaks ("\\n\\n").
 If a sentence is already correct and natural, leave it exactly as it is.
-
+${languageExtras(language)}
 ENGLISH ORIGINAL (JSON):
 ${JSON.stringify(toPayload(english))}
 
@@ -234,11 +278,11 @@ word. Also make sure:
 - no description of hair, clothes or looks is awkwardly translated (rewrite it simply if it is),
 - the same page count and the same paragraph breaks ("\\n\\n").
 Change a word ONLY when it is clearly wrong or means something different from the English. If a common, valid, natural word already fits the meaning, keep it: never swap it for a rarer, more formal or more bookish word, and never change the title just to make it sound different. Never invent a new word. Words a child hears every day beat clever words.
-- every sentence must be short and simple (about 15 words or fewer). A long or tangled sentence, or one with several "because / and / while" parts, must be rewritten as two or three short, clear sentences with the same meaning.
+- sentences must be clear and natural (roughly 8 to 18 words). Rewrite a truly tangled sentence more simply, but never chop a good sentence into short disconnected pieces and keep the linking words between sentences.
 - use EVERYDAY words a young child hears at home. Replace formal, bookish or Sanskrit-heavy words (for example తిరస్కృతుడు, ప్రకాశమైన) with the simple spoken word or a short phrase (for example "అందరూ దూరం పెట్టిన వాడు", "మెరిసే").
 - do NOT change the ending of a word just to sound different: a rope is తాడు, so "like a rope" is తాడులా (తాడిలా would mean "like a palm tree"). Check every changed word keeps the noun the English meant.
 Leave every sentence that is already correct exactly as it is.
-
+${languageExtras(language)}
 ENGLISH ORIGINAL (JSON):
 ${JSON.stringify(toPayload(english))}
 
@@ -248,6 +292,39 @@ ${JSON.stringify(toPayload(translated))}
 Return ONLY valid JSON, no markdown, in exactly this structure ("issues" lists
 each wrong word you changed, empty list if none):
 {"title": "", "pages": [{"pageNumber": 1, "content": ""}], "issues": [{"where": "title or page number", "wrong": "", "fixed": "", "why": "(say in English what the English word meant and what the wrong word actually means)"}]}
+`;
+
+// Flow pass: the other checks look at words and spelling; this one reads the
+// story as a whole so sentences join up and every page continues the last one.
+const buildFlowPrompt = ({ english, translated, language, names, pinned }) => `
+You are a native ${language} children's-book editor. The ${language} storybook
+below was translated from English. Spelling and word choice were already
+checked. Your job now is ONLY the flow: how sentences are formed and how the
+story continues from one page to the next.
+
+Read the whole story from the title to the last page, then go page by page and ask:
+1. Does this page begin by continuing what happened at the end of the previous page?
+2. Does it end in a way that leads into the next page (except the last page)?
+3. Are the sentences well-formed and joined naturally, or is it a choppy run of
+   short, disconnected statements? Join them into smooth sentences.
+4. Is it always clear who does what and why? Replace an unclear "he / she / him"
+   with the name or the relationship word.
+5. Are the events in a logical order with a clear cause (compare with the English)?
+
+Rewrite only the sentences that need it, using the same words wherever they
+are already right. Do NOT add or remove story events, keep the same meaning as
+the English, the same number of pages and the same paragraph breaks ("\\n\\n"),
+and keep each page close to its current length.
+- ${nameRule(language, names, pinned)}
+${flowRules(language)}
+ENGLISH ORIGINAL (JSON):
+${JSON.stringify(toPayload(english))}
+
+${language} TEXT TO IMPROVE (JSON):
+${JSON.stringify(toPayload(translated))}
+
+Return ONLY valid JSON, no markdown, in exactly this structure:
+{"title": "", "pages": [{"pageNumber": 1, "content": ""}]}
 `;
 
 /**
@@ -277,7 +354,9 @@ export const translateStory = async (englishStory, storyData) => {
         names,
         pinned,
       }),
-      effort: TRANSLATE_EFFORT,
+      effort: usesLatinScript(language)
+        ? TRANSLATE_EFFORT
+        : TRANSLATE_EFFORT_NON_LATIN,
     });
     if (!isValid(result, expectedPages)) {
       throw new Error(
@@ -324,6 +403,23 @@ export const translateStory = async (englishStory, storyData) => {
   }
 
   try {
+    const flowed = await runWithFallback({
+      prompt: buildFlowPrompt({
+        english: englishStory,
+        translated,
+        language,
+        names,
+        pinned,
+      }),
+      effort: checkEffort,
+    });
+    if (isValid(flowed, expectedPages)) translated = flowed;
+    else console.warn("Flow check result invalid, keeping the previous text.");
+  } catch (error) {
+    console.error("Flow check failed, keeping the previous text:", error.message);
+  }
+
+  try {
     const proofread = await runWithFallback({
       prompt: buildProofreadPrompt({
         english: englishStory,
@@ -351,13 +447,28 @@ export const translateStory = async (englishStory, storyData) => {
     ? { "\u0C2C\u0C3F\u0C17\u0C3F\u0C17\u0C3E": "\u0C17\u0C1F\u0C4D\u0C1F\u0C3F\u0C17\u0C3E" } // బిగిగా -> గట్టిగా
     : {};
 
+  // "day" must be రోజు, not దినం / దినము. Matches only the end of a word, so a
+  // longer word such as దినచర్య (daily routine) is left alone.
+  const TELUGU_END = "(?![\\u0C00-\\u0C7F])";
+  const WORD_RULES = /^telugu\b/i.test(language)
+    ? [
+        [new RegExp("\u0C26\u0C3F\u0C28\u0C3E\u0C32\u0C41" + TELUGU_END, "g"), "\u0C30\u0C4B\u0C1C\u0C41\u0C32\u0C41"], // దినాలు -> రోజులు
+        [new RegExp("\u0C26\u0C3F\u0C28\u0C3E\u0C28\u0C4D\u0C28\u0C3F" + TELUGU_END, "g"), "\u0C30\u0C4B\u0C1C\u0C41\u0C28\u0C41"], // దినాన్ని -> రోజును
+        [new RegExp("\u0C26\u0C3F\u0C28\u0C3E\u0C28" + TELUGU_END, "g"), "\u0C30\u0C4B\u0C1C\u0C41\u0C28"], // దినాన -> రోజున
+        [new RegExp("\u0C26\u0C3F\u0C28\u0C02" + TELUGU_END, "g"), "\u0C30\u0C4B\u0C1C\u0C41"], // దినం -> రోజు
+        [new RegExp("\u0C26\u0C3F\u0C28\u0C2E\u0C41" + TELUGU_END, "g"), "\u0C30\u0C4B\u0C1C\u0C41"], // దినము -> రోజు
+      ]
+    : [];
+
   // Last, in code: make sure the corrected name spelling is the one printed,
   // whatever the model wrote on its own in the text.
-  const fixNames = (text) =>
-    Object.entries({ ...wrongSpellings, ...KNOWN_BAD_WORDS }).reduce(
+  const fixNames = (text) => {
+    const replaced = Object.entries({ ...wrongSpellings, ...KNOWN_BAD_WORDS }).reduce(
       (out, [wrong, right]) => out.split(wrong).join(right),
       String(text || ""),
     );
+    return WORD_RULES.reduce((out, [re, right]) => out.replace(re, right), replaced);
+  };
 
   return {
     ...englishStory,
