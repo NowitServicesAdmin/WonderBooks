@@ -198,16 +198,16 @@ export const updateProfile = async (req, res) => {
             user.language = language;
         }
 
-        if (ageGroup !== undefined) {
-            if (!ALLOWED_AGE_GROUPS.includes(ageGroup)) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Please choose a valid age group",
-                });
-            }
+        // if (ageGroup !== undefined) {
+        //     if (!ALLOWED_AGE_GROUPS.includes(ageGroup)) {
+        //         return res.status(400).json({
+        //             success: false,
+        //             message: "Please choose a valid age group",
+        //         });
+        //     }
 
-            user.ageGroup = ageGroup;
-        }
+        //     user.ageGroup = ageGroup;
+        // }
 
         if (favoriteCharacters !== undefined) {
             const isValidSelection =

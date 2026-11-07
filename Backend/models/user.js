@@ -116,6 +116,7 @@ const userSchema = new mongoose.Schema(
                 default: "Daily digest",
             },
         },
+        appleId: { type: String, unique: true, sparse: true },
 
         // ---- Child mode ----
 

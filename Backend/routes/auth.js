@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { sendOtp, verifyOtp, completeSignup, googleAuth, getMe ,getNotificationPreferences,updateNotificationPreferences,
-    deleteAccount,googleAuthBounce
+    deleteAccount,googleAuthBounce,appleAuth
 } from "../controllers/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -12,6 +12,7 @@ router.post("/signup", completeSignup);
 router.post("/google", googleAuth);
 router.get("/google/bounce", googleAuthBounce);
 router.get("/me", requireAuth, getMe);
+router.post("/apple", appleAuth);
 router.get("/notification-preferences", requireAuth, getNotificationPreferences);
 router.put("/notification-preferences", requireAuth, updateNotificationPreferences);
 router.delete("/delete-account", requireAuth, deleteAccount);

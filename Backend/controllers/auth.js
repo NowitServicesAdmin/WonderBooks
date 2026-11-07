@@ -19,6 +19,10 @@ import {
     verifyVerificationToken,
 } from "../services/tokenService.js";
 import { normalizeS3Url } from "../services/s3Service.js";
+import { createRemoteJWKSet, jwtVerify } from "jose";
+
+const APPLE_JWKS = createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys"));
+
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OTP_LENGTH = 6;
@@ -37,9 +41,9 @@ const sanitizeUser = (user) => ({
     subscriptionStatus: user.subscriptionStatus || null,
     createdAt: user.createdAt,
     childMode: {
-    enabled: Boolean(user.childMode?.enabled),
-    hasPin: Boolean(user.childMode?.hasPin),
-},
+        enabled: Boolean(user.childMode?.enabled),
+        hasPin: Boolean(user.childMode?.hasPin),
+    },
 });
 
 const normalizeEmail = (email) => email?.trim().toLowerCase();
@@ -525,130 +529,130 @@ export const getMe = async (req, res) => {
 // Add these to your existing auth controller file.
 
 const TOGGLE_KEYS = [
-  "email",
-  "push",
-  "reminders",
-  "orders",
-  "recommendations",
-  "offers",
+    "email",
+    "push",
+    "reminders",
+    "orders",
+    "recommendations",
+    "offers",
 ];
 
 const FREQUENCIES = ["Instant", "Daily digest", "Weekly"];
 
 const DEFAULT_PREFERENCES = {
-  email: true,
-  push: false,
-  reminders: true,
-  orders: true,
-  recommendations: true,
-  offers: false,
-  frequency: "Instant",
+    email: true,
+    push: false,
+    reminders: true,
+    orders: true,
+    recommendations: true,
+    offers: false,
+    frequency: "Instant",
 };
 
 // GET /auth/notification-preferences
 export const getNotificationPreferences = async (req, res) => {
-  try {
-    const user = await User.findById(req.userId)
-      .select("notificationPreferences")
-      .lean();
+    try {
+        const user = await User.findById(req.userId)
+            .select("notificationPreferences")
+            .lean();
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        const preferences = {
+            ...DEFAULT_PREFERENCES,
+            ...(user.notificationPreferences || {}),
+        };
+
+        return res.status(200).json({
+            success: true,
+            preferences,
+        });
+    } catch (error) {
+        console.error("Get notification preferences error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to load notification preferences",
+        });
     }
-
-    const preferences = {
-      ...DEFAULT_PREFERENCES,
-      ...(user.notificationPreferences || {}),
-    };
-
-    return res.status(200).json({
-      success: true,
-      preferences,
-    });
-  } catch (error) {
-    console.error("Get notification preferences error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to load notification preferences",
-    });
-  }
 };
 
 // PUT /auth/notification-preferences
 export const updateNotificationPreferences = async (req, res) => {
-  try {
-    const body = req.body || {};
-    const updates = {};
+    try {
+        const body = req.body || {};
+        const updates = {};
 
-    for (const key of TOGGLE_KEYS) {
-      if (Object.prototype.hasOwnProperty.call(body, key)) {
-        if (typeof body[key] !== "boolean") {
-          return res.status(400).json({
-            success: false,
-            message: `${key} must be a boolean`,
-          });
+        for (const key of TOGGLE_KEYS) {
+            if (Object.prototype.hasOwnProperty.call(body, key)) {
+                if (typeof body[key] !== "boolean") {
+                    return res.status(400).json({
+                        success: false,
+                        message: `${key} must be a boolean`,
+                    });
+                }
+
+                updates[`notificationPreferences.${key}`] = body[key];
+            }
         }
 
-        updates[`notificationPreferences.${key}`] = body[key];
-      }
-    }
+        if (Object.prototype.hasOwnProperty.call(body, "frequency")) {
+            if (!FREQUENCIES.includes(body.frequency)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid notification frequency",
+                });
+            }
 
-    if (Object.prototype.hasOwnProperty.call(body, "frequency")) {
-      if (!FREQUENCIES.includes(body.frequency)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid notification frequency",
+            updates["notificationPreferences.frequency"] = body.frequency;
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "No valid notification preferences provided",
+            });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.userId,
+            { $set: updates },
+            {
+                new: true,
+                runValidators: true,
+            }
+        ).select("notificationPreferences");
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Notification preferences updated successfully",
+            preferences: {
+                ...DEFAULT_PREFERENCES,
+                ...(user.notificationPreferences?.toObject?.() ||
+                    user.notificationPreferences ||
+                    {}),
+            },
         });
-      }
+    } catch (error) {
+        console.error("Update notification preferences error:", error);
 
-      updates["notificationPreferences.frequency"] = body.frequency;
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update notification preferences",
+        });
     }
-
-    if (Object.keys(updates).length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "No valid notification preferences provided",
-      });
-    }
-
-    const user = await User.findByIdAndUpdate(
-      req.userId,
-      { $set: updates },
-      {
-        new: true,
-        runValidators: true,
-      }
-    ).select("notificationPreferences");
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Notification preferences updated successfully",
-      preferences: {
-        ...DEFAULT_PREFERENCES,
-        ...(user.notificationPreferences?.toObject?.() ||
-          user.notificationPreferences ||
-          {}),
-      },
-    });
-  } catch (error) {
-    console.error("Update notification preferences error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to update notification preferences",
-    });
-  }
 };
 
 
@@ -677,19 +681,184 @@ export const deleteAccount = async (req, res) => {
     }
 };
 
+// export const googleAuthBounce = async (req, res) => {
+//      res.type("html").send(`<!doctype html>
+// <meta name="viewport" content="width=device-width, initial-scale=1">
+// <p style="font-family:sans-serif">Returning to the app…</p>
+// <script>
+//   var h = new URLSearchParams(location.hash.slice(1));
+//   var back = h.get("state") || "";
+//   var ok = ["exp://", "exps://", "wonderbooks://"].some(function (p) { return back.indexOf(p) === 0; });
+//   if (!ok) {
+//     document.body.textContent = "Invalid return address.";
+//   } else {
+//     h.delete("state");  
+//     location.replace(back + (back.indexOf("?") > -1 ? "&" : "?") + h.toString());
+//   }
+// </script>`);
+// }
 export const googleAuthBounce = async (req, res) => {
-     res.type("html").send(`<!doctype html>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<p style="font-family:sans-serif">Returning to the app…</p>
-<script>
-  var h = new URLSearchParams(location.hash.slice(1));
-  var back = h.get("state") || "";
-  var ok = ["exp://", "exps://", "wonderbooks://"].some(function (p) { return back.indexOf(p) === 0; });
-  if (!ok) {
-    document.body.textContent = "Invalid return address.";
-  } else {
-    h.delete("state");  
-    location.replace(back + (back.indexOf("?") > -1 ? "&" : "?") + h.toString());
-  }
-</script>`);
-}
+    res.set({
+        "Cache-Control": "no-store, no-cache, must-revalidate, private",
+        Pragma: "no-cache",
+        Expires: "0",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
+    });
+
+    return res.status(200).type("html").send(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wonder Books</title>
+  <style>
+    body{font-family:Arial,sans-serif;padding:24px;text-align:center}
+    a.btn{display:none;margin:16px 6px 0;padding:14px 24px;background:#8B5CF6;
+          color:#fff;border-radius:12px;text-decoration:none;font-weight:bold}
+  </style>
+</head>
+<body>
+  <p id="message">Returning to Wonder Books...</p>
+  <a id="open" class="btn" href="#">Open Wonder Books</a>
+  <a id="openIntent" class="btn" href="#">Open (Android fallback)</a>
+
+  <script>
+    (function () {
+      var msg = document.getElementById("message");
+      var btn = document.getElementById("open");
+      var btnIntent = document.getElementById("openIntent");
+      var PACKAGE = "com.wonwonderbooks.app";
+
+      try {
+        var params = new URLSearchParams(window.location.hash.substring(1));
+        var state = params.get("state");
+        var accessToken = params.get("access_token");
+
+        if (!state) throw new Error("OAuth state is missing.");
+        if (!accessToken) {
+          throw new Error(
+            params.get("error_description") || params.get("error") ||
+            "Google access token missing."
+          );
+        }
+
+        var target = new URL(state);
+        var allowed = ["exp:", "exps:", "wonderbooks:"];
+        if (allowed.indexOf(target.protocol) === -1 || !target.hostname ||
+            target.username || target.password) {
+          throw new Error("Invalid application return URL.");
+        }
+
+        params.delete("state");
+        target.search = params.toString();
+        var finalUrl = target.toString();
+
+        // Main button: plain custom scheme
+        btn.href = finalUrl;
+        btn.style.display = "inline-block";
+
+        // Android-only manual fallback: intent:// URL
+        var isAndroid = /android/i.test(navigator.userAgent);
+        if (isAndroid && target.protocol === "wonderbooks:") {
+          var intentUrl =
+            "intent://" + target.host + target.pathname + target.search +
+            "#Intent;scheme=wonderbooks;package=" + PACKAGE +
+            ";action=android.intent.action.VIEW" +
+            ";category=android.intent.category.BROWSABLE;end";
+
+          btnIntent.href = intentUrl;
+          btnIntent.style.display = "inline-block";
+        }
+
+        msg.innerText = "Authentication successful. Tap a button if the app doesn't open.";
+
+        // Auto-redirect with the plain scheme so expo-web-browser can capture it
+        window.location.href = finalUrl;
+      } catch (e) {
+        msg.innerText = (e && e.message) || "Unable to return to the app.";
+      }
+    })();
+  </script>
+</body>
+</html>`);
+};
+
+const APPLE_AUDIENCES = [
+    process.env.APPLE_BUNDLE_ID,
+    ...(process.env.NODE_ENV !== "production" ? ["host.exp.Exponent"] : []),
+].filter(Boolean);
+
+export const appleAuth = async (req, res) => {
+    try {
+        const { identityToken, name } = req.body;
+
+        if (!identityToken || typeof identityToken !== "string") {
+            return fail(res, 400, "Missing Apple identity token");
+        }
+
+        let payload;
+        try {
+            ({ payload } = await jwtVerify(identityToken, APPLE_JWKS, {
+                issuer: "https://appleid.apple.com",
+                audience: APPLE_AUDIENCES,
+            }));
+        } catch (verifyError) {
+            console.error("Apple token verification error:", verifyError);
+            return fail(res, 401, "We couldn't verify that Apple account. Please try again.");
+        }
+
+        const appleId = payload.sub;
+        const email = normalizeEmail(payload.email);
+        const emailVerified = payload.email_verified === true || payload.email_verified === "true";
+
+        // 1) returning Apple user, 2) existing account with same verified email
+        let user = await User.findOne({ appleId });
+        if (!user && email && emailVerified) {
+            user = await User.findOne({ email });
+        }
+
+        if (user?.isBlocked) {
+            return fail(res, 403, "Your account has been blocked. Please contact support.", {
+                code: "ACCOUNT_BLOCKED",
+            });
+        }
+
+        const cleanName = typeof name === "string" ? name.trim() : "";
+
+        if (!user) {
+            // Apple only sends email on first sign-in; without it we can't create an account
+            if (!email) {
+                return fail(res, 400, "Apple did not share an email address. Please try another sign-in method.");
+            }
+            user = new User({
+                email,
+                appleId,
+                name: cleanName,
+                isVerified: true,
+            });
+        } else {
+            if (!user.appleId) user.appleId = appleId;
+            if (!user.isVerified) {
+                user.isVerified = true;
+                user.phone = undefined;
+                user.isPhoneVerified = false;
+            }
+            if (!user.name && cleanName) user.name = cleanName;
+        }
+
+        await user.save();
+
+        const token = signToken({ userId: user._id.toString() });
+
+        return res.status(200).json({
+            success: true,
+            message: "Signed in with Apple successfully",
+            token,
+            user: sanitizeUser(user),
+        });
+    } catch (error) {
+        console.error("Apple auth error:", error);
+        return fail(res, 500, "Something went wrong while signing in with Apple");
+    }
+};
