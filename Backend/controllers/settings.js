@@ -4,18 +4,34 @@ import { uploadToS3, deleteFromS3, normalizeS3Url } from "../services/s3Service.
 import { sendEmail } from "../config/mailer.js";
 import { notify } from "../services/alertService.js"; // ALERTS
 
+
 const ABOUT_LIMIT = 200;
-const ALLOWED_LANGUAGES = ["English", "Hindi", "Telugu", "Spanish"];
-const ALLOWED_AGE_GROUPS = ["3 – 5 years", "6 – 8 years", "9 – 12 years", "13 – 18 years", "18+ years"];
-const ALLOWED_CHARACTERS = [
-    "Animals",
-    "Princess",
-    "Superhero",
-    "Robot",
-    "Dragons",
-    "Fairy",
-    "Dinosaur",
+
+const ALLOWED_LANGUAGES = [
+  "English",
+  "Hindi",
+  "Telugu",
+  "Spanish",
 ];
+
+const ALLOWED_AGE_GROUPS = [
+  "3 – 5 years",
+  "6 – 8 years",
+  "9 – 12 years",
+  "13 – 18 years",
+  "18+ years",
+];
+
+const ALLOWED_CHARACTERS = [
+  "Animals",
+  "Princess",
+  "Superhero",
+  "Robot",
+  "Dragons",
+  "Fairy",
+  "Dinosaur",
+];
+
 const ALLOWED_AVATAR_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const MAX_NAME_LENGTH = 80;
 
@@ -153,124 +169,166 @@ export const getProfile = async (req, res) => {
 //     }
 // };
 
+
+const PHONE_REGEX = /^\+?[1-9]\d{9,12}$/;
+
 export const updateProfile = async (req, res) => {
-    try {
-        const user = await User.findById(req.userId);
+  try {
+    const user = await User.findById(req.userId);
 
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "User account not found",
-            });
-        }
-
-        const {
-            name,
-            language,
-            ageGroup,
-            favoriteCharacters,
-            about,
-            chid_fav_chars,
-            about_child,
-        } = req.body;
-
-        if (name !== undefined) {
-            const trimmedName = String(name).trim();
-
-            if (!trimmedName) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Name cannot be empty",
-                });
-            }
-
-            user.name = trimmedName.slice(0, MAX_NAME_LENGTH);
-        }
-
-        if (language !== undefined) {
-            if (!ALLOWED_LANGUAGES.includes(language)) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Please choose a valid language",
-                });
-            }
-
-            user.language = language;
-        }
-
-        // if (ageGroup !== undefined) {
-        //     if (!ALLOWED_AGE_GROUPS.includes(ageGroup)) {
-        //         return res.status(400).json({
-        //             success: false,
-        //             message: "Please choose a valid age group",
-        //         });
-        //     }
-
-        //     user.ageGroup = ageGroup;
-        // }
-
-        if (favoriteCharacters !== undefined) {
-            const isValidSelection =
-                Array.isArray(favoriteCharacters) &&
-                favoriteCharacters.every((character) =>
-                    ALLOWED_CHARACTERS.includes(character)
-                );
-
-            if (!isValidSelection) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid favorite characters selection",
-                });
-            }
-
-            user.favoriteCharacters = favoriteCharacters;
-        }
-
-        if (about !== undefined) {
-            user.about = String(about).slice(0, ABOUT_LIMIT);
-        }
-
-        // Child's favorite characters
-        if (chid_fav_chars !== undefined) {
-            const isValidSelection =
-                Array.isArray(chid_fav_chars) &&
-                chid_fav_chars.every((character) =>
-                    ALLOWED_CHARACTERS.includes(character)
-                );
-
-            if (!isValidSelection) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid favorite characters selection",
-                });
-            }
-
-            user.chid_fav_chars = chid_fav_chars;
-        }
-
-        // About the child
-        if (about_child !== undefined) {
-            user.about_child = String(about_child).trim().slice(0, ABOUT_LIMIT);
-        }
-
-        await user.save();
-
-        await notify.profileUpdated(user._id); // ALERTS
-
-        return res.status(200).json({
-            success: true,
-            message: "Profile updated",
-            profile: sanitizeProfile(user),
-        });
-    } catch (error) {
-        console.error("Update profile error:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Something went wrong while saving your profile",
-        });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User account not found",
+      });
     }
+
+    const {
+      name,
+      phone,
+      language,
+      ageGroup,
+      favoriteCharacters,
+      about,
+      about_child,
+      chid_fav_chars,
+    } = req.body;
+
+    // Name
+    if (name !== undefined) {
+      const value = String(name).trim();
+
+      if (value.length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: "Please enter a valid name",
+        });
+      }
+
+      user.name = value.slice(0, MAX_NAME_LENGTH);
+    }
+
+    // Phone
+    if (phone !== undefined) {
+      const value = String(phone).replace(/[\s-]/g, "");
+
+      if (value && !PHONE_REGEX.test(value)) {
+        return res.status(400).json({
+          success: false,
+          message: "Please enter a valid phone number",
+        });
+      }
+
+      if (value) {
+        const existingPhone = await User.findOne({
+          phone: value,
+          _id: { $ne: user._id },
+        });
+
+        if (existingPhone) {
+          return res.status(409).json({
+            success: false,
+            message: "This phone number is already registered",
+          });
+        }
+
+        user.phone = value;
+      } else {
+        user.phone = undefined;
+      }
+    }
+
+    // Language
+    if (language !== undefined) {
+      if (!ALLOWED_LANGUAGES.includes(language)) {
+        return res.status(400).json({
+          success: false,
+          message: "Please choose a valid language",
+          allowed: ALLOWED_LANGUAGES,
+        });
+      }
+
+      user.language = language;
+    }
+
+    // Age group
+    if (ageGroup !== undefined) {
+      if (!ALLOWED_AGE_GROUPS.includes(ageGroup)) {
+        return res.status(400).json({
+          success: false,
+          message: "Please choose a valid age group",
+          allowed: ALLOWED_AGE_GROUPS,
+        });
+      }
+
+      user.ageGroup = ageGroup;
+    }
+
+    // Favorite characters
+    if (favoriteCharacters !== undefined) {
+      if (
+        !Array.isArray(favoriteCharacters) ||
+        !favoriteCharacters.every((item) =>
+          ALLOWED_CHARACTERS.includes(item)
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Please choose valid favorite characters",
+          allowed: ALLOWED_CHARACTERS,
+        });
+      }
+
+      user.favoriteCharacters = favoriteCharacters;
+    }
+
+    // About
+    if (about !== undefined) {
+      user.about = String(about).trim().slice(0, ABOUT_LIMIT);
+    }
+
+    // Child preferences
+    if (chid_fav_chars !== undefined) {
+      if (
+        !Array.isArray(chid_fav_chars) ||
+        !chid_fav_chars.every((item) =>
+          ALLOWED_CHARACTERS.includes(item)
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "Please choose valid child characters",
+          allowed: ALLOWED_CHARACTERS,
+        });
+      }
+
+      user.chid_fav_chars = chid_fav_chars;
+    }
+
+    if (about_child !== undefined) {
+      user.about_child = String(about_child)
+        .trim()
+        .slice(0, ABOUT_LIMIT);
+    }
+
+    await user.save();
+    await notify.profileUpdated(user._id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      profile: sanitizeProfile(user),
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong while saving your profile",
+    });
+  }
 };
+
 
 
 export const uploadAvatar = async (req, res) => {
