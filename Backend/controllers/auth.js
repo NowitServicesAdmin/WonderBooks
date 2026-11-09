@@ -306,50 +306,36 @@ export const completeSignup = async (req, res) => {
     try {
         const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
         const email = normalizeEmail(req.body.email);
-        const phone = normalizePhone(req.body.phone);
 
         if (!name) return fail(res, 400, "Please tell us your name");
         if (!email || !EMAIL_REGEX.test(email)) {
             return fail(res, 400, "Please enter a valid email address");
         }
-        if (!phone) return fail(res, 400, "Please enter a valid 10-digit mobile number");
 
         if (!hasVerified(req.body.emailToken, "email", email)) {
             return fail(res, 400, "Please verify your email address first", {
                 code: "EMAIL_NOT_VERIFIED",
             });
         }
-        if (!hasVerified(req.body.phoneToken, "phone", phone)) {
-            return fail(res, 400, "Please verify your mobile number first", {
-                code: "PHONE_NOT_VERIFIED",
-            });
-        }
 
-        const taken = await User.findOne({
-            isVerified: true,
-            $or: [{ email }, { phone }],
-        }).select("email phone");
+        const taken = await User.findOne({ email, isVerified: true }).select("_id");
 
         if (taken) {
             return fail(
                 res,
                 409,
-                taken.email === email
-                    ? "An account with this email already exists. Please log in instead."
-                    : "An account with this mobile number already exists. Please log in instead.",
+                "An account with this email already exists. Please log in instead.",
                 { code: "ALREADY_REGISTERED" }
             );
         }
 
-        // clear any abandoned, never-verified records that would clash with the unique indexes
-        await User.deleteMany({ isVerified: false, $or: [{ email }, { phone }] });
+        // clear any abandoned, never-verified records that would clash with the unique index
+        await User.deleteMany({ isVerified: false, email });
 
         const user = await User.create({
             name,
             email,
-            phone,
             isVerified: true,
-            isPhoneVerified: true,
         });
 
         const token = signToken({ userId: user._id.toString() });
@@ -367,7 +353,7 @@ export const completeSignup = async (req, res) => {
             return fail(
                 res,
                 409,
-                "An account with this email or mobile number already exists. Please log in instead.",
+                "An account with this email already exists. Please log in instead.",
                 { code: "ALREADY_REGISTERED" }
             );
         }
@@ -697,92 +683,92 @@ export const deleteAccount = async (req, res) => {
 //   }
 // </script>`);
 // }
-export const googleAuthBounce = async (req, res) => {
-    res.set({
-        "Cache-Control": "no-store, no-cache, must-revalidate, private",
-        Pragma: "no-cache",
-        Expires: "0",
-        "X-Content-Type-Options": "nosniff",
-        "Referrer-Policy": "no-referrer",
-    });
+// export const googleAuthBounce = async (req, res) => {
+//     res.set({
+//         "Cache-Control": "no-store, no-cache, must-revalidate, private",
+//         Pragma: "no-cache",
+//         Expires: "0",
+//         "X-Content-Type-Options": "nosniff",
+//         "Referrer-Policy": "no-referrer",
+//     });
 
-    return res.status(200).type("html").send(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Wonder Books</title>
-  <style>
-    body{font-family:Arial,sans-serif;padding:24px;text-align:center}
-    a.btn{display:none;margin:16px 6px 0;padding:14px 24px;background:#8B5CF6;
-          color:#fff;border-radius:12px;text-decoration:none;font-weight:bold}
-  </style>
-</head>
-<body>
-  <p id="message">Returning to Wonder Books...</p>
-  <a id="open" class="btn" href="#">Open Wonder Books</a>
-  <a id="openIntent" class="btn" href="#">Open (Android fallback)</a>
+//     return res.status(200).type("html").send(`<!DOCTYPE html>
+// <html>
+// <head>
+//   <meta charset="UTF-8" />
+//   <meta name="viewport" content="width=device-width, initial-scale=1" />
+//   <title>Wonder Books</title>
+//   <style>
+//     body{font-family:Arial,sans-serif;padding:24px;text-align:center}
+//     a.btn{display:none;margin:16px 6px 0;padding:14px 24px;background:#8B5CF6;
+//           color:#fff;border-radius:12px;text-decoration:none;font-weight:bold}
+//   </style>
+// </head>
+// <body>
+//   <p id="message">Returning to Wonder Books...</p>
+//   <a id="open" class="btn" href="#">Open Wonder Books</a>
+//   <a id="openIntent" class="btn" href="#">Open (Android fallback)</a>
 
-  <script>
-    (function () {
-      var msg = document.getElementById("message");
-      var btn = document.getElementById("open");
-      var btnIntent = document.getElementById("openIntent");
-      var PACKAGE = "com.wonwonderbooks.app";
+//   <script>
+//     (function () {
+//       var msg = document.getElementById("message");
+//       var btn = document.getElementById("open");
+//       var btnIntent = document.getElementById("openIntent");
+//       var PACKAGE = "com.wonwonderbooks.app";
 
-      try {
-        var params = new URLSearchParams(window.location.hash.substring(1));
-        var state = params.get("state");
-        var accessToken = params.get("access_token");
+//       try {
+//         var params = new URLSearchParams(window.location.hash.substring(1));
+//         var state = params.get("state");
+//         var accessToken = params.get("access_token");
 
-        if (!state) throw new Error("OAuth state is missing.");
-        if (!accessToken) {
-          throw new Error(
-            params.get("error_description") || params.get("error") ||
-            "Google access token missing."
-          );
-        }
+//         if (!state) throw new Error("OAuth state is missing.");
+//         if (!accessToken) {
+//           throw new Error(
+//             params.get("error_description") || params.get("error") ||
+//             "Google access token missing."
+//           );
+//         }
 
-        var target = new URL(state);
-        var allowed = ["exp:", "exps:", "wonderbooks:"];
-        if (allowed.indexOf(target.protocol) === -1 || !target.hostname ||
-            target.username || target.password) {
-          throw new Error("Invalid application return URL.");
-        }
+//         var target = new URL(state);
+//         var allowed = ["exp:", "exps:", "wonderbooks:"];
+//         if (allowed.indexOf(target.protocol) === -1 || !target.hostname ||
+//             target.username || target.password) {
+//           throw new Error("Invalid application return URL.");
+//         }
 
-        params.delete("state");
-        target.search = params.toString();
-        var finalUrl = target.toString();
+//         params.delete("state");
+//         target.search = params.toString();
+//         var finalUrl = target.toString();
 
-        // Main button: plain custom scheme
-        btn.href = finalUrl;
-        btn.style.display = "inline-block";
+//         // Main button: plain custom scheme
+//         btn.href = finalUrl;
+//         btn.style.display = "inline-block";
 
-        // Android-only manual fallback: intent:// URL
-        var isAndroid = /android/i.test(navigator.userAgent);
-        if (isAndroid && target.protocol === "wonderbooks:") {
-          var intentUrl =
-            "intent://" + target.host + target.pathname + target.search +
-            "#Intent;scheme=wonderbooks;package=" + PACKAGE +
-            ";action=android.intent.action.VIEW" +
-            ";category=android.intent.category.BROWSABLE;end";
+//         // Android-only manual fallback: intent:// URL
+//         var isAndroid = /android/i.test(navigator.userAgent);
+//         if (isAndroid && target.protocol === "wonderbooks:") {
+//           var intentUrl =
+//             "intent://" + target.host + target.pathname + target.search +
+//             "#Intent;scheme=wonderbooks;package=" + PACKAGE +
+//             ";action=android.intent.action.VIEW" +
+//             ";category=android.intent.category.BROWSABLE;end";
 
-          btnIntent.href = intentUrl;
-          btnIntent.style.display = "inline-block";
-        }
+//           btnIntent.href = intentUrl;
+//           btnIntent.style.display = "inline-block";
+//         }
 
-        msg.innerText = "Authentication successful. Tap a button if the app doesn't open.";
+//         msg.innerText = "Authentication successful. Tap a button if the app doesn't open.";
 
-        // Auto-redirect with the plain scheme so expo-web-browser can capture it
-        window.location.href = finalUrl;
-      } catch (e) {
-        msg.innerText = (e && e.message) || "Unable to return to the app.";
-      }
-    })();
-  </script>
-</body>
-</html>`);
-};
+//         // Auto-redirect with the plain scheme so expo-web-browser can capture it
+//         window.location.href = finalUrl;
+//       } catch (e) {
+//         msg.innerText = (e && e.message) || "Unable to return to the app.";
+//       }
+//     })();
+//   </script>
+// </body>
+// </html>`);
+// };
 
 const APPLE_AUDIENCES = [
     process.env.APPLE_BUNDLE_ID,
@@ -861,4 +847,248 @@ export const appleAuth = async (req, res) => {
         console.error("Apple auth error:", error);
         return fail(res, 500, "Something went wrong while signing in with Apple");
     }
+};
+
+// export const googleAuthBounce = async (req, res) => {
+//     res.set({
+//         "Cache-Control": "no-store, no-cache, must-revalidate, private",
+//         Pragma: "no-cache",
+//         Expires: "0",
+//         "X-Content-Type-Options": "nosniff",
+//         "Referrer-Policy": "no-referrer",
+//     });
+
+//     return res.status(200).type("html").send(`
+// <!DOCTYPE html>
+// <html>
+// <head>
+//   <meta charset="UTF-8" />
+//   <meta name="viewport" content="width=device-width, initial-scale=1" />
+//   <title>Wonder Books</title>
+
+//   <style>
+//     body {
+//       font-family: Arial, sans-serif;
+//       padding: 24px;
+//       text-align: center;
+//       background: #fff;
+//     }
+
+//     h2 {
+//       color: #8B5CF6;
+//       margin-bottom: 12px;
+//     }
+
+//     p {
+//       color: #333;
+//       margin-bottom: 20px;
+//     }
+
+//     .btn {
+//       display: inline-block;
+//       padding: 14px 24px;
+//       border-radius: 12px;
+//       background: #8B5CF6;
+//       color: white;
+//       font-weight: bold;
+//       text-decoration: none;
+//     }
+
+//     .error {
+//       color: #d32f2f;
+//     }
+//   </style>
+// </head>
+// <body>
+
+//   <h2>Wonder Books</h2>
+
+//   <p id="message">
+//     Completing sign in...
+//   </p>
+
+//   <a
+//     id="openApp"
+//     class="btn"
+//     href="#"
+//     style="display:none;"
+//   >
+//     Open Wonder Books
+//   </a>
+
+//   <script>
+//     (function () {
+//       const message = document.getElementById("message");
+//       const button = document.getElementById("openApp");
+
+//       try {
+//         console.log("Current URL:", window.location.href);
+
+//         const hash = window.location.hash.startsWith("#")
+//           ? window.location.hash.substring(1)
+//           : "";
+
+//         const params = new URLSearchParams(hash);
+
+//         const state = params.get("state");
+//         const accessToken = params.get("access_token");
+//         const error = params.get("error");
+//         const errorDescription = params.get("error_description");
+
+//         if (error) {
+//           throw new Error(errorDescription || error);
+//         }
+
+//         if (!state) {
+//           throw new Error("OAuth state missing.");
+//         }
+
+//         if (!accessToken) {
+//           throw new Error("Google access token missing.");
+//         }
+
+//         const finalUrl =
+//           state +
+//           (state.includes("?") ? "&" : "?") +
+//           "access_token=" +
+//           encodeURIComponent(accessToken);
+
+//         console.log("Final URL:", finalUrl);
+
+//         button.href = finalUrl;
+//         button.style.display = "inline-block";
+
+//         message.innerText =
+//           "Authentication successful. Returning to the app...";
+
+//         setTimeout(() => {
+//           window.location.replace(finalUrl);
+//         }, 300);
+
+//       } catch (err) {
+//         console.error(err);
+
+//         message.className = "error";
+//         message.innerText =
+//           err?.message || "Unable to complete sign in.";
+//       }
+//     })();
+//   </script>
+
+// </body>
+// </html>
+// `);
+// };
+
+export const googleAuthBounce = async (req, res) => {
+  res.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    Pragma: "no-cache",
+    Expires: "0",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+  });
+
+  return res.status(200).type("html").send(`
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wonder Books</title>
+
+<style>
+body{
+  font-family:Arial,sans-serif;
+  padding:24px;
+  text-align:center;
+}
+pre{
+  white-space:pre-wrap;
+  word-break:break-all;
+  background:#f5f5f5;
+  padding:12px;
+  border-radius:8px;
+  margin-top:16px;
+}
+.btn{
+  display:inline-block;
+  margin-top:20px;
+  padding:14px 24px;
+  background:#8B5CF6;
+  color:#fff;
+  text-decoration:none;
+  border-radius:12px;
+  font-weight:bold;
+}
+</style>
+</head>
+<body>
+
+<h2>Wonder Books</h2>
+
+<p id="message">Processing Google login...</p>
+
+<pre id="debug"></pre>
+
+<a id="openApp" class="btn" href="#">
+  Open Wonder Books
+</a>
+
+<script>
+(function () {
+
+  const message = document.getElementById("message");
+  const debug = document.getElementById("debug");
+  const button = document.getElementById("openApp");
+
+  try {
+
+    const hash = window.location.hash.replace(/^#/, "");
+    const params = new URLSearchParams(hash);
+
+    const state = params.get("state");
+    const accessToken = params.get("access_token");
+
+    if (!state) {
+      throw new Error("Missing state");
+    }
+
+    if (!accessToken) {
+      throw new Error("Missing access token");
+    }
+
+    const finalUrl =
+      state +
+      (state.includes("?") ? "&" : "?") +
+      "access_token=" +
+      encodeURIComponent(accessToken);
+
+    debug.textContent =
+      "STATE\\n\\n" +
+      state +
+      "\\n\\nFINAL URL\\n\\n" +
+      finalUrl;
+
+    button.href = finalUrl;
+
+    message.textContent =
+      "Authentication successful.";
+
+    // auto-open app
+    window.location.href = finalUrl;
+
+  } catch (e) {
+
+    message.textContent =
+      "ERROR: " + (e.message || "Unknown");
+
+    debug.textContent = window.location.href;
+  }
+})();
+</script>
+
+</body>
+</html>
+`);
 };
