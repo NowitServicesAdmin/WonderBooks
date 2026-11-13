@@ -13,7 +13,17 @@ const router = Router();
 
 router.get("/profile", requireAuth, getProfile);
 router.put("/profile", requireAuth, updateProfile);
-router.post("/profile/avatar", requireAuth, uploadAvatarPhoto, uploadAvatar);
+// router.post("/profile/avatar", requireAuth, uploadAvatarPhoto, uploadAvatar);
+router.post(
+  "/profile/avatar",
+  (req, _res, next) => {
+    console.log("avatar hit:", req.headers["content-type"]);
+    next();
+  },
+  requireAuth,
+  uploadAvatarPhoto,
+  uploadAvatar
+);
 router.post("/data-export", requireAuth, requestDataExport);
 router.delete("/account", requireAuth, deleteAccount);
 

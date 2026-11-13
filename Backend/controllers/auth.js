@@ -46,7 +46,18 @@ const sanitizeUser = (user) => ({
     },
 });
 
+// NOTE: must be defined BEFORE the review constants below (const is not hoisted)
 const normalizeEmail = (email) => email?.trim().toLowerCase();
+
+/* ------------------------- STORE REVIEW ACCOUNT ------------------------ */
+// Fixed email + OTP login for Google Play / App Store reviewers.
+// Controlled by env: REVIEW_LOGIN_ENABLED=true, REVIEW_EMAIL, REVIEW_OTP
+const REVIEW_ENABLED = process.env.REVIEW_LOGIN_ENABLED === "true";
+const REVIEW_EMAIL = normalizeEmail(process.env.REVIEW_EMAIL || "review@wonderbooks.com");
+const REVIEW_OTP = process.env.REVIEW_OTP || "123456";
+
+const isReviewAccount = (channel, target) =>
+    REVIEW_ENABLED && channel === "email" && target === REVIEW_EMAIL;
 
 const isValidOtp = (otp) => {
     return /^\d{6}$/.test(String(otp).trim());
@@ -138,6 +149,15 @@ export const sendOtp = async (req, res) => {
         if (!info) return;
         const { mode, channel, target } = info;
 
+        // Store-review account: don't send anything, the fixed OTP is accepted in verifyOtp
+        if (mode === "login" && isReviewAccount(channel, target)) {
+            return res.status(200).json({
+                success: true,
+                message: "Verification code sent to your email",
+                channel,
+            });
+        }
+
         const existing = await User.findOne({ [channel]: target, isVerified: true }).select("_id");
 
         if (mode === "signup" && existing) {
@@ -220,6 +240,35 @@ export const verifyOtp = async (req, res) => {
         const otp = String(req.body.otp || "").trim();
         if (!isValidOtp(otp)) {
             return fail(res, 400, `Please enter the ${OTP_LENGTH}-digit verification code`);
+        }
+
+        // Store-review account: accept the fixed OTP and log straight in
+        if (mode === "login" && isReviewAccount(channel, target)) {
+            if (otp !== REVIEW_OTP) {
+                return fail(res, 400, "Incorrect verification code");
+            }
+
+            const reviewUser = await User.findOneAndUpdate(
+                { email: REVIEW_EMAIL },
+                {
+                    $setOnInsert: { name: "Store Reviewer" },
+                    $set: { isVerified: true },
+                },
+                { upsert: true, new: true }
+            );
+
+            if (reviewUser.isBlocked) {
+                return fail(res, 403, "Your account has been blocked. Please contact support.", {
+                    code: "ACCOUNT_BLOCKED",
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: "Logged in successfully",
+                token: signToken({ userId: reviewUser._id.toString() }),
+                user: sanitizeUser(reviewUser),
+            });
         }
 
         const record = await Otp.findOne({ channel, target });
@@ -508,11 +557,7 @@ export const getMe = async (req, res) => {
     }
 };
 
-//Permission Controllers
-
-
 // Notification Preference Controllers
-// Add these to your existing auth controller file.
 
 const TOGGLE_KEYS = [
     "email",
@@ -667,109 +712,6 @@ export const deleteAccount = async (req, res) => {
     }
 };
 
-// export const googleAuthBounce = async (req, res) => {
-//      res.type("html").send(`<!doctype html>
-// <meta name="viewport" content="width=device-width, initial-scale=1">
-// <p style="font-family:sans-serif">Returning to the app…</p>
-// <script>
-//   var h = new URLSearchParams(location.hash.slice(1));
-//   var back = h.get("state") || "";
-//   var ok = ["exp://", "exps://", "wonderbooks://"].some(function (p) { return back.indexOf(p) === 0; });
-//   if (!ok) {
-//     document.body.textContent = "Invalid return address.";
-//   } else {
-//     h.delete("state");  
-//     location.replace(back + (back.indexOf("?") > -1 ? "&" : "?") + h.toString());
-//   }
-// </script>`);
-// }
-// export const googleAuthBounce = async (req, res) => {
-//     res.set({
-//         "Cache-Control": "no-store, no-cache, must-revalidate, private",
-//         Pragma: "no-cache",
-//         Expires: "0",
-//         "X-Content-Type-Options": "nosniff",
-//         "Referrer-Policy": "no-referrer",
-//     });
-
-//     return res.status(200).type("html").send(`<!DOCTYPE html>
-// <html>
-// <head>
-//   <meta charset="UTF-8" />
-//   <meta name="viewport" content="width=device-width, initial-scale=1" />
-//   <title>Wonder Books</title>
-//   <style>
-//     body{font-family:Arial,sans-serif;padding:24px;text-align:center}
-//     a.btn{display:none;margin:16px 6px 0;padding:14px 24px;background:#8B5CF6;
-//           color:#fff;border-radius:12px;text-decoration:none;font-weight:bold}
-//   </style>
-// </head>
-// <body>
-//   <p id="message">Returning to Wonder Books...</p>
-//   <a id="open" class="btn" href="#">Open Wonder Books</a>
-//   <a id="openIntent" class="btn" href="#">Open (Android fallback)</a>
-
-//   <script>
-//     (function () {
-//       var msg = document.getElementById("message");
-//       var btn = document.getElementById("open");
-//       var btnIntent = document.getElementById("openIntent");
-//       var PACKAGE = "com.wonwonderbooks.app";
-
-//       try {
-//         var params = new URLSearchParams(window.location.hash.substring(1));
-//         var state = params.get("state");
-//         var accessToken = params.get("access_token");
-
-//         if (!state) throw new Error("OAuth state is missing.");
-//         if (!accessToken) {
-//           throw new Error(
-//             params.get("error_description") || params.get("error") ||
-//             "Google access token missing."
-//           );
-//         }
-
-//         var target = new URL(state);
-//         var allowed = ["exp:", "exps:", "wonderbooks:"];
-//         if (allowed.indexOf(target.protocol) === -1 || !target.hostname ||
-//             target.username || target.password) {
-//           throw new Error("Invalid application return URL.");
-//         }
-
-//         params.delete("state");
-//         target.search = params.toString();
-//         var finalUrl = target.toString();
-
-//         // Main button: plain custom scheme
-//         btn.href = finalUrl;
-//         btn.style.display = "inline-block";
-
-//         // Android-only manual fallback: intent:// URL
-//         var isAndroid = /android/i.test(navigator.userAgent);
-//         if (isAndroid && target.protocol === "wonderbooks:") {
-//           var intentUrl =
-//             "intent://" + target.host + target.pathname + target.search +
-//             "#Intent;scheme=wonderbooks;package=" + PACKAGE +
-//             ";action=android.intent.action.VIEW" +
-//             ";category=android.intent.category.BROWSABLE;end";
-
-//           btnIntent.href = intentUrl;
-//           btnIntent.style.display = "inline-block";
-//         }
-
-//         msg.innerText = "Authentication successful. Tap a button if the app doesn't open.";
-
-//         // Auto-redirect with the plain scheme so expo-web-browser can capture it
-//         window.location.href = finalUrl;
-//       } catch (e) {
-//         msg.innerText = (e && e.message) || "Unable to return to the app.";
-//       }
-//     })();
-//   </script>
-// </body>
-// </html>`);
-// };
-
 const APPLE_AUDIENCES = [
     process.env.APPLE_BUNDLE_ID,
     ...(process.env.NODE_ENV !== "production" ? ["host.exp.Exponent"] : []),
@@ -849,246 +791,83 @@ export const appleAuth = async (req, res) => {
     }
 };
 
-// export const googleAuthBounce = async (req, res) => {
-//     res.set({
-//         "Cache-Control": "no-store, no-cache, must-revalidate, private",
-//         Pragma: "no-cache",
-//         Expires: "0",
-//         "X-Content-Type-Options": "nosniff",
-//         "Referrer-Policy": "no-referrer",
-//     });
-
-//     return res.status(200).type("html").send(`
-// <!DOCTYPE html>
-// <html>
-// <head>
-//   <meta charset="UTF-8" />
-//   <meta name="viewport" content="width=device-width, initial-scale=1" />
-//   <title>Wonder Books</title>
-
-//   <style>
-//     body {
-//       font-family: Arial, sans-serif;
-//       padding: 24px;
-//       text-align: center;
-//       background: #fff;
-//     }
-
-//     h2 {
-//       color: #8B5CF6;
-//       margin-bottom: 12px;
-//     }
-
-//     p {
-//       color: #333;
-//       margin-bottom: 20px;
-//     }
-
-//     .btn {
-//       display: inline-block;
-//       padding: 14px 24px;
-//       border-radius: 12px;
-//       background: #8B5CF6;
-//       color: white;
-//       font-weight: bold;
-//       text-decoration: none;
-//     }
-
-//     .error {
-//       color: #d32f2f;
-//     }
-//   </style>
-// </head>
-// <body>
-
-//   <h2>Wonder Books</h2>
-
-//   <p id="message">
-//     Completing sign in...
-//   </p>
-
-//   <a
-//     id="openApp"
-//     class="btn"
-//     href="#"
-//     style="display:none;"
-//   >
-//     Open Wonder Books
-//   </a>
-
-//   <script>
-//     (function () {
-//       const message = document.getElementById("message");
-//       const button = document.getElementById("openApp");
-
-//       try {
-//         console.log("Current URL:", window.location.href);
-
-//         const hash = window.location.hash.startsWith("#")
-//           ? window.location.hash.substring(1)
-//           : "";
-
-//         const params = new URLSearchParams(hash);
-
-//         const state = params.get("state");
-//         const accessToken = params.get("access_token");
-//         const error = params.get("error");
-//         const errorDescription = params.get("error_description");
-
-//         if (error) {
-//           throw new Error(errorDescription || error);
-//         }
-
-//         if (!state) {
-//           throw new Error("OAuth state missing.");
-//         }
-
-//         if (!accessToken) {
-//           throw new Error("Google access token missing.");
-//         }
-
-//         const finalUrl =
-//           state +
-//           (state.includes("?") ? "&" : "?") +
-//           "access_token=" +
-//           encodeURIComponent(accessToken);
-
-//         console.log("Final URL:", finalUrl);
-
-//         button.href = finalUrl;
-//         button.style.display = "inline-block";
-
-//         message.innerText =
-//           "Authentication successful. Returning to the app...";
-
-//         setTimeout(() => {
-//           window.location.replace(finalUrl);
-//         }, 300);
-
-//       } catch (err) {
-//         console.error(err);
-
-//         message.className = "error";
-//         message.innerText =
-//           err?.message || "Unable to complete sign in.";
-//       }
-//     })();
-//   </script>
-
-// </body>
-// </html>
-// `);
-// };
-
 export const googleAuthBounce = async (req, res) => {
-  res.set({
-    "Cache-Control": "no-store, no-cache, must-revalidate, private",
-    Pragma: "no-cache",
-    Expires: "0",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
-  });
+    res.set({
+        "Cache-Control": "no-store, no-cache, must-revalidate, private",
+        Pragma: "no-cache",
+        Expires: "0",
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "no-referrer",
+    });
 
-  return res.status(200).type("html").send(`
-<!DOCTYPE html>
+    const isProd = process.env.NODE_ENV === "production";
+    const allowed = isProd ? ["wonderbooks://"] : ["wonderbooks://", "exp://"];
+
+    return res.status(200).type("html").send(`<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Wonder Books</title>
-
 <style>
-body{
-  font-family:Arial,sans-serif;
-  padding:24px;
-  text-align:center;
-}
-pre{
-  white-space:pre-wrap;
-  word-break:break-all;
-  background:#f5f5f5;
-  padding:12px;
-  border-radius:8px;
-  margin-top:16px;
-}
-.btn{
-  display:inline-block;
-  margin-top:20px;
-  padding:14px 24px;
-  background:#8B5CF6;
-  color:#fff;
-  text-decoration:none;
-  border-radius:12px;
-  font-weight:bold;
-}
+  html,body{height:100%;margin:0}
+  body{display:flex;align-items:center;justify-content:center;
+       font-family:Arial,sans-serif;background:#fff;color:#222;text-align:center}
+  .spinner{width:36px;height:36px;margin:0 auto 16px;border:4px solid #e5e0fb;
+           border-top-color:#8B5CF6;border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .btn{display:none;margin-top:20px;padding:14px 24px;background:#8B5CF6;color:#fff;
+       text-decoration:none;border-radius:12px;font-weight:bold}
+  @media (prefers-color-scheme: dark){
+    body{background:#111;color:#eee}
+  }
 </style>
 </head>
 <body>
-
-<h2>Wonder Books</h2>
-
-<p id="message">Processing Google login...</p>
-
-<pre id="debug"></pre>
-
-<a id="openApp" class="btn" href="#">
-  Open Wonder Books
-</a>
+  <div>
+    <div class="spinner"></div>
+    <p id="message">Signing you in…</p>
+    <a id="openApp" class="btn" href="#">Open Wonder Books</a>
+  </div>
 
 <script>
 (function () {
-
-  const message = document.getElementById("message");
-  const debug = document.getElementById("debug");
-  const button = document.getElementById("openApp");
+  var message = document.getElementById("message");
+  var button = document.getElementById("openApp");
+  var allowed = ${JSON.stringify(allowed)};
 
   try {
+    var params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    var state = params.get("state");
+    var accessToken = params.get("access_token");
 
-    const hash = window.location.hash.replace(/^#/, "");
-    const params = new URLSearchParams(hash);
-
-    const state = params.get("state");
-    const accessToken = params.get("access_token");
-
-    if (!state) {
-      throw new Error("Missing state");
+    if (!state || !allowed.some(function (p) { return state.indexOf(p) === 0; })) {
+      throw new Error("Invalid state");
     }
+    if (!accessToken) throw new Error("Missing access token");
 
-    if (!accessToken) {
-      throw new Error("Missing access token");
-    }
+    var sep = state.indexOf("?") !== -1 ? "&" : "?";
+    var finalUrl = state + sep + "access_token=" + encodeURIComponent(accessToken);
 
-    const finalUrl =
-      state +
-      (state.includes("?") ? "&" : "?") +
-      "access_token=" +
-      encodeURIComponent(accessToken);
+    var idx = state.indexOf("://");
+    var scheme = state.substring(0, idx);
+    var rest = finalUrl.substring(idx + 3);
+    var pkg = scheme === "exp" ? "host.exp.exponent" : "com.nowitservices.wonwonderbooks";
 
-    debug.textContent =
-      "STATE\\n\\n" +
-      state +
-      "\\n\\nFINAL URL\\n\\n" +
-      finalUrl;
+    var openUrl = "intent://" + rest + "#Intent;scheme=" + scheme + ";package=" + pkg + ";end";
 
-    button.href = finalUrl;
+    button.href = openUrl;
+    window.location.replace(openUrl);           // redirect immediately
 
-    message.textContent =
-      "Authentication successful.";
-
-    // auto-open app
-    window.location.href = finalUrl;
-
+    setTimeout(function () {                    // fallback only if still here
+      message.textContent = "Tap the button if the app did not open.";
+      button.style.display = "inline-block";
+    }, 2500);
   } catch (e) {
-
-    message.textContent =
-      "ERROR: " + (e.message || "Unknown");
-
-    debug.textContent = window.location.href;
+    message.textContent = "Sign-in failed. Please close this tab and try again.";
   }
 })();
 </script>
-
 </body>
-</html>
-`);
+</html>`);
 };
