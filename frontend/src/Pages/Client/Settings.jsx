@@ -2729,7 +2729,7 @@ export const Settings = () => {
         setSearchParams(id === "profile" ? {} : { tab: id }, { replace: true });
     };
     const active = CATEGORIES.find((c) => c.id === activeId);
-c
+
     return (
         <div className="w-full pb-6">
             <div className="sticky top-0 z-20 bg-white px-4 pb-3 pt-4 sm:px-6">
