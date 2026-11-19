@@ -15,7 +15,19 @@ import { recordTokenUsage } from "../services/tokenUsage.js";
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const MODEL = process.env.OPENAI_IMAGE_MODEL || "gpt-image-1-mini";
-const QUALITY = process.env.OPENAI_IMAGE_QUALITY || "medium"; // low | medium | high
+
+
+const rawImageQuality = String(
+  process.env.OPENAI_IMAGE_QUALITY || "medium"
+).trim().toLowerCase();
+
+
+const ALLOWED_IMAGE_QUALITIES = ["low", "medium", "high", "auto"];
+
+
+const QUALITY = ALLOWED_IMAGE_QUALITIES.includes(rawImageQuality)
+  ? rawImageQuality
+  : "medium";// low | medium | high
 // "low" = less restrictive automatic filtering (supported by images.generate).
 const MODERATION = process.env.OPENAI_IMAGE_MODERATION || "low"; // auto | low
 
@@ -316,7 +328,7 @@ export const generateImage = async ({
         // Counted even if the picture is rejected below: the tokens were spent.
         recordTokenUsage(
           usageCategory ||
-            (purpose === "reference" ? "Character reference images" : "Page images"),
+          (purpose === "reference" ? "Character reference images" : "Page images"),
           response?.usage,
         );
 
