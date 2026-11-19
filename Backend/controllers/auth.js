@@ -1,3 +1,886 @@
+// import crypto from "node:crypto";
+// import { User } from "../models/user.js";
+// import { Otp } from "../models/otp.js";
+// import {
+//     generateOtp,
+//     hashOtp,
+//     getOtpExpiry,
+//     canResendOtp,
+//     secondsUntilResendAllowed,
+//     sendOtpEmail,
+//     sendOtpSms,
+//     normalizePhone,
+//     parseIdentifier,
+//     MAX_OTP_ATTEMPTS,
+// } from "../services/otpService.js";
+// import {
+//     signToken,
+//     signVerificationToken,
+//     verifyVerificationToken,
+// } from "../services/tokenService.js";
+// import { normalizeS3Url } from "../services/s3Service.js";
+// import { createRemoteJWKSet, jwtVerify } from "jose";
+
+// const APPLE_JWKS = createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys"));
+
+
+// const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// const OTP_LENGTH = 6;
+
+// const sanitizeUser = (user) => ({
+//     id: user._id,
+//     name: user.name || "",
+//     email: user.email,
+//     phone: user.phone || null,
+//     isPhoneVerified: Boolean(user.isPhoneVerified),
+//     isVerified: Boolean(user.isVerified),
+//     avatarUrl: normalizeS3Url(user.avatarUrl) || null,
+//     role: user.role || "user",
+//     isSubscribed: Boolean(user.isSubscribed),
+//     subscriptionPlan: user.subscriptionPlan || "",
+//     subscriptionStatus: user.subscriptionStatus || null,
+//     createdAt: user.createdAt,
+//     childMode: {
+//         enabled: Boolean(user.childMode?.enabled),
+//         hasPin: Boolean(user.childMode?.hasPin),
+//     },
+// });
+
+// // NOTE: must be defined BEFORE the review constants below (const is not hoisted)
+// const normalizeEmail = (email) => email?.trim().toLowerCase();
+
+// /* ------------------------- STORE REVIEW ACCOUNT ------------------------ */
+// // Fixed email + OTP login for Google Play / App Store reviewers.
+// // Controlled by env: REVIEW_LOGIN_ENABLED=true, REVIEW_EMAIL, REVIEW_OTP
+// const REVIEW_ENABLED = process.env.REVIEW_LOGIN_ENABLED === "true";
+// const REVIEW_EMAIL = normalizeEmail(process.env.REVIEW_EMAIL || "review@wonderbooks.com");
+// const REVIEW_OTP = process.env.REVIEW_OTP || "123456";
+
+// const isReviewAccount = (channel, target) =>
+//     REVIEW_ENABLED && channel === "email" && target === REVIEW_EMAIL;
+
+// const isValidOtp = (otp) => {
+//     return /^\d{6}$/.test(String(otp).trim());
+// };
+
+// const safeOtpCompare = (providedHash, storedHash) => {
+//     if (!providedHash || !storedHash) {
+//         return false;
+//     }
+
+//     const providedBuffer = Buffer.from(providedHash, "hex");
+//     const storedBuffer = Buffer.from(storedHash, "hex");
+
+//     if (providedBuffer.length !== storedBuffer.length) {
+//         return false;
+//     }
+
+//     return crypto.timingSafeEqual(providedBuffer, storedBuffer);
+// };
+
+
+// const CHANNELS = {
+//     email: { label: "email" },
+//     phone: { label: "mobile number" },
+// };
+
+// const fail = (res, status, message, extra = {}) =>
+//     res.status(status).json({ success: false, message, ...extra });
+
+// // -> lowercase email / "+91XXXXXXXXXX", or null when invalid
+// const resolveTarget = (channel, body) => {
+//     if (channel === "email") {
+//         const email = normalizeEmail(body.email);
+//         return email && EMAIL_REGEX.test(email) ? email : null;
+//     }
+//     if (channel === "phone") return normalizePhone(body.phone);
+//     return null;
+// };
+
+// const sendChannelOtp = (channel, target, otp) =>
+//     channel === "email"
+//         ? sendOtpEmail({ email: target, otp })
+//         : sendOtpSms({ phone: target, otp });
+
+// // Works out { channel, target } for either mode (or sends the error response).
+// const readOtpTarget = (req, res) => {
+//     const { mode } = req.body;
+
+//     if (mode === "signup") {
+//         const channel = req.body.channel;
+//         if (!CHANNELS[channel]) {
+//             fail(res, 400, "Invalid verification channel");
+//             return null;
+//         }
+//         const target = resolveTarget(channel, req.body);
+//         if (!target) {
+//             fail(
+//                 res,
+//                 400,
+//                 channel === "email"
+//                     ? "Please enter a valid email address"
+//                     : "Please enter a valid 10-digit mobile number"
+//             );
+//             return null;
+//         }
+//         return { mode, channel, target };
+//     }
+
+//     if (mode === "login") {
+//         const parsed = parseIdentifier(req.body.identifier ?? req.body.email);
+//         if (!parsed) {
+//             fail(res, 400, "Enter a valid email address or 10-digit mobile number");
+//             return null;
+//         }
+//         return { mode, channel: parsed.type, target: parsed.value };
+//     }
+
+//     fail(res, 400, "Invalid authentication mode");
+//     return null;
+// };
+
+// /* ------------------------------ SEND OTP ------------------------------ */
+// // signup: { mode: "signup", channel: "email" | "phone", email | phone }
+// // login : { mode: "login", identifier }
+
+// export const sendOtp = async (req, res) => {
+//     try {
+//         const info = readOtpTarget(req, res);
+//         if (!info) return;
+//         const { mode, channel, target } = info;
+
+//         // Store-review account: don't send anything, the fixed OTP is accepted in verifyOtp
+//         if (mode === "login" && isReviewAccount(channel, target)) {
+//             return res.status(200).json({
+//                 success: true,
+//                 message: "Verification code sent to your email",
+//                 channel,
+//             });
+//         }
+
+//         const existing = await User.findOne({ [channel]: target, isVerified: true }).select("_id");
+
+//         if (mode === "signup" && existing) {
+//             return fail(
+//                 res,
+//                 409,
+//                 `An account with this ${CHANNELS[channel].label} already exists. Please log in instead.`,
+//                 { code: channel === "email" ? "EMAIL_ALREADY_REGISTERED" : "PHONE_ALREADY_REGISTERED" }
+//             );
+//         }
+
+//         if (mode === "login" && !existing) {
+//             return fail(
+//                 res,
+//                 404,
+//                 `No account found with this ${CHANNELS[channel].label}. Please sign up first.`,
+//                 { code: "USER_NOT_REGISTERED" }
+//             );
+//         }
+
+//         const record = await Otp.findOne({ channel, target });
+//         if (record && !canResendOtp(record.lastSentAt)) {
+//             return fail(res, 429, "Please wait before requesting another code", {
+//                 retryAfterSeconds: secondsUntilResendAllowed(record.lastSentAt),
+//             });
+//         }
+
+//         const otp = generateOtp();
+
+//         await Otp.findOneAndUpdate(
+//             { channel, target },
+//             {
+//                 otpHash: hashOtp(otp),
+//                 expiresAt: getOtpExpiry(channel),
+//                 attempts: 0,
+//                 lastSentAt: new Date(),
+//             },
+//             { upsert: true, setDefaultsOnInsert: true }
+//         );
+
+//         try {
+//             await sendChannelOtp(channel, target, otp);
+//         } catch (sendError) {
+//             console.error(`OTP ${channel} error:`, sendError);
+//             await Otp.deleteOne({ channel, target });
+//             return fail(
+//                 res,
+//                 502,
+//                 channel === "email"
+//                     ? "We couldn't send the code to your email. Please check it and try again"
+//                     : "We couldn't send the code to your mobile number. Please check it and try again"
+//             );
+//         }
+
+//         return res.status(200).json({
+//             success: true,
+//             message:
+//                 channel === "email"
+//                     ? "Verification code sent to your email"
+//                     : "Verification code sent to your mobile number",
+//             channel,
+//             ...(process.env.NODE_ENV !== "production" ? { devOtp: { [channel]: otp } } : {}),
+//         });
+//     } catch (error) {
+//         console.error("Send OTP error:", error);
+//         return fail(res, 500, "Something went wrong while sending the code");
+//     }
+// };
+
+// /* ----------------------------- VERIFY OTP ----------------------------- */
+// // signup: { mode: "signup", channel, email | phone, otp }  -> { verificationToken }
+// // login : { mode: "login", identifier, otp }               -> { token, user }
+
+// export const verifyOtp = async (req, res) => {
+//     try {
+//         const info = readOtpTarget(req, res);
+//         if (!info) return;
+//         const { mode, channel, target } = info;
+
+//         const otp = String(req.body.otp || "").trim();
+//         if (!isValidOtp(otp)) {
+//             return fail(res, 400, `Please enter the ${OTP_LENGTH}-digit verification code`);
+//         }
+
+//         // Store-review account: accept the fixed OTP and log straight in
+//         if (mode === "login" && isReviewAccount(channel, target)) {
+//             if (otp !== REVIEW_OTP) {
+//                 return fail(res, 400, "Incorrect verification code");
+//             }
+
+//             const reviewUser = await User.findOneAndUpdate(
+//                 { email: REVIEW_EMAIL },
+//                 {
+//                     $setOnInsert: { name: "Store Reviewer" },
+//                     $set: { isVerified: true },
+//                 },
+//                 { upsert: true, new: true }
+//             );
+
+//             if (reviewUser.isBlocked) {
+//                 return fail(res, 403, "Your account has been blocked. Please contact support.", {
+//                     code: "ACCOUNT_BLOCKED",
+//                 });
+//             }
+
+//             return res.status(200).json({
+//                 success: true,
+//                 message: "Logged in successfully",
+//                 token: signToken({ userId: reviewUser._id.toString() }),
+//                 user: sanitizeUser(reviewUser),
+//             });
+//         }
+
+//         const record = await Otp.findOne({ channel, target });
+
+//         if (!record) {
+//             return fail(res, 400, "This code is no longer valid. Please request a new one");
+//         }
+
+//         if (record.expiresAt.getTime() <= Date.now()) {
+//             await Otp.deleteOne({ _id: record._id });
+//             return fail(res, 400, "This code has expired. Please request a new one");
+//         }
+
+//         if (record.attempts >= MAX_OTP_ATTEMPTS) {
+//             await Otp.deleteOne({ _id: record._id });
+//             return fail(res, 429, "Too many incorrect attempts. Please request a new code");
+//         }
+
+//         if (!safeOtpCompare(hashOtp(otp), record.otpHash)) {
+//             record.attempts += 1;
+
+//             if (record.attempts >= MAX_OTP_ATTEMPTS) {
+//                 await Otp.deleteOne({ _id: record._id });
+//                 return fail(res, 429, "Too many incorrect attempts. Please request a new code");
+//             }
+
+//             await record.save();
+//             return fail(res, 400, "Incorrect verification code", {
+//                 attemptsRemaining: MAX_OTP_ATTEMPTS - record.attempts,
+//             });
+//         }
+
+//         await Otp.deleteOne({ _id: record._id });
+
+//         if (mode === "signup") {
+//             return res.status(200).json({
+//                 success: true,
+//                 message: `${channel === "email" ? "Email" : "Mobile number"} verified`,
+//                 verified: true,
+//                 channel,
+//                 verificationToken: signVerificationToken({ channel, target }),
+//             });
+//         }
+
+//         const user = await User.findOne({ [channel]: target, isVerified: true });
+
+//         if (!user) {
+//             return fail(res, 404, "No account found. Please sign up first.", {
+//                 code: "USER_NOT_REGISTERED",
+//             });
+//         }
+
+//         const token = signToken({ userId: user._id.toString() });
+
+//         return res.status(200).json({
+//             success: true,
+//             message: "Logged in successfully",
+//             token,
+//             user: sanitizeUser(user),
+//         });
+//     } catch (error) {
+//         console.error("Verify OTP error:", error);
+//         return fail(res, 500, "Something went wrong while verifying the code");
+//     }
+// };
+
+// /* --------------------------- COMPLETE SIGNUP --------------------------- */
+// // { name, email, phone, emailToken, phoneToken }  (both tokens come from verify-otp)
+
+// const hasVerified = (token, channel, target) => {
+//     try {
+//         const payload = verifyVerificationToken(token);
+//         return (
+//             payload.purpose === "signup-verify" &&
+//             payload.channel === channel &&
+//             payload.target === target
+//         );
+//     } catch {
+//         return false;
+//     }
+// };
+
+// export const completeSignup = async (req, res) => {
+//     try {
+//         const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+//         const email = normalizeEmail(req.body.email);
+
+//         if (!name) return fail(res, 400, "Please tell us your name");
+//         if (!email || !EMAIL_REGEX.test(email)) {
+//             return fail(res, 400, "Please enter a valid email address");
+//         }
+
+//         if (!hasVerified(req.body.emailToken, "email", email)) {
+//             return fail(res, 400, "Please verify your email address first", {
+//                 code: "EMAIL_NOT_VERIFIED",
+//             });
+//         }
+
+//         const taken = await User.findOne({ email, isVerified: true }).select("_id");
+
+//         if (taken) {
+//             return fail(
+//                 res,
+//                 409,
+//                 "An account with this email already exists. Please log in instead.",
+//                 { code: "ALREADY_REGISTERED" }
+//             );
+//         }
+
+//         // clear any abandoned, never-verified records that would clash with the unique index
+//         await User.deleteMany({ isVerified: false, email });
+
+//         const user = await User.create({
+//             name,
+//             email,
+//             isVerified: true,
+//         });
+
+//         const token = signToken({ userId: user._id.toString() });
+
+//         return res.status(201).json({
+//             success: true,
+//             message: "Account created successfully",
+//             token,
+//             user: sanitizeUser(user),
+//         });
+//     } catch (error) {
+//         console.error("Complete signup error:", error);
+
+//         if (error?.code === 11000) {
+//             return fail(
+//                 res,
+//                 409,
+//                 "An account with this email already exists. Please log in instead.",
+//                 { code: "ALREADY_REGISTERED" }
+//             );
+//         }
+
+//         return fail(res, 500, "Something went wrong while creating your account");
+//     }
+// };
+
+// export const googleAuth = async (req, res) => {
+//     try {
+//         const { accessToken } = req.body;
+
+//         if (!accessToken) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: "Missing Google access token",
+//             });
+//         }
+
+//         let payload;
+//         try {
+//             const googleRes = await fetch(
+//                 "https://www.googleapis.com/oauth2/v3/userinfo",
+//                 { headers: { Authorization: `Bearer ${accessToken}` } }
+//             );
+
+//             if (!googleRes.ok) {
+//                 throw new Error(`Google userinfo responded with ${googleRes.status}`);
+//             }
+
+//             payload = await googleRes.json();
+//         } catch (verifyError) {
+//             console.error("Google token verification error:", verifyError);
+//             return res.status(401).json({
+//                 success: false,
+//                 message: "We couldn't verify that Google account. Please try again.",
+//             });
+//         }
+
+//         if (!payload?.email) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: "Your Google account has no email address to sign in with",
+//             });
+//         }
+
+//         if (!payload.email_verified) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: "Please use a Google account with a verified email address",
+//             });
+//         }
+
+//         const normalizedEmail = normalizeEmail(payload.email);
+
+//         let user = await User.findOne({ email: normalizedEmail });
+
+//         if (user?.isBlocked) {
+//             return res.status(403).json({
+//                 success: false,
+//                 message: "Your account has been blocked. Please contact support.",
+//                 code: "ACCOUNT_BLOCKED",
+//             });
+//         }
+
+//         if (!user) {
+//             user = new User({
+//                 email: normalizedEmail,
+//                 name: payload.name || "",
+//                 avatarUrl: payload.picture || null,
+//                 isVerified: true,
+//             });
+//         } else if (!user.isVerified) {
+//             user.isVerified = true;
+//             // abandoned OTP signup for this email: drop its pending phone/OTP state
+//             user.phone = undefined;
+//             user.isPhoneVerified = false;
+//             if (!user.name && payload.name) {
+//                 user.name = payload.name;
+//             }
+//             if (!user.avatarUrl && payload.picture) {
+//                 user.avatarUrl = payload.picture;
+//             }
+//         }
+
+//         await user.save();
+
+//         const token = signToken({ userId: user._id.toString() });
+
+//         return res.status(200).json({
+//             success: true,
+//             message: "Signed in with Google successfully",
+//             token,
+//             user: sanitizeUser(user),
+//         });
+//     } catch (error) {
+//         console.error("Google auth error:", error);
+
+//         return res.status(500).json({
+//             success: false,
+//             message: "Something went wrong while signing in with Google",
+//         });
+//     }
+// };
+
+// export const getMe = async (req, res) => {
+//     try {
+//         if (!req.userId) {
+//             return res.status(401).json({
+//                 success: false,
+//                 code: "NO_TOKEN",
+//                 message: "Authentication required",
+//             });
+//         }
+
+//         const user = await User.findById(req.userId);
+
+//         if (!user) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: "User account not found",
+//             });
+//         }
+
+//         if (user?.isBlocked) {
+//             return res.status(403).json({
+//                 success: false,
+//                 message: "Your account has been blocked. Please contact support.",
+//                 code: "ACCOUNT_BLOCKED",
+//             });
+//         }
+
+//         if (!user.isVerified) {
+//             return res.status(401).json({
+//                 success: false,
+//                 code: "EMAIL_NOT_VERIFIED",
+//                 message: "Please verify your email address",
+//             });
+//         }
+
+//         return res.status(200).json({
+//             success: true,
+//             user: sanitizeUser(user),
+//         });
+//     } catch (error) {
+//         console.error("Get current user error:", error);
+
+//         return res.status(500).json({
+//             success: false,
+//             message: "Something went wrong while loading your account",
+//         });
+//     }
+// };
+
+// // Notification Preference Controllers
+
+// const TOGGLE_KEYS = [
+//     "email",
+//     "push",
+//     "reminders",
+//     "orders",
+//     "recommendations",
+//     "offers",
+// ];
+
+// const FREQUENCIES = ["Instant", "Daily digest", "Weekly"];
+
+// const DEFAULT_PREFERENCES = {
+//     email: true,
+//     push: false,
+//     reminders: true,
+//     orders: true,
+//     recommendations: true,
+//     offers: false,
+//     frequency: "Instant",
+// };
+
+// // GET /auth/notification-preferences
+// export const getNotificationPreferences = async (req, res) => {
+//     try {
+//         const user = await User.findById(req.userId)
+//             .select("notificationPreferences")
+//             .lean();
+
+//         if (!user) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: "User not found",
+//             });
+//         }
+
+//         const preferences = {
+//             ...DEFAULT_PREFERENCES,
+//             ...(user.notificationPreferences || {}),
+//         };
+
+//         return res.status(200).json({
+//             success: true,
+//             preferences,
+//         });
+//     } catch (error) {
+//         console.error("Get notification preferences error:", error);
+
+//         return res.status(500).json({
+//             success: false,
+//             message: "Failed to load notification preferences",
+//         });
+//     }
+// };
+
+// // PUT /auth/notification-preferences
+// export const updateNotificationPreferences = async (req, res) => {
+//     try {
+//         const body = req.body || {};
+//         const updates = {};
+
+//         for (const key of TOGGLE_KEYS) {
+//             if (Object.prototype.hasOwnProperty.call(body, key)) {
+//                 if (typeof body[key] !== "boolean") {
+//                     return res.status(400).json({
+//                         success: false,
+//                         message: `${key} must be a boolean`,
+//                     });
+//                 }
+
+//                 updates[`notificationPreferences.${key}`] = body[key];
+//             }
+//         }
+
+//         if (Object.prototype.hasOwnProperty.call(body, "frequency")) {
+//             if (!FREQUENCIES.includes(body.frequency)) {
+//                 return res.status(400).json({
+//                     success: false,
+//                     message: "Invalid notification frequency",
+//                 });
+//             }
+
+//             updates["notificationPreferences.frequency"] = body.frequency;
+//         }
+
+//         if (Object.keys(updates).length === 0) {
+//             return res.status(400).json({
+//                 success: false,
+//                 message: "No valid notification preferences provided",
+//             });
+//         }
+
+//         const user = await User.findByIdAndUpdate(
+//             req.userId,
+//             { $set: updates },
+//             {
+//                 new: true,
+//                 runValidators: true,
+//             }
+//         ).select("notificationPreferences");
+
+//         if (!user) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: "User not found",
+//             });
+//         }
+
+//         return res.status(200).json({
+//             success: true,
+//             message: "Notification preferences updated successfully",
+//             preferences: {
+//                 ...DEFAULT_PREFERENCES,
+//                 ...(user.notificationPreferences?.toObject?.() ||
+//                     user.notificationPreferences ||
+//                     {}),
+//             },
+//         });
+//     } catch (error) {
+//         console.error("Update notification preferences error:", error);
+
+//         return res.status(500).json({
+//             success: false,
+//             message: "Failed to update notification preferences",
+//         });
+//     }
+// };
+
+
+// export const deleteAccount = async (req, res) => {
+//     try {
+//         const user = await User.findById(req.userId);
+//         if (!user) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: "User not found",
+//             });
+//         }
+
+//         await User.findByIdAndDelete(req.userId);
+
+//         return res.status(200).json({
+//             success: true,
+//             message: "Account deleted successfully",
+//         });
+//     } catch (error) {
+//         console.error("Delete account error:", error);
+//         return res.status(500).json({
+//             success: false,
+//             message: "Failed to delete account",
+//         });
+//     }
+// };
+
+// const APPLE_AUDIENCES = [
+//     process.env.APPLE_BUNDLE_ID,
+//     ...(process.env.NODE_ENV !== "production" ? ["host.exp.Exponent"] : []),
+// ].filter(Boolean);
+
+// export const appleAuth = async (req, res) => {
+//     try {
+//         const { identityToken, name } = req.body;
+
+//         if (!identityToken || typeof identityToken !== "string") {
+//             return fail(res, 400, "Missing Apple identity token");
+//         }
+
+//         let payload;
+//         try {
+//             ({ payload } = await jwtVerify(identityToken, APPLE_JWKS, {
+//                 issuer: "https://appleid.apple.com",
+//                 audience: APPLE_AUDIENCES,
+//             }));
+//         } catch (verifyError) {
+//             console.error("Apple token verification error:", verifyError);
+//             return fail(res, 401, "We couldn't verify that Apple account. Please try again.");
+//         }
+
+//         const appleId = payload.sub;
+//         const email = normalizeEmail(payload.email);
+//         const emailVerified = payload.email_verified === true || payload.email_verified === "true";
+
+//         // 1) returning Apple user, 2) existing account with same verified email
+//         let user = await User.findOne({ appleId });
+//         if (!user && email && emailVerified) {
+//             user = await User.findOne({ email });
+//         }
+
+//         if (user?.isBlocked) {
+//             return fail(res, 403, "Your account has been blocked. Please contact support.", {
+//                 code: "ACCOUNT_BLOCKED",
+//             });
+//         }
+
+//         const cleanName = typeof name === "string" ? name.trim() : "";
+
+//         if (!user) {
+//             // Apple only sends email on first sign-in; without it we can't create an account
+//             if (!email) {
+//                 return fail(res, 400, "Apple did not share an email address. Please try another sign-in method.");
+//             }
+//             user = new User({
+//                 email,
+//                 appleId,
+//                 name: cleanName,
+//                 isVerified: true,
+//             });
+//         } else {
+//             if (!user.appleId) user.appleId = appleId;
+//             if (!user.isVerified) {
+//                 user.isVerified = true;
+//                 user.phone = undefined;
+//                 user.isPhoneVerified = false;
+//             }
+//             if (!user.name && cleanName) user.name = cleanName;
+//         }
+
+//         await user.save();
+
+//         const token = signToken({ userId: user._id.toString() });
+
+//         return res.status(200).json({
+//             success: true,
+//             message: "Signed in with Apple successfully",
+//             token,
+//             user: sanitizeUser(user),
+//         });
+//     } catch (error) {
+//         console.error("Apple auth error:", error);
+//         return fail(res, 500, "Something went wrong while signing in with Apple");
+//     }
+// };
+
+// export const googleAuthBounce = async (req, res) => {
+//     res.set({
+//         "Cache-Control": "no-store, no-cache, must-revalidate, private",
+//         Pragma: "no-cache",
+//         Expires: "0",
+//         "X-Content-Type-Options": "nosniff",
+//         "Referrer-Policy": "no-referrer",
+//     });
+
+//     const isProd = process.env.NODE_ENV === "production";
+//     const allowed = isProd ? ["wonderbooks://"] : ["wonderbooks://", "exp://"];
+//     const androidPackage = process.env.ANDROID_PACKAGE || "com.nowitservices.wonwonderbooks";
+
+//     return res.status(200).type("html").send(`<!DOCTYPE html>
+// <html>
+// <head>
+// <meta charset="utf-8" />
+// <meta name="viewport" content="width=device-width,initial-scale=1" />
+// <title>Wonder Books</title>
+// <style>
+//   html,body{height:100%;margin:0}
+//   body{display:flex;align-items:center;justify-content:center;
+//        font-family:Arial,sans-serif;background:#fff;color:#222;text-align:center}
+//   .spinner{width:36px;height:36px;margin:0 auto 16px;border:4px solid #e5e0fb;
+//            border-top-color:#8B5CF6;border-radius:50%;animation:spin .8s linear infinite}
+//   @keyframes spin{to{transform:rotate(360deg)}}
+//   .btn{display:none;margin-top:20px;padding:14px 24px;background:#8B5CF6;color:#fff;
+//        text-decoration:none;border-radius:12px;font-weight:bold}
+//   @media (prefers-color-scheme: dark){
+//     body{background:#111;color:#eee}
+//   }
+// </style>
+// </head>
+// <body>
+//   <div>
+//     <div class="spinner"></div>
+//     <p id="message">Signing you in…</p>
+//     <a id="openApp" class="btn" href="#">Open Wonder Books</a>
+//   </div>
+
+// <script>
+// (function () {
+//   var message = document.getElementById("message");
+//   var button = document.getElementById("openApp");
+//   var allowed = ${JSON.stringify(allowed)};
+//   var androidPackage = ${JSON.stringify(androidPackage)};
+
+//   try {
+//     var params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+//     var state = params.get("state");
+//     var accessToken = params.get("access_token");
+//     var oauthError = params.get("error");
+
+//     if (oauthError) throw new Error(oauthError);
+
+//     if (!state || !allowed.some(function (p) { return state.indexOf(p) === 0; })) {
+//       throw new Error("Invalid state");
+//     }
+//     if (!accessToken) throw new Error("Missing access token");
+
+//     var sep = state.indexOf("?") !== -1 ? "&" : "?";
+//     var finalUrl = state + sep + "access_token=" + encodeURIComponent(accessToken);
+
+//     var isAndroid = /Android/i.test(navigator.userAgent || "");
+//     var openUrl = finalUrl; // iOS (and anything else): plain custom-scheme deep link
+
+//     if (isAndroid) {
+//       var idx = state.indexOf("://");
+//       var scheme = state.substring(0, idx);
+//       var rest = finalUrl.substring(idx + 3);
+//       var pkg = scheme === "exp" ? "host.exp.exponent" : androidPackage;
+//       openUrl = "intent://" + rest + "#Intent;scheme=" + scheme + ";package=" + pkg + ";end";
+//     }
+
+//     button.href = openUrl;
+//     window.location.replace(openUrl);
+
+//     setTimeout(function () {
+//       message.textContent = "Tap the button if the app did not open.";
+//       button.style.display = "inline-block";
+//     }, 2500);
+//   } catch (e) {
+//     message.textContent = "Sign-in failed. Please close this tab and try again.";
+//   }
+// })();
+// </script>
+// </body>
+// </html>`);
+// };
+
 import crypto from "node:crypto";
 import { User } from "../models/user.js";
 import { Otp } from "../models/otp.js";
@@ -23,7 +906,6 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const APPLE_JWKS = createRemoteJWKSet(new URL("https://appleid.apple.com/auth/keys"));
 
-
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OTP_LENGTH = 6;
 
@@ -46,18 +928,22 @@ const sanitizeUser = (user) => ({
     },
 });
 
-// NOTE: must be defined BEFORE the review constants below (const is not hoisted)
 const normalizeEmail = (email) => email?.trim().toLowerCase();
 
 /* ------------------------- STORE REVIEW ACCOUNT ------------------------ */
 // Fixed email + OTP login for Google Play / App Store reviewers.
 // Controlled by env: REVIEW_LOGIN_ENABLED=true, REVIEW_EMAIL, REVIEW_OTP
-const REVIEW_ENABLED = process.env.REVIEW_LOGIN_ENABLED === "true";
-const REVIEW_EMAIL = normalizeEmail(process.env.REVIEW_EMAIL || "review@wonderbooks.com");
-const REVIEW_OTP = process.env.REVIEW_OTP || "123456";
+// Read per request (not at import time) so it works regardless of when dotenv loads.
+const getReviewConfig = () => ({
+    enabled: process.env.REVIEW_LOGIN_ENABLED === "true",
+    email: normalizeEmail(process.env.REVIEW_EMAIL || "review@wonderbooks.com"),
+    otp: process.env.REVIEW_OTP || "123456",
+});
 
-const isReviewAccount = (channel, target) =>
-    REVIEW_ENABLED && channel === "email" && target === REVIEW_EMAIL;
+const isReviewAccount = (channel, target) => {
+    const review = getReviewConfig();
+    return review.enabled && channel === "email" && target === review.email;
+};
 
 const isValidOtp = (otp) => {
     return /^\d{6}$/.test(String(otp).trim());
@@ -244,12 +1130,14 @@ export const verifyOtp = async (req, res) => {
 
         // Store-review account: accept the fixed OTP and log straight in
         if (mode === "login" && isReviewAccount(channel, target)) {
-            if (otp !== REVIEW_OTP) {
+            const review = getReviewConfig();
+
+            if (otp !== review.otp) {
                 return fail(res, 400, "Incorrect verification code");
             }
 
             const reviewUser = await User.findOneAndUpdate(
-                { email: REVIEW_EMAIL },
+                { email: review.email },
                 {
                     $setOnInsert: { name: "Store Reviewer" },
                     $set: { isVerified: true },
@@ -411,19 +1299,49 @@ export const completeSignup = async (req, res) => {
     }
 };
 
+/* ------------------------------- GOOGLE ------------------------------- */
+// Env: GOOGLE_CLIENT_IDS = comma-separated list of OAuth client IDs whose
+// tokens we accept (the WEB client ID used in the mobile auth URL).
+
+const getGoogleClientIds = () =>
+    (process.env.GOOGLE_CLIENT_IDS || "")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+
 export const googleAuth = async (req, res) => {
     try {
         const { accessToken } = req.body;
 
-        if (!accessToken) {
-            return res.status(400).json({
-                success: false,
-                message: "Missing Google access token",
-            });
+        if (!accessToken || typeof accessToken !== "string") {
+            return fail(res, 400, "Missing Google access token");
+        }
+
+        const allowedClientIds = getGoogleClientIds();
+        if (allowedClientIds.length === 0) {
+            console.error("GOOGLE_CLIENT_IDS is not set; cannot verify Google tokens");
+            return fail(res, 500, "Google sign-in is not configured on the server");
         }
 
         let payload;
         try {
+            // 1) make sure the token was issued for OUR app
+            const infoRes = await fetch(
+                `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`
+            );
+
+            if (!infoRes.ok) {
+                throw new Error(`Google tokeninfo responded with ${infoRes.status}`);
+            }
+
+            const tokenInfo = await infoRes.json();
+            const audience = tokenInfo.aud || tokenInfo.azp;
+
+            if (!allowedClientIds.includes(audience)) {
+                throw new Error(`Google token audience mismatch (${audience})`);
+            }
+
+            // 2) fetch the profile
             const googleRes = await fetch(
                 "https://www.googleapis.com/oauth2/v3/userinfo",
                 { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -436,24 +1354,15 @@ export const googleAuth = async (req, res) => {
             payload = await googleRes.json();
         } catch (verifyError) {
             console.error("Google token verification error:", verifyError);
-            return res.status(401).json({
-                success: false,
-                message: "We couldn't verify that Google account. Please try again.",
-            });
+            return fail(res, 401, "We couldn't verify that Google account. Please try again.");
         }
 
         if (!payload?.email) {
-            return res.status(400).json({
-                success: false,
-                message: "Your Google account has no email address to sign in with",
-            });
+            return fail(res, 400, "Your Google account has no email address to sign in with");
         }
 
         if (!payload.email_verified) {
-            return res.status(400).json({
-                success: false,
-                message: "Please use a Google account with a verified email address",
-            });
+            return fail(res, 400, "Please use a Google account with a verified email address");
         }
 
         const normalizedEmail = normalizeEmail(payload.email);
@@ -461,9 +1370,7 @@ export const googleAuth = async (req, res) => {
         let user = await User.findOne({ email: normalizedEmail });
 
         if (user?.isBlocked) {
-            return res.status(403).json({
-                success: false,
-                message: "Your account has been blocked. Please contact support.",
+            return fail(res, 403, "Your account has been blocked. Please contact support.", {
                 code: "ACCOUNT_BLOCKED",
             });
         }
@@ -488,7 +1395,21 @@ export const googleAuth = async (req, res) => {
             }
         }
 
-        await user.save();
+        try {
+            await user.save();
+        } catch (saveError) {
+            // two simultaneous first sign-ins for the same email: use the record that won
+            if (saveError?.code !== 11000) throw saveError;
+
+            user = await User.findOne({ email: normalizedEmail });
+            if (!user) throw saveError;
+
+            if (user.isBlocked) {
+                return fail(res, 403, "Your account has been blocked. Please contact support.", {
+                    code: "ACCOUNT_BLOCKED",
+                });
+            }
+        }
 
         const token = signToken({ userId: user._id.toString() });
 
@@ -500,11 +1421,7 @@ export const googleAuth = async (req, res) => {
         });
     } catch (error) {
         console.error("Google auth error:", error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Something went wrong while signing in with Google",
-        });
+        return fail(res, 500, "Something went wrong while signing in with Google");
     }
 };
 
@@ -712,10 +1629,15 @@ export const deleteAccount = async (req, res) => {
     }
 };
 
-const APPLE_AUDIENCES = [
-    process.env.APPLE_BUNDLE_ID,
-    ...(process.env.NODE_ENV !== "production" ? ["host.exp.Exponent"] : []),
-].filter(Boolean);
+/* -------------------------------- APPLE -------------------------------- */
+// Env: APPLE_BUNDLE_ID = your iOS bundle identifier. Read per request so it
+// does not depend on when dotenv loads.
+
+const getAppleAudiences = () =>
+    [
+        process.env.APPLE_BUNDLE_ID,
+        ...(process.env.NODE_ENV !== "production" ? ["host.exp.Exponent"] : []),
+    ].filter(Boolean);
 
 export const appleAuth = async (req, res) => {
     try {
@@ -725,14 +1647,24 @@ export const appleAuth = async (req, res) => {
             return fail(res, 400, "Missing Apple identity token");
         }
 
+        const audiences = getAppleAudiences();
+        if (audiences.length === 0) {
+            console.error("APPLE_BUNDLE_ID is not set; cannot verify Apple tokens");
+            return fail(res, 500, "Apple sign-in is not configured on the server");
+        }
+
         let payload;
         try {
             ({ payload } = await jwtVerify(identityToken, APPLE_JWKS, {
                 issuer: "https://appleid.apple.com",
-                audience: APPLE_AUDIENCES,
+                audience: audiences,
             }));
         } catch (verifyError) {
-            console.error("Apple token verification error:", verifyError);
+            console.error(
+                "Apple token verification error:",
+                verifyError?.code,
+                verifyError?.message
+            );
             return fail(res, 401, "We couldn't verify that Apple account. Please try again.");
         }
 
@@ -755,10 +1687,14 @@ export const appleAuth = async (req, res) => {
         const cleanName = typeof name === "string" ? name.trim() : "";
 
         if (!user) {
-            // Apple only sends email on first sign-in; without it we can't create an account
+            // Without an email we can't create an account
             if (!email) {
                 return fail(res, 400, "Apple did not share an email address. Please try another sign-in method.");
             }
+
+            // clear any abandoned, never-verified record that would clash with the unique index
+            await User.deleteMany({ isVerified: false, email });
+
             user = new User({
                 email,
                 appleId,
@@ -766,6 +1702,11 @@ export const appleAuth = async (req, res) => {
                 isVerified: true,
             });
         } else {
+            // the email matched an account that is already linked to a different Apple ID
+            if (user.appleId && user.appleId !== appleId) {
+                return fail(res, 409, "This email is linked to a different Apple account.");
+            }
+
             if (!user.appleId) user.appleId = appleId;
             if (!user.isVerified) {
                 user.isVerified = true;
@@ -775,7 +1716,19 @@ export const appleAuth = async (req, res) => {
             if (!user.name && cleanName) user.name = cleanName;
         }
 
-        await user.save();
+        try {
+            await user.save();
+        } catch (saveError) {
+            if (saveError?.code === 11000) {
+                return fail(
+                    res,
+                    409,
+                    "An account with this email already exists. Please log in with your original sign-in method.",
+                    { code: "ALREADY_REGISTERED" }
+                );
+            }
+            throw saveError;
+        }
 
         const token = signToken({ userId: user._id.toString() });
 
@@ -791,6 +1744,8 @@ export const appleAuth = async (req, res) => {
     }
 };
 
+/* --------------------------- GOOGLE BOUNCE PAGE --------------------------- */
+
 export const googleAuthBounce = async (req, res) => {
     res.set({
         "Cache-Control": "no-store, no-cache, must-revalidate, private",
@@ -802,6 +1757,7 @@ export const googleAuthBounce = async (req, res) => {
 
     const isProd = process.env.NODE_ENV === "production";
     const allowed = isProd ? ["wonderbooks://"] : ["wonderbooks://", "exp://"];
+    const androidPackage = process.env.ANDROID_PACKAGE || "com.nowitservices.wonwonderbooks";
 
     return res.status(200).type("html").send(`<!DOCTYPE html>
 <html>
@@ -835,11 +1791,15 @@ export const googleAuthBounce = async (req, res) => {
   var message = document.getElementById("message");
   var button = document.getElementById("openApp");
   var allowed = ${JSON.stringify(allowed)};
+  var androidPackage = ${JSON.stringify(androidPackage)};
 
   try {
     var params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     var state = params.get("state");
     var accessToken = params.get("access_token");
+    var oauthError = params.get("error");
+
+    if (oauthError) throw new Error(oauthError);
 
     if (!state || !allowed.some(function (p) { return state.indexOf(p) === 0; })) {
       throw new Error("Invalid state");
@@ -849,17 +1809,21 @@ export const googleAuthBounce = async (req, res) => {
     var sep = state.indexOf("?") !== -1 ? "&" : "?";
     var finalUrl = state + sep + "access_token=" + encodeURIComponent(accessToken);
 
-    var idx = state.indexOf("://");
-    var scheme = state.substring(0, idx);
-    var rest = finalUrl.substring(idx + 3);
-    var pkg = scheme === "exp" ? "host.exp.exponent" : "com.nowitservices.wonwonderbooks";
+    var isAndroid = /Android/i.test(navigator.userAgent || "");
+    var openUrl = finalUrl; // iOS (and anything else): plain custom-scheme deep link
 
-    var openUrl = "intent://" + rest + "#Intent;scheme=" + scheme + ";package=" + pkg + ";end";
+    if (isAndroid) {
+      var idx = state.indexOf("://");
+      var scheme = state.substring(0, idx);
+      var rest = finalUrl.substring(idx + 3);
+      var pkg = scheme === "exp" ? "host.exp.exponent" : androidPackage;
+      openUrl = "intent://" + rest + "#Intent;scheme=" + scheme + ";package=" + pkg + ";end";
+    }
 
     button.href = openUrl;
-    window.location.replace(openUrl);           // redirect immediately
+    window.location.replace(openUrl);
 
-    setTimeout(function () {                    // fallback only if still here
+    setTimeout(function () {
       message.textContent = "Tap the button if the app did not open.";
       button.style.display = "inline-block";
     }, 2500);
